@@ -1,5 +1,5 @@
 <script lang="ts">
-    const title = "Welcome to BudgetWise";
+    const title = "Welcome to BudgetWise!";
 </script>
 
 <svelte:head>
