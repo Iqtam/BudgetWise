@@ -58,13 +58,14 @@ jobs:
 
       - name: Deploy with docker-compose
         run: |
-          docker compose -f ~/budgetwise/docker-compose.deploy.yml --env-file ~/budgetwise/.env down || true
-          docker compose -f ~/budgetwise/docker-compose.deploy.yml --env-file ~/budgetwise/.env pull
-          docker compose -f ~/budgetwise/docker-compose.deploy.yml --env-file ~/budgetwise/.env up --build -d
+          docker --context azure-vm compose -f ./budgetwise/docker-compose.deploy.yml --env-file ./budgetwise/.env down || true
+          docker --context azure-vm compose -f ./budgetwise/docker-compose.deploy.yml --env-file ./budgetwise/.env pull
+          docker --context azure-vm compose -f ./budgetwise/docker-compose.deploy.yml --env-file ./budgetwise/.env up --build -d
+
 
       - name: Verify deployment
         run: |
-          docker compose -f ~/budgetwise/docker-compose.deploy.yml ps
+          docker compose -f ./budgetwise/docker-compose.deploy.yml ps
 
       - name: Reset Docker context
         if: always()
