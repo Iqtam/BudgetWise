@@ -30,6 +30,13 @@ jobs:
           mkdir -p ~/.ssh
           ssh-keyscan -H ${{ secrets.AZURE_VM_HOST }} >> ~/.ssh/known_hosts
 
+      - name: Set up Docker context for remote host
+        run: |
+          HOST=$(echo "${{ secrets.AZURE_VM_HOST }}" | tr -d '[:space:]')
+          USER=$(echo "${{ secrets.AZURE_VM_USER }}" | tr -d '[:space:]')
+          docker context create azure-vm --docker "host=ssh://$USER@$HOST"
+          docker context use azure-vm
+
       - name: Generate .env on Azure VM
         run: |
           ssh ${{ secrets.AZURE_VM_USER }}@${{ secrets.AZURE_VM_HOST }} << 'EOF'
@@ -49,12 +56,18 @@ jobs:
           EOT
           EOF
 
-      - name: Deploy using remote SSH
+      - name: Deploy with docker-compose
         run: |
-          ssh ${{ secrets.AZURE_VM_USER }}@${{ secrets.AZURE_VM_HOST }} << 'EOF'
-          cd ~/budgetwise
-          docker compose -f docker-compose.deploy.yml down || true
-          docker compose -f docker-compose.deploy.yml pull
-          docker compose -f docker-compose.deploy.yml up --build -d
-          docker compose -f docker-compose.deploy.yml ps
-          EOF
+          docker compose -f ~/budgetwise/docker-compose.deploy.yml --env-file ~/budgetwise/.env down || true
+          docker compose -f ~/budgetwise/docker-compose.deploy.yml --env-file ~/budgetwise/.env pull
+          docker compose -f ~/budgetwise/docker-compose.deploy.yml --env-file ~/budgetwise/.env up --build -d
+
+      - name: Verify deployment
+        run: |
+          docker compose -f ~/budgetwise/docker-compose.deploy.yml ps
+
+      - name: Reset Docker context
+        if: always()
+        run: |
+          docker context use default
+          docker context rm azure-vm
