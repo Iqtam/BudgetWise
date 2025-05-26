@@ -3,7 +3,7 @@ name: Deploy to Production
 on:
   push:
     branches:
-      - deployment
+      - development
   workflow_dispatch:
 
 env:
@@ -45,6 +45,14 @@ jobs:
             ${{ env.REGISTRY }}/${{ steps.vars.outputs.image_name }}/frontend:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-args: |
+            PUBLIC_FIREBASE_API_KEY=${{ secrets.PUBLIC_FIREBASE_API_KEY }}
+            PUBLIC_FIREBASE_AUTH_DOMAIN=${{ secrets.PUBLIC_FIREBASE_AUTH_DOMAIN }}
+            PUBLIC_FIREBASE_PROJECT_ID=${{ secrets.PUBLIC_FIREBASE_PROJECT_ID }}
+            PUBLIC_FIREBASE_STORAGE_BUCKET=${{ secrets.PUBLIC_FIREBASE_STORAGE_BUCKET }}
+            PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${{ secrets.PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
+            PUBLIC_FIREBASE_APP_ID=${{ secrets.PUBLIC_FIREBASE_APP_ID }}
+            PUBLIC_BACKEND_API_URL=${{ secrets.PUBLIC_BACKEND_API_URL }}
 
       - name: Build and push Backend image
         uses: docker/build-push-action@v5
@@ -92,7 +100,6 @@ jobs:
 
       - name: Generate deployment files
         run: |
-          # Create .env file
           cat << EOF > .env
           POSTGRES_DB=${{ secrets.POSTGRES_DB }}
           POSTGRES_USER=${{ secrets.POSTGRES_USER }}
@@ -108,14 +115,20 @@ jobs:
           PUBLIC_FIREBASE_APP_ID=${{ secrets.PUBLIC_FIREBASE_APP_ID }}
           EOF
 
-          # Patch docker-compose.deploy.yml to use built images
-          sed -i "s|build: .*|image: ${{ env.REGISTRY }}/${{ steps.vars.outputs.image_name }}/frontend:${{ github.sha }}|" docker-compose.deploy.yml
-          sed -i "s|context: ./frontend||" docker-compose.deploy.yml
-          sed -i "s|dockerfile: Dockerfile||" docker-compose.deploy.yml
-          sed -i "s|build: .*|image: ${{ env.REGISTRY }}/${{ steps.vars.outputs.image_name }}/backend:${{ github.sha }}|" docker-compose.deploy.yml
-          sed -i "s|context: ./backend||" docker-compose.deploy.yml
-          sed -i "s|build: .*|image: ${{ env.REGISTRY }}/${{ steps.vars.outputs.image_name }}/nginx:${{ github.sha }}|" docker-compose.deploy.yml
-          sed -i "s|context: ./nginx||" docker-compose.deploy.yml
+          # Replace frontend build block with image
+          sed -i "/frontend:/,/image:/ s|build:.*|image: ${{ env.REGISTRY }}/${{ steps.vars.outputs.image_name }}/frontend:${{ github.sha }}|" docker-compose.deploy.yml
+          sed -i "/frontend:/,/image:/ s|context:.*||" docker-compose.deploy.yml
+          sed -i "/frontend:/,/image:/ s|dockerfile:.*||" docker-compose.deploy.yml
+
+          # Replace backend build block with image
+          sed -i "/backend:/,/image:/ s|build:.*|image: ${{ env.REGISTRY }}/${{ steps.vars.outputs.image_name }}/backend:${{ github.sha }}|" docker-compose.deploy.yml
+          sed -i "/backend:/,/image:/ s|context:.*||" docker-compose.deploy.yml
+          sed -i "/backend:/,/image:/ s|dockerfile:.*||" docker-compose.deploy.yml
+
+          # Replace nginx build block with image
+          sed -i "/nginx:/,/image:/ s|build:.*|image: ${{ env.REGISTRY }}/${{ steps.vars.outputs.image_name }}/nginx:${{ github.sha }}|" docker-compose.deploy.yml
+          sed -i "/nginx:/,/image:/ s|context:.*||" docker-compose.deploy.yml
+          sed -i "/nginx:/,/image:/ s|dockerfile:.*||" docker-compose.deploy.yml
 
       - name: Copy deployment files
         uses: appleboy/scp-action@v0.1.7
