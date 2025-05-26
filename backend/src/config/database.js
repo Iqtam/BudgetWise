@@ -2,11 +2,11 @@ const { Sequelize } = require('sequelize');
 require('dotenv').config();
 
 const sequelize = new Sequelize(
-  process.env.POSTGRES_DB || 'budgetwise',
-  process.env.POSTGRES_USER || 'postgres',
-  process.env.POSTGRES_PASSWORD || 'postgres',
+  process.env.POSTGRES_DB ,
+  process.env.POSTGRES_USER ,
+  process.env.POSTGRES_PASSWORD,
   {
-    host: process.env.POSTGRES_HOST || 'postgres', // Default to the service name in docker-compose
+    host: process.env.POSTGRES_HOST , // Default to the service name in docker-compose
     dialect: 'postgres',
     logging: false, // Set to console.log to see SQL queries
     pool: {

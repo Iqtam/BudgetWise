@@ -3,6 +3,8 @@ const express = require('express');
 const cors = require('cors');
 const { connectDB } = require('./config/database');
 const userRoutes = require('./routes/userRoutes');
+const authRoutes = require('./routes/auth');
+const adminRoutes = require('./routes/admin');
 
 // Initialize express app
 const app = express();
@@ -16,7 +18,8 @@ app.use(express.json());
 
 // Routes
 app.use('/api/users', userRoutes);
-
+app.use('/api/auth', authRoutes);
+app.use('/api/admin', adminRoutes);
 // Basic route
 app.get('/', (req, res) => {
   res.json({ message: 'Welcome to BudgetWise API' });

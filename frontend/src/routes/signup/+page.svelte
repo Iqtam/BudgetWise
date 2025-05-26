@@ -1,12 +1,13 @@
 <script lang="ts">
   import { signUp, signInWithGoogle } from "$lib/services/auth";
   import { goto } from "$app/navigation";
-  import { user } from "$lib/stores/auth";
+  import { firebaseUser, backendUser } from "$lib/stores/auth";
 
   let email = "";
   let password = "";
   let confirmPassword = "";
   let error = "";
+  let loading = false;
 
   async function handleSubmit() {
     try {
@@ -15,30 +16,40 @@
         error = "Passwords do not match";
         return;
       }
+      loading = true;
       await signUp(email, password);
       goto("/dashboard");
     } catch (e) {
       if (e instanceof Error) {
-        error = e.message; // Show Firebase error
+        error = e.message;
       } else {
         error = "Failed to create an account.";
       }
       console.error("Sign up failed:", e);
+    } finally {
+      loading = false;
     }
   }
 
   async function handleGoogleSignIn() {
     try {
+      loading = true;
       error = "";
       await signInWithGoogle();
       goto("/dashboard");
     } catch (e) {
-      error = "Failed to sign in with Google.";
+      if (e instanceof Error) {
+        error = e.message;
+      } else {
+        error = "Failed to sign in with Google.";
+      }
       console.error(e);
+    } finally {
+      loading = false;
     }
   }
 
-  $: if ($user) {
+  $: if ($firebaseUser && $backendUser) {
     goto("/dashboard");
   }
 </script>
@@ -58,6 +69,7 @@
           bind:value={email}
           required
           placeholder="Enter your email"
+          disabled={loading}
         />
       </div>
       <div class="form-group">
@@ -68,6 +80,7 @@
           bind:value={password}
           required
           placeholder="Enter your password"
+          disabled={loading}
         />
       </div>
       <div class="form-group">
@@ -78,13 +91,16 @@
           bind:value={confirmPassword}
           required
           placeholder="Confirm your password"
+          disabled={loading}
         />
       </div>
-      <button type="submit" class="btn primary">Sign Up</button>
+      <button type="submit" class="btn primary" disabled={loading}>
+        {loading ? "Creating account..." : "Sign Up"}
+      </button>
     </form>
     <div class="divider">or</div>
-    <button class="btn google" on:click={handleGoogleSignIn}>
-      Sign up with Google
+    <button class="btn google" on:click={handleGoogleSignIn} disabled={loading}>
+      {loading ? "Signing in..." : "Sign up with Google"}
     </button>
     <p class="login-link">
       Already have an account? <a href="/login">Log in</a>
@@ -134,6 +150,11 @@
     margin-bottom: 0.5rem;
   }
 
+  input:disabled {
+    background-color: #f5f5f5;
+    cursor: not-allowed;
+  }
+
   .btn {
     width: 100%;
     padding: 0.75rem;
@@ -144,12 +165,17 @@
     transition: background-color 0.2s;
   }
 
+  .btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+
   .primary {
     background-color: var(--color-primary);
     color: white;
   }
 
-  .primary:hover {
+  .primary:hover:not(:disabled) {
     background-color: #e63600;
   }
 
@@ -158,7 +184,7 @@
     color: white;
   }
 
-  .google:hover {
+  .google:hover:not(:disabled) {
     background-color: #3367d6;
   }
 

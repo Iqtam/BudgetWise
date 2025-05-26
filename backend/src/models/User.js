@@ -1,11 +1,9 @@
 const { DataTypes } = require('sequelize');
-const bcrypt = require('bcryptjs');
 const { sequelize } = require('../config/database');
 
 const User = sequelize.define('User', {
   id: {
-    type: DataTypes.UUID,
-    defaultValue: DataTypes.UUIDV4,
+    type: DataTypes.STRING, // Firebase UID
     primaryKey: true
   },
   email: {
@@ -16,20 +14,12 @@ const User = sequelize.define('User', {
       isEmail: true
     }
   },
-  password_hash: {
-    type: DataTypes.TEXT,
-    allowNull: false
-  },
   role: {
     type: DataTypes.STRING(20),
     defaultValue: 'user',
     validate: {
       isIn: [['user', 'admin']]
     }
-  },
-  email_verified: {
-    type: DataTypes.BOOLEAN,
-    defaultValue: false
   },
   last_login: {
     type: DataTypes.DATE
@@ -48,22 +38,9 @@ const User = sequelize.define('User', {
   updatedAt: 'updated_at'
 });
 
-// Hash password before saving
-User.beforeCreate(async (user) => {
-  if (user.password) {
-    user.password_hash = await bcrypt.hash(user.password, 12);
-  }
-});
+const UserProfile = require('./UserProfile');
+User.hasOne(UserProfile, { foreignKey: 'user_id' });
+UserProfile.belongsTo(User, { foreignKey: 'user_id' });
 
-User.beforeUpdate(async (user) => {
-  if (user.changed('password')) {
-    user.password_hash = await bcrypt.hash(user.password, 12);
-  }
-});
 
-// Instance method to check password
-User.prototype.comparePassword = async function(candidatePassword) {
-  return await bcrypt.compare(candidatePassword, this.password_hash);
-};
-
-module.exports = User; 
+module.exports = User;

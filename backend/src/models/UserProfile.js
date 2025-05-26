@@ -8,7 +8,7 @@ const UserProfile = sequelize.define('UserProfile', {
     primaryKey: true
   },
   user_id: {
-    type: DataTypes.UUID,
+    type: DataTypes.STRING, // Firebase UID
     allowNull: false,
     references: {
       model: 'users',
@@ -39,4 +39,4 @@ const UserProfile = sequelize.define('UserProfile', {
   timestamps: false
 });
 
-module.exports = UserProfile; 
+module.exports = UserProfile;
