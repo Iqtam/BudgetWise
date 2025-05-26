@@ -3,7 +3,7 @@ name: Deploy to Production
 on:
   push:
     branches:
-      - development
+      - deployment
   workflow_dispatch:
 
 env:
@@ -127,8 +127,9 @@ jobs:
           script: |
             cd ~/budgetwise
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
+            docker-compose -f docker-compose.deploy.yml down || true
             docker-compose -f docker-compose.deploy.yml pull
-            docker-compose -f docker-compose.deploy.yml up -d
+            docker-compose -f docker-compose.deploy.yml up -d --build
             docker image prune -f
 
       - name: Verify deployment
