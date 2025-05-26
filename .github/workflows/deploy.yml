@@ -51,7 +51,7 @@ jobs:
 
       - name: Deploy on Azure VM using SSH
         run: |
-          ssh ${{ secrets.AZURE_VM_USER }}@${{ secrets.AZURE_VM_HOST }} << 'EOF'
+          ssh ${{ secrets.AZURE_VM_USER }}@${{ secrets.AZURE_VM_HOST }} << EOF
           cd ~/budgetwise
           export \$(grep -v '^#' .env | xargs)
           docker compose -f docker-compose.deploy.yml down || true
@@ -59,3 +59,4 @@ jobs:
           docker compose -f docker-compose.deploy.yml up -d --build
           docker compose -f docker-compose.deploy.yml ps
           EOF
+
