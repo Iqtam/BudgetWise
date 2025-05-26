@@ -3,6 +3,7 @@
 
   // Form inputs
   let description = '';
+  //let category_id = '';
   let amount = '';
   let type = 'expense';
 
@@ -31,6 +32,7 @@
       const result = await response.json();
 
       if (response.ok) {
+        // @ts-ignore
         transactions = [...transactions, result.data];
         // Clear form
         description = '';
@@ -50,18 +52,19 @@
 
   <form on:submit|preventDefault={addTransaction}>
     <input
-      type="text"
-      placeholder="Description"
-      bind:value={description}
-      required
-    />
-    <input
       type="number"
       placeholder="Amount"
       bind:value={amount}
       step="0.01"
       required
     />
+    <input
+      type="text"
+      placeholder="Description"
+      bind:value={description}
+      required
+    />
+    
     <select bind:value={type}>
       <option value="income">Income</option>
       <option value="expense">Expense</option>

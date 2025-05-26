@@ -4,6 +4,7 @@ const cors = require('cors');
 const { connectDB } = require('./config/database');
 const userRoutes = require('./routes/userRoutes');
 const transactionRoutes = require('./routes/transactionRoutes');
+const categoryRoutes = require('./routes/categoryRoutes');
 
 // Initialize express app
 const app = express();
@@ -18,6 +19,7 @@ app.use(express.json());
 // Routes
 app.use('/api/users', userRoutes);
 app.use('/api/transactions', transactionRoutes);
+app.use('/api/categories', categoryRoutes);
 
 // Basic route
 app.get('/', (req, res) => {
