@@ -8,7 +8,7 @@ const UserProfile = sequelize.define('UserProfile', {
     primaryKey: true
   },
   user_id: {
-    type: DataTypes.STRING, // Firebase UID
+    type: DataTypes.UUID,
     allowNull: false,
     references: {
       model: 'users',

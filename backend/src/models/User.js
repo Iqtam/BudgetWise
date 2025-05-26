@@ -3,8 +3,14 @@ const { sequelize } = require('../config/database');
 
 const User = sequelize.define('User', {
   id: {
-    type: DataTypes.STRING, // Firebase UID
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
     primaryKey: true
+  },
+  firebase_uid: {
+    type: DataTypes.STRING(128),
+    allowNull: false,
+    unique: true
   },
   email: {
     type: DataTypes.STRING(255),
@@ -41,6 +47,5 @@ const User = sequelize.define('User', {
 const UserProfile = require('./UserProfile');
 User.hasOne(UserProfile, { foreignKey: 'user_id' });
 UserProfile.belongsTo(User, { foreignKey: 'user_id' });
-
 
 module.exports = User;

@@ -51,10 +51,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      JWT_SECRET: ${JWT_SECRET:-your-secret-key}
-      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID}
-      FIREBASE_PRIVATE_KEY: ${FIREBASE_PRIVATE_KEY}
-      FIREBASE_CLIENT_EMAIL: ${FIREBASE_CLIENT_EMAIL}
+      
     ports:
       - "5000:5000"
     depends_on:
@@ -98,10 +95,24 @@ services:
       timeout: 10s
       retries: 3
 
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - app-network
+
 volumes:
   postgres_data:
   redis_data:
 
 networks:
   budgetwise_network:
+    driver: bridge
+  app-network:
     driver: bridge

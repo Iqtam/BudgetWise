@@ -19,9 +19,10 @@ DROP TABLE IF EXISTS users CASCADE;
 
 -- Users table with Firebase UID and no password hash
 CREATE TABLE users (
-  id VARCHAR(128) PRIMARY KEY, -- Firebase UID
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(), -- Firebase UID
   email VARCHAR(255) UNIQUE NOT NULL,
   role VARCHAR(20) DEFAULT 'user' CHECK (role IN ('user', 'admin')),
+  firebase_uid VARCHAR(128) UNIQUE NOT NULL,
   last_login TIMESTAMP,
   status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'suspended')),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -31,7 +32,7 @@ CREATE TABLE users (
 -- User profiles
 CREATE TABLE user_profiles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id VARCHAR(128) REFERENCES users(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
   full_name VARCHAR(100),
   profile_picture_url TEXT,
   date_of_birth DATE,
@@ -63,7 +64,7 @@ CREATE TABLE event (
 -- Transactions
 CREATE TABLE transaction (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id VARCHAR(128) REFERENCES users(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
   amount NUMERIC(12, 2) NOT NULL,
   date DATE DEFAULT CURRENT_DATE,
   description TEXT,
@@ -77,7 +78,7 @@ CREATE TABLE transaction (
 -- Debts
 CREATE TABLE debt (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id VARCHAR(128) REFERENCES users(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
   description TEXT,
   type VARCHAR(50) CHECK (type IN ('bank', 'personal')),
   start_date DATE DEFAULT CURRENT_DATE,
@@ -90,7 +91,7 @@ CREATE TABLE debt (
 -- Savings
 CREATE TABLE saving (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id VARCHAR(128) REFERENCES users(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
   description TEXT,
   start_amount NUMERIC(12, 2) NOT NULL,
   target_amount NUMERIC(12, 2),
@@ -103,7 +104,7 @@ CREATE TABLE saving (
 -- Budgets
 CREATE TABLE budget (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id VARCHAR(128) REFERENCES users(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
   category_id UUID UNIQUE REFERENCES category(id) ON DELETE SET NULL,
   start_date DATE DEFAULT CURRENT_DATE,
   end_date DATE NOT NULL,
@@ -116,7 +117,7 @@ CREATE TABLE budget (
 -- Transfers
 CREATE TABLE transfer (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id VARCHAR(128) REFERENCES users(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
   description TEXT,
   date DATE DEFAULT CURRENT_DATE,
   from_income_id UUID REFERENCES transaction(id),
@@ -130,7 +131,7 @@ CREATE TABLE transfer (
 -- Recurrent transactions
 CREATE TABLE recurrent_transaction (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id VARCHAR(128) REFERENCES users(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
   amount NUMERIC(12, 2) NOT NULL,
   description TEXT,
   transaction_id UUID REFERENCES transaction(id) NOT NULL,
@@ -155,7 +156,7 @@ CREATE TABLE recurrent_transaction (
 -- Chat interactions (AI)
 CREATE TABLE chat_interactions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id VARCHAR(128) REFERENCES users(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
   input_text TEXT NOT NULL,
   interpreted_action TEXT,
   response TEXT,
@@ -169,7 +170,7 @@ CREATE TABLE chat_interactions (
 -- Uploads
 CREATE TABLE uploads (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id VARCHAR(128) REFERENCES users(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
   file_name VARCHAR(255) NOT NULL,
   file_type VARCHAR(50),
   storage_url TEXT NOT NULL,
@@ -180,7 +181,7 @@ CREATE TABLE uploads (
 -- AI Extraction logs
 CREATE TABLE ai_extractions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id VARCHAR(128) REFERENCES users(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
   linked_transaction_id UUID REFERENCES transaction(id) ON DELETE SET NULL,
   upload_id UUID REFERENCES uploads(id) ON DELETE SET NULL,
   source TEXT,
