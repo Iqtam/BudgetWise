@@ -1,10 +1,24 @@
 <script lang="ts">
   import "../app.css";
   import { onMount } from "svelte";
+  import { page } from "$app/stores";
+  import { goto } from "$app/navigation";
   import { auth } from "$lib/firebase";
   import { firebaseUser, backendUser, loading } from "$lib/stores/auth";
   import { onAuthStateChanged } from "firebase/auth";
   import { getCurrentUser } from "$lib/services/auth";
+
+  // Define protected routes
+  const protectedRoutes = ['/transactions', '/debt', '/savings', '/budget', '/analytics'];
+  
+  // Check if current route is protected
+  $: isProtectedRoute = protectedRoutes.some(route => $page.url.pathname.startsWith(route));
+  
+  // Redirect to login if accessing protected route without authentication
+  $: if (!$loading && isProtectedRoute && !$firebaseUser) {
+    alert("You must log in first to access this page");
+    goto('/login');
+  }
 
   onMount(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
