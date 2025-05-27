@@ -40,7 +40,19 @@ exports.createTransaction = async (req, res) => {
 
 exports.getAllTransactions = async (req, res) => {
   try {
-    const transactions = await Transaction.findAll();
+    const { user_id } = req.query;
+    
+    let transactions;
+    if (user_id) {
+      // Filter transactions by user_id if provided
+      transactions = await Transaction.findAll({
+        where: { user_id }
+      });
+    } else {
+      // Return all transactions if no user_id specified (for admin use)
+      transactions = await Transaction.findAll();
+    }
+    
     res.json(transactions);
   } catch (error) {
     console.error('Fetch Transaction Error:', error);

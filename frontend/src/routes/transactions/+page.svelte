@@ -1,5 +1,8 @@
 <script>
   import { onMount } from "svelte";
+  import { firebaseUser, backendUser } from "$lib/stores/auth";
+  import { PUBLIC_BACKEND_API_URL } from "$env/static/public";
+
 
   let transactions = [];
 
@@ -11,31 +14,61 @@
   let date = "";
 
   let categories = [];
+  let user_id = "";
 
-  // onMount(async () => {
-  //   try {
-  //     const res = await fetch("http://localhost:5000/api/categories");
-  //     categories = await res.json();
-  //   } catch (err) {
-  //     console.error("Failed to load categories", err);
-  //   }
-  // });
+  // Reactively update user_id when firebaseUser changes
+  $: if ($firebaseUser && $backendUser) {
+    user_id = $backendUser.id;
+    // Only fetch user-specific transactions if categories are already loaded
+    if (categories.length > 0) {
+      loadUserTransactions();
+    }
+  } else {
+    user_id = "";
+    transactions = []; // Clear transactions when user logs out
+  }
+
+  // Reactive statement to load transactions when categories are loaded and user is authenticated
+  $: if (categories.length > 0 && user_id) {
+    loadUserTransactions();
+  }
+
+  async function loadUserTransactions() {
+    if (!user_id) {
+      console.log("No user_id available");
+      return;
+    }
+    
+    console.log("Fetching transactions for user_id:", user_id);
+    
+    try {
+      const url = `${PUBLIC_BACKEND_API_URL}/transactions?user_id=${user_id}`;
+      console.log("Request URL:", url);
+      
+      const txRes = await fetch(url);
+      const data = await txRes.json();
+      
+      console.log("Response data:", data);
+      transactions = data;
+    } catch (err) {
+      console.error("Failed to load user transactions", err);
+    }
+  }
 
   onMount(async () => {
     try {
-      const [catRes, txRes] = await Promise.all([
-        fetch("http://localhost:5000/api/categories"),
-        fetch("http://localhost:5000/api/transactions"),
-      ]);
-
+      // Only fetch categories (which are global)
+      const catRes = await fetch(`${PUBLIC_BACKEND_API_URL}/categories`);
       categories = await catRes.json();
-      transactions = await txRes.json();
+      
+      // Transactions will be loaded when user is authenticated via the reactive statement
     } catch (err) {
       console.error("Failed to load data", err);
     }
   });
 
   function getCategoryName(id) {
+    if (categories.length === 0) return "Loading...";
     const cat = categories.find((c) => c.id === id);
     return cat ? cat.name : "Unknown";
   }
@@ -44,7 +77,7 @@
     if (!newCategory.trim()) return;
 
     try {
-      const res = await fetch("http://localhost:5000/api/categories", {
+      const res = await fetch(`${PUBLIC_BACKEND_API_URL}/categories`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: newCategory, type }),
@@ -66,8 +99,14 @@
       alert("Amount must be a positive number!");
       return;
     }
+
+    if (!user_id) {
+      alert("You must be logged in to add a transaction!");
+      return;
+    }
+
     const newTx = {
-      user_id: "4be7b2a2-1ca3-46d8-9a5c-9fba68afeda1",
+      user_id: user_id,
       amount: parsedAmount,
       description,
       type,
@@ -76,7 +115,7 @@
     };
 
     try {
-      const response = await fetch("http://localhost:5000/api/transactions", {
+      const response = await fetch(`${PUBLIC_BACKEND_API_URL}/transactions`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -112,7 +151,7 @@
   if (!confirm('Are you sure you want to delete this transaction?')) return;
 
   try {
-    const res = await fetch(`http://localhost:5000/api/transactions/${id}`, {
+    const res = await fetch(`${PUBLIC_BACKEND_API_URL}/transactions/${id}`, {
       method: 'DELETE'
     });
 

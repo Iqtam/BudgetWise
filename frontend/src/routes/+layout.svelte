@@ -32,8 +32,17 @@
 
 
 <nav>
-  <a href="/">Home</a>
-  <a href="/transactions">Transactions</a>
+  <div class="nav-left">
+    <a href="/">Home</a>
+    <a href="/transactions">Transactions</a>
+    <a href="/debt">Debt</a>
+    <a href="/savings">Savings</a>
+    <a href="/budget">Budget</a>
+    <a href="/analytics">Analytics</a>
+  </div>
+  <div class="nav-right">
+    <a href="/login">Login</a>
+  </div>
 </nav>
 
 <slot /> <!-- This is where the page content will be injected -->
@@ -46,12 +55,27 @@
   nav {
     background-color: #4caf50;
     padding: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .nav-left,
+  .nav-right {
+    display: flex;
+    gap: 1rem;
   }
 
   nav a {
-    margin-right: 1rem;
     color: white;
     text-decoration: none;
+    padding: 0.5rem;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+  }
+
+  nav a:hover {
+    background-color: rgba(255, 255, 255, 0.1);
   }
 
   footer {
