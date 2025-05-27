@@ -2,11 +2,13 @@ const { Sequelize } = require('sequelize');
 require('dotenv').config();
 
 const sequelize = new Sequelize(
+
   process.env.POSTGRES_DB ,
   process.env.POSTGRES_USER ,
   process.env.POSTGRES_PASSWORD,
   {
     host: process.env.POSTGRES_HOST , // Default to the service name in docker-compose
+
     dialect: 'postgres',
     logging: false, // Set to console.log to see SQL queries
     pool: {
@@ -31,6 +33,20 @@ const sequelize = new Sequelize(
   }
 );
 
+// const connectDB = async () => {
+//   try {
+//     await sequelize.authenticate();
+//     console.log('PostgreSQL Database connected successfully');
+    
+//     // Sync all models
+//     await sequelize.sync();
+//     console.log('Database synchronized');
+//   } catch (error) {
+//     console.error('Unable to connect to the database:', error);
+//     process.exit(1);
+//   }
+// };
+
 const connectDB = async () => {
   try {
     await sequelize.authenticate();
@@ -40,7 +56,7 @@ const connectDB = async () => {
     await sequelize.sync({ alter: true });
     console.log('Database synchronized');
   } catch (error) {
-    console.error('Unable to connect to the database:', error);
+    console.error('❌ Unable to connect to the database:', error);
     process.exit(1);
   }
 };

@@ -3,6 +3,8 @@ const express = require('express');
 const cors = require('cors');
 const { connectDB } = require('./config/database');
 const userRoutes = require('./routes/userRoutes');
+const transactionRoutes = require('./routes/transactionRoutes');
+const categoryRoutes = require('./routes/categoryRoutes');
 const authRoutes = require('./routes/auth');
 const adminRoutes = require('./routes/admin');
 
@@ -20,6 +22,9 @@ app.use(express.json());
 app.use('/api/users', userRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/transactions', transactionRoutes);
+app.use('/api/categories', categoryRoutes);
+
 // Basic route
 app.get('/api/health', (req, res) => {
   res.json({ message: 'Welcome to BudgetWise API' });
