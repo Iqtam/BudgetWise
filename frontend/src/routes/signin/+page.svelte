@@ -1,18 +1,15 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { Button } from '$lib/components/ui/button';
-	import { Card, CardContent, CardHeader } from '$lib/components/ui/card';
+	import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import { Input } from '$lib/components/ui/input';
 	import { Separator } from '$lib/components/ui/separator';
 	import { DollarSign, Eye, EyeOff, Mail, Lock } from 'lucide-svelte';
-	import { onMount } from 'svelte';
 
-	let formData = {
-		email: '',
-		password: ''
-	};
-
+	let email = '';
+	let password = '';
 	let showPassword = false;
+	let rememberMe = false;
 	let isLoading = false;
 	let isGoogleLoading = false;
 
@@ -26,30 +23,28 @@
 		}, 3000);
 	}
 
-	async function handleEmailSignUp(e: Event) {
+	async function handleEmailSignIn(e: Event) {
 		e.preventDefault();
-
-		if (formData.password.length < 8) {
-			showToast('Weak password', 'Password must be at least 8 characters long.', 'destructive');
-			return;
-		}
-
 		isLoading = true;
 
 		// Simulate API call
 		setTimeout(() => {
-			showToast('Welcome to BudgetWise!', 'Your account has been created successfully.');
-			goto('/dashboard');
+			if (email && password) {
+				showToast('Welcome back!', 'You have successfully signed in to BudgetWise.');
+				goto('/dashboard');
+			} else {
+				showToast('Sign in failed', 'Please check your email and password.', 'destructive');
+			}
 			isLoading = false;
 		}, 1500);
 	}
 
-	async function handleGoogleSignUp() {
+	async function handleGoogleSignIn() {
 		isGoogleLoading = true;
 
 		// Simulate Google OAuth
 		setTimeout(() => {
-			showToast('Welcome to BudgetWise!', 'Your account has been created with Google.');
+			showToast('Welcome back!', 'You have successfully signed in with Google.');
 			goto('/dashboard');
 			isGoogleLoading = false;
 		}, 2000);
@@ -57,11 +52,11 @@
 </script>
 
 <svelte:head>
-	<title>Sign Up - BudgetWise</title>
-	<meta name="description" content="Create your BudgetWise account and start your journey to financial freedom" />
+	<title>Sign In - BudgetWise</title>
+	<meta name="description" content="Sign in to your BudgetWise account to continue your financial journey" />
 </svelte:head>
 
-<div class="min-h-screen bg-slate-900 flex items-center justify-center p-4">
+<div class="min-h-screen bg-gray-900 text-white flex items-center justify-center p-4">
 	{#if notification.show}
 		<div
 			class="fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg {notification.variant === 'destructive'
@@ -74,32 +69,35 @@
 	{/if}
 
 	<div class="w-full max-w-md">
-		<Card class="bg-slate-800 border-slate-700 shadow-2xl">
+		<!-- Header -->
+		<Card class="bg-gray-800 border-gray-700 shadow-lg">
 			<CardHeader class="text-center py-8">
-				<div class="flex justify-center items-center gap-3 mb-6">
-					<div
-						class="flex h-12 w-12 items-center justify-center rounded-lg bg-gradient-to-r from-blue-500 to-green-500"
-					>
-						<DollarSign class="h-6 w-6 text-white" />
-					</div>
-					<span class="text-3xl font-bold text-white">BudgetWise</span>
+				<div class="flex justify-center mb-6">
+					<a href="/" class="flex items-center gap-2 hover:opacity-80 transition-opacity">
+						<div
+							class="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-r from-blue-500 to-green-500"
+						>
+							<DollarSign class="h-5 w-5 text-white" />
+						</div>
+						<span class="text-2xl font-bold text-white">BudgetWise</span>
+					</a>
 				</div>
-				<h1 class="text-2xl font-bold text-white mb-2">Create Account</h1>
-				<p class="text-slate-400">Start your journey to financial freedom</p>
+				<h1 class="text-2xl font-bold text-white mb-2">Welcome Back</h1>
+				<p class="text-gray-400">Sign in to continue to your dashboard</p>
 			</CardHeader>
 			<CardContent class="space-y-6 px-8 pb-8">
 				<!-- Email/Password Form -->
-				<form on:submit={handleEmailSignUp} class="space-y-6">
+				<form on:submit={handleEmailSignIn} class="space-y-6">
 					<div class="space-y-2">
-						<label for="email" class="text-sm font-medium text-white">Email</label>
+						<label for="email" class="text-sm font-medium text-gray-300">Email</label>
 						<div class="relative">
-							<Mail class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+							<Mail class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
 							<Input
 								id="email"
 								type="email"
 								placeholder="Enter your email"
-								bind:value={formData.email}
-								class="pl-10 h-12 bg-slate-700 border-slate-600 text-white placeholder-slate-400 focus:border-blue-500"
+								bind:value={email}
+								class="pl-10 bg-gray-700 border-gray-600 text-white placeholder-gray-400 h-12"
 								required
 								disabled={isLoading || isGoogleLoading}
 							/>
@@ -107,15 +105,15 @@
 					</div>
 
 					<div class="space-y-2">
-						<label for="password" class="text-sm font-medium text-white">Password</label>
+						<label for="password" class="text-sm font-medium text-gray-300">Password</label>
 						<div class="relative">
-							<Lock class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+							<Lock class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
 							<Input
 								id="password"
 								type={showPassword ? 'text' : 'password'}
-								placeholder="Create a strong password"
-								bind:value={formData.password}
-								class="pl-10 pr-10 h-12 bg-slate-700 border-slate-600 text-white placeholder-slate-400 focus:border-blue-500"
+								placeholder="Enter your password"
+								bind:value={password}
+								class="pl-10 pr-10 bg-gray-700 border-gray-600 text-white placeholder-gray-400 h-12"
 								required
 								disabled={isLoading || isGoogleLoading}
 							/>
@@ -128,9 +126,9 @@
 								disabled={isLoading || isGoogleLoading}
 							>
 								{#if showPassword}
-									<EyeOff class="h-4 w-4 text-slate-400" />
+									<EyeOff class="h-4 w-4 text-gray-400" />
 								{:else}
-									<Eye class="h-4 w-4 text-slate-400" />
+									<Eye class="h-4 w-4 text-gray-400" />
 								{/if}
 							</Button>
 						</div>
@@ -145,32 +143,32 @@
 							<div
 								class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"
 							></div>
-							Creating account...
+							Signing in...
 						{:else}
-							Sign Up
+							Sign In
 						{/if}
 					</Button>
 				</form>
 
 				<div class="relative">
 					<div class="absolute inset-0 flex items-center">
-						<Separator class="w-full border-slate-600" />
+						<Separator class="w-full border-gray-600" />
 					</div>
 					<div class="relative flex justify-center text-xs uppercase">
-						<span class="bg-slate-800 px-3 text-slate-400">OR CONTINUE WITH</span>
+						<span class="bg-gray-800 px-2 text-gray-400">Or continue with</span>
 					</div>
 				</div>
 
-				<!-- Google Sign Up -->
+				<!-- Google Sign In -->
 				<Button
 					variant="outline"
-					class="w-full h-12 bg-slate-700 border-slate-600 text-white hover:bg-slate-600"
-					on:click={handleGoogleSignUp}
+					class="w-full h-12 bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
+					on:click={handleGoogleSignIn}
 					disabled={isGoogleLoading || isLoading}
 				>
 					{#if isGoogleLoading}
 						<div
-							class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"
+							class="w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin mr-2"
 						></div>
 					{:else}
 						<svg class="w-5 h-5 mr-2" viewBox="0 0 24 24">
@@ -195,11 +193,11 @@
 					Continue with Google
 				</Button>
 
-				<div class="text-center text-sm text-slate-400 mt-6">
-					Already have an account? <a href="/signin" class="text-blue-400 hover:underline font-medium">Sign In</a>
+				<div class="text-center text-sm text-gray-400 mt-6">
+					Don't have an account? <a href="/signup" class="text-blue-400 hover:underline font-medium">Sign Up</a>
 				</div>
 
-				<div class="text-center text-xs text-slate-500 mt-4 flex items-center justify-center gap-1">
+				<div class="text-center text-xs text-gray-500 mt-4 flex items-center justify-center gap-1">
 					<svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
 						<path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
 					</svg>
@@ -209,10 +207,10 @@
 		</Card>
 
 		<!-- Footer -->
-		<div class="mt-6 text-center text-xs text-slate-500">
+		<div class="mt-6 text-center text-xs text-gray-500">
 			<p>
-				By continuing, you agree to our <a href="/terms" class="hover:underline text-slate-400">Terms of Service</a>
-				and <a href="/privacy" class="hover:underline text-slate-400">Privacy Policy</a>
+				By continuing, you agree to our <a href="/terms" class="hover:underline text-gray-400">Terms of Service</a>
+				and <a href="/privacy" class="hover:underline text-gray-400">Privacy Policy</a>
 			</p>
 		</div>
 	</div>
