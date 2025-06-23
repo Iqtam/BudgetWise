@@ -43,22 +43,22 @@ CMD ["npm", "run", "test"]
     COPY . .
     RUN npm run build  # This runs `svelte-kit build`
     
+    RUN find /app -name "index.js" -o -name "*.js" | grep -E "(build|output|dist)"
+    
     # ----------- RUN STAGE -----------
     FROM node:20-alpine AS production
     
     WORKDIR /app
     
     COPY package*.json ./
-    RUN npm install --omit=dev
+    RUN npm install
     
-    # Copy everything needed to run the SvelteKit server
-    COPY --from=build /app/build ./build
-    COPY --from=build /app/.svelte-kit ./.svelte-kit
+    # Copy the SvelteKit output
+    COPY --from=build /app/.svelte-kit/output/server ./server
+    COPY --from=build /app/.svelte-kit/output/client ./client
     COPY --from=build /app/static ./static
-    COPY --from=build /app/src ./src
-    COPY --from=build /app/svelte.config.js ./
-    COPY --from=build /app/vite.config.ts ./
+    COPY --from=build /app/package.json ./
     
     EXPOSE 3000
-    CMD ["node", "build"]
+    CMD ["node", "server/index.js"]
     

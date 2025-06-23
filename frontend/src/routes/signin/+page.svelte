@@ -4,7 +4,8 @@
 	import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import { Input } from '$lib/components/ui/input';
 	import { Separator } from '$lib/components/ui/separator';
-	import { DollarSign, Eye, EyeOff, Mail, Lock } from 'lucide-svelte';
+	import { DollarSign, Eye, EyeOff, Mail, Lock } from 'lucide-svelte';	import { signIn, signInWithGoogle } from "$lib/services/auth";
+	import { firebaseUser, backendUser, loading } from "$lib/stores/auth";
 
 	let email = '';
 	let password = '';
@@ -12,9 +13,15 @@
 	let rememberMe = false;
 	let isLoading = false;
 	let isGoogleLoading = false;
+	let error = '';
 
 	// Toast-like notification system (simplified)
 	let notification = { show: false, title: '', description: '', variant: 'default' };
+
+	// Reactive redirect after successful authentication
+	$: if (!$loading && $firebaseUser && $backendUser) {
+		goto('/dashboard');
+	}
 
 	function showToast(title: string, description: string, variant: string = 'default') {
 		notification = { show: true, title, description, variant };
@@ -22,32 +29,52 @@
 			notification.show = false;
 		}, 3000);
 	}
-
 	async function handleEmailSignIn(e: Event) {
 		e.preventDefault();
-		isLoading = true;
-
-		// Simulate API call
-		setTimeout(() => {
-			if (email && password) {
-				showToast('Welcome back!', 'You have successfully signed in to BudgetWise.');
-				goto('/dashboard');
+		try {
+			isLoading = true;
+			error = "";
+			await signIn(email, password);
+			showToast('Welcome back!', 'You have successfully signed in to BudgetWise.');
+			// Redirect is handled by reactive statement above
+		} catch (e) {
+			if (e instanceof Error) {
+				error = e.message;
+				showToast('Sign in failed', e.message, 'destructive');
 			} else {
+				error = "Failed to sign in. Please check your credentials.";
 				showToast('Sign in failed', 'Please check your email and password.', 'destructive');
 			}
+			console.error(e);
+		} finally {
 			isLoading = false;
-		}, 1500);
+		}
 	}
 
 	async function handleGoogleSignIn() {
-		isGoogleLoading = true;
-
-		// Simulate Google OAuth
-		setTimeout(() => {
+		try {
+			isGoogleLoading = true;
+			error = "";
+			await signInWithGoogle();
 			showToast('Welcome back!', 'You have successfully signed in with Google.');
-			goto('/dashboard');
+			// Redirect is handled by reactive statement above
+		} catch (e) {
+			if (e instanceof Error) {
+				error = e.message;
+				showToast('Sign in failed', e.message, 'destructive');
+			} else {
+				error = "Failed to sign in with Google.";
+				showToast('Sign in failed', 'Failed to sign in with Google.', 'destructive');
+			}
+			console.error(e);
+		} finally {
 			isGoogleLoading = false;
-		}, 2000);
+		}
+	}
+
+	// Auto-redirect if already authenticated
+	$: if ($firebaseUser && $backendUser) {
+		goto("/dashboard");
 	}
 </script>
 

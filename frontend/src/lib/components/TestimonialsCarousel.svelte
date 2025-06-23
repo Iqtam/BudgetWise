@@ -48,50 +48,44 @@
 				'The automated categorization is spot-on and saves me hours each month. The insights into my spending patterns were eye-opening and helped me optimize my finances.',
 			rating: 5,
 			avatar: 'LT'
-		}
-	];
+		}	];
 
 	let currentIndex = 0;
+	let intervalId: ReturnType<typeof setInterval>;
 
 	onMount(() => {
-		const timer = setInterval(() => {
+		console.log('Testimonials carousel mounted');
+		intervalId = setInterval(() => {
 			currentIndex = (currentIndex + 1) % testimonials.length;
-		}, 4000);
+			console.log(`Changed to testimonial ${currentIndex}`);
+		}, 3000); // Changed to 3 seconds for faster testing
 
-		return () => clearInterval(timer);
-	});
+		return () => {
+			console.log('Testimonials carousel unmounted');
+			if (intervalId) {
+				clearInterval(intervalId);
+			}
+		};
+	});	function goToSlide(index: number) {
+		currentIndex = index;
+		console.log(`Manual navigation to testimonial ${index}`);
+	}
 
 	function getCardStyle(index: number) {
 		const position = (index - currentIndex + testimonials.length) % testimonials.length;
 
 		if (position === 0) {
 			// Active card (center)
-			return {
-				transform: 'translateX(0%) scale(1)',
-				opacity: 1,
-				zIndex: 3
-			};
+			return 'transform: translateX(0%) scale(1); opacity: 1; z-index: 3;';
 		} else if (position === 1 || position === testimonials.length - 1) {
 			// Adjacent cards
 			const translateX = position === 1 ? '60%' : '-60%';
-			return {
-				transform: `translateX(${translateX}) scale(0.85)`,
-				opacity: 0.6,
-				zIndex: 2
-			};
+			return `transform: translateX(${translateX}) scale(0.85); opacity: 0.6; z-index: 2;`;
 		} else {
 			// Hidden cards
 			const translateX = position < testimonials.length / 2 ? '120%' : '-120%';
-			return {
-				transform: `translateX(${translateX}) scale(0.7)`,
-				opacity: 0,
-				zIndex: 1
-			};
+			return `transform: translateX(${translateX}) scale(0.7); opacity: 0; z-index: 1;`;
 		}
-	}
-
-	function goToSlide(index: number) {
-		currentIndex = index;
 	}
 </script>
 
@@ -100,7 +94,7 @@
 		{#each testimonials as testimonial, index}
 			<Card
 				class="absolute w-full max-w-2xl bg-gray-800/50 border-gray-700 backdrop-blur-sm transition-all duration-700 ease-in-out"
-				style="transform: {getCardStyle(index).transform}; opacity: {getCardStyle(index).opacity}; z-index: {getCardStyle(index).zIndex};"
+				style={getCardStyle(index)}
 			>
 				<CardContent class="p-8">
 					<div class="flex mb-4">

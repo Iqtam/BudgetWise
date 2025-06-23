@@ -194,7 +194,7 @@
 					for complete financial control.
 				</p>
 			</div>
-			<div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+			<!-- <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
 				{#each features as feature, index}
 					<Card class="bg-gray-800/50 border-gray-700 hover:bg-gray-800/70 transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-blue-500/10">
 						<CardContent class="p-6">
@@ -210,7 +210,7 @@
 						</CardContent>
 					</Card>
 				{/each}
-			</div>
+			</div> -->
 		</div>
 	</section>
 

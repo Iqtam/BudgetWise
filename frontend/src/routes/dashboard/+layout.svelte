@@ -13,11 +13,14 @@
 		Bell, 
 		Sun, 
 		Moon,
-		Goal
+		Goal,
+		LogOut
 	} from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Avatar, AvatarFallback } from '$lib/components/ui/avatar';
+	import { signOut } from '$lib/services/auth';
+	import { firebaseUser, backendUser } from '$lib/stores/auth';
 
 	let sidebarOpen = $state(true);
 	let notificationCount = $state(3);
@@ -38,6 +41,15 @@
 	const aiItems = [
 		{ title: "AI Assistant", url: "/dashboard/chat", icon: Bot },
 	];
+
+	async function handleSignOut() {
+		try {
+			await signOut();
+			goto('/signin');
+		} catch (error) {
+			console.error('Error signing out:', error);
+		}
+	}
 
 	// Page mapping for dynamic titles
 	const pageMap: Record<string, { title: string; subtitle?: string }> = {
@@ -85,17 +97,9 @@
 		notificationCount = 0;
 		console.log("Notifications clicked");
 	}
-
 	function handleThemeToggle() {
 		theme = theme === "dark" ? "light" : "dark";
 		console.log(`Theme changed to ${theme}`);
-	}
-
-	function handleLogout() {
-		console.log("Logout clicked");
-		setTimeout(() => {
-			goto("/");
-		}, 1000);
 	}
 
 	function isActiveRoute(url: string) {
@@ -209,20 +213,31 @@
 				</nav>
 			</div>
 		</div>
-
 		<!-- Sidebar Footer -->
 		<div class="border-t border-gray-800 p-4 flex-shrink-0">
-			<div class="flex items-center gap-2">
-				<Avatar class="h-8 w-8">
-					<AvatarFallback class="bg-gradient-to-r from-blue-500 to-green-500 text-white text-sm">
-						JD
-					</AvatarFallback>
-				</Avatar>
+			<div class="flex items-center justify-between gap-2">
+				<div class="flex items-center gap-2">
+					<Avatar class="h-8 w-8">
+						<AvatarFallback class="bg-gradient-to-r from-blue-500 to-green-500 text-white text-sm">
+							{$backendUser?.email?.charAt(0).toUpperCase() || 'U'}
+						</AvatarFallback>
+					</Avatar>
+					{#if sidebarOpen}
+						<div class="flex flex-col">
+							<span class="text-sm font-medium text-white">{$backendUser?.email || 'User'}</span>
+							<span class="text-xs text-gray-400">{$backendUser?.role || 'Member'}</span>
+						</div>
+					{/if}
+				</div>
 				{#if sidebarOpen}
-					<div class="flex flex-col">
-						<span class="text-sm font-medium text-white">John Doe</span>
-						<span class="text-xs text-gray-400">john@example.com</span>
-					</div>
+					<Button
+						variant="ghost"
+						size="sm"
+						class="text-gray-400 hover:text-white hover:bg-gray-800"
+						on:click={handleSignOut}
+					>
+						<LogOut class="h-4 w-4" />
+					</Button>
 				{/if}
 			</div>
 		</div>
@@ -280,17 +295,15 @@
 						{:else}
 							<Moon class="h-4 w-4" />
 						{/if}
-					</Button>
-
-					<!-- User Avatar -->
+					</Button>					<!-- User Avatar -->
 					<Button
 						variant="ghost"
 						class="relative h-9 w-9 rounded-full hover:bg-gray-800"
-						onclick={handleLogout}
+						onclick={handleSignOut}
 					>
 						<Avatar class="h-8 w-8">
 							<AvatarFallback class="bg-gradient-to-r from-blue-500 to-green-500 text-white text-sm">
-								JD
+								{$backendUser?.email?.charAt(0).toUpperCase() || 'U'}
 							</AvatarFallback>
 						</Avatar>
 					</Button>

@@ -4,20 +4,24 @@
 	import { Card, CardContent, CardHeader } from '$lib/components/ui/card';
 	import { Input } from '$lib/components/ui/input';
 	import { Separator } from '$lib/components/ui/separator';
-	import { DollarSign, Eye, EyeOff, Mail, Lock } from 'lucide-svelte';
-	import { onMount } from 'svelte';
+	import { DollarSign, Eye, EyeOff, Mail, Lock } from 'lucide-svelte';	import { signUp, signInWithGoogle } from "$lib/services/auth";
+	import { firebaseUser, backendUser, loading } from "$lib/stores/auth";
 
-	let formData = {
-		email: '',
-		password: ''
-	};
-
+	let email = '';
+	let password = '';
+	let confirmPassword = '';
 	let showPassword = false;
 	let isLoading = false;
 	let isGoogleLoading = false;
+	let error = '';
 
 	// Toast-like notification system (simplified)
 	let notification = { show: false, title: '', description: '', variant: 'default' };
+
+	// Reactive redirect after successful authentication
+	$: if (!$loading && $firebaseUser && $backendUser) {
+		goto('/dashboard');
+	}
 
 	function showToast(title: string, description: string, variant: string = 'default') {
 		notification = { show: true, title, description, variant };
@@ -29,30 +33,59 @@
 	async function handleEmailSignUp(e: Event) {
 		e.preventDefault();
 
-		if (formData.password.length < 8) {
+		if (password.length < 8) {
 			showToast('Weak password', 'Password must be at least 8 characters long.', 'destructive');
 			return;
 		}
 
-		isLoading = true;
-
-		// Simulate API call
-		setTimeout(() => {
+		if (password !== confirmPassword) {
+			showToast('Password mismatch', 'Passwords do not match', 'destructive');
+			return;
+		}
+		try {
+			error = "";
+			isLoading = true;
+			await signUp(email, password);
 			showToast('Welcome to BudgetWise!', 'Your account has been created successfully.');
-			goto('/dashboard');
+			// Redirect is handled by reactive statement above
+		} catch (e) {
+			if (e instanceof Error) {
+				error = e.message;
+				showToast('Sign up failed', e.message, 'destructive');
+			} else {
+				error = "Failed to create an account.";
+				showToast('Sign up failed', 'Failed to create an account.', 'destructive');
+			}
+			console.error("Sign up failed:", e);
+		} finally {
 			isLoading = false;
-		}, 1500);
+		}
 	}
 
 	async function handleGoogleSignUp() {
-		isGoogleLoading = true;
-
-		// Simulate Google OAuth
-		setTimeout(() => {
+		try {
+			isGoogleLoading = true;
+			error = "";
+			await signInWithGoogle();
 			showToast('Welcome to BudgetWise!', 'Your account has been created with Google.');
-			goto('/dashboard');
+			// Redirect is handled by reactive statement above
+		} catch (e) {
+			if (e instanceof Error) {
+				error = e.message;
+				showToast('Sign up failed', e.message, 'destructive');
+			} else {
+				error = "Failed to sign up with Google.";
+				showToast('Sign up failed', 'Failed to sign up with Google.', 'destructive');
+			}
+			console.error(e);
+		} finally {
 			isGoogleLoading = false;
-		}, 2000);
+		}
+	}
+
+	// Auto-redirect if already authenticated
+	$: if ($firebaseUser && $backendUser) {
+		goto("/dashboard");
 	}
 </script>
 
@@ -93,12 +126,11 @@
 					<div class="space-y-2">
 						<label for="email" class="text-sm font-medium text-white">Email</label>
 						<div class="relative">
-							<Mail class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-							<Input
+							<Mail class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />							<Input
 								id="email"
 								type="email"
 								placeholder="Enter your email"
-								bind:value={formData.email}
+								bind:value={email}
 								class="pl-10 h-12 bg-slate-700 border-slate-600 text-white placeholder-slate-400 focus:border-blue-500"
 								required
 								disabled={isLoading || isGoogleLoading}
@@ -109,12 +141,11 @@
 					<div class="space-y-2">
 						<label for="password" class="text-sm font-medium text-white">Password</label>
 						<div class="relative">
-							<Lock class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-							<Input
+							<Lock class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />							<Input
 								id="password"
 								type={showPassword ? 'text' : 'password'}
 								placeholder="Create a strong password"
-								bind:value={formData.password}
+								bind:value={password}
 								class="pl-10 pr-10 h-12 bg-slate-700 border-slate-600 text-white placeholder-slate-400 focus:border-blue-500"
 								required
 								disabled={isLoading || isGoogleLoading}
@@ -131,8 +162,23 @@
 									<EyeOff class="h-4 w-4 text-slate-400" />
 								{:else}
 									<Eye class="h-4 w-4 text-slate-400" />
-								{/if}
-							</Button>
+								{/if}							</Button>
+						</div>
+					</div>
+
+					<div class="space-y-2">
+						<label for="confirmPassword" class="text-sm font-medium text-white">Confirm Password</label>
+						<div class="relative">
+							<Lock class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+							<Input
+								id="confirmPassword"
+								type="password"
+								placeholder="Confirm your password"
+								bind:value={confirmPassword}
+								class="pl-10 h-12 bg-slate-700 border-slate-600 text-white placeholder-slate-400 focus:border-blue-500"
+								required
+								disabled={isLoading || isGoogleLoading}
+							/>
 						</div>
 					</div>
 
