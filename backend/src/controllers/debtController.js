@@ -52,6 +52,18 @@ exports.getAllDebts = async (req, res) => {
   }
 };
 
+exports.getDebtById = async (req, res) => {
+  try {
+    const debt = await Debt.findByPk(req.params.id);
+    if (!debt) return res.status(404).json({ message: 'Debt not found' });
+    res.json(debt);
+  } catch (error) {
+    console.error('Fetch Debt By ID Error:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+
 exports.deleteDebt = async (req, res) => {
   const { id } = req.params;
 

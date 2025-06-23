@@ -6,5 +6,7 @@ router.post('/', savingController.createSaving);
 router.get('/', savingController.getAllSavings);
 router.delete('/:id', savingController.deleteSaving);
 router.put('/:id', savingController.updateSaving);
+router.get('/:id', savingController.getSavingById);
+
 
 module.exports = router;

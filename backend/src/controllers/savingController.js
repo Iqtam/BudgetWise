@@ -52,6 +52,18 @@ exports.getAllSavings = async (req, res) => {
   }
 };
 
+exports.getSavingById = async (req, res) => {
+  try {
+    const saving = await Saving.findByPk(req.params.id);
+    if (!saving) return res.status(404).json({ message: 'Saving goal not found' });
+    res.json(saving);
+  } catch (error) {
+    console.error('Fetch Saving By ID Error:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+
 exports.deleteSaving = async (req, res) => {
   const { id } = req.params;
 
