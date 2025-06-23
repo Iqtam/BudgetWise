@@ -30,7 +30,6 @@ jobs:
             cd ~/BudgetWise
             git checkout deployment
             git pull origin deployment
-            export \$(grep -v '^#' .env | xargs)
             docker compose -f docker-compose.deploy.yml down || true
             docker compose -f docker-compose.deploy.yml pull || true
             docker compose -f docker-compose.deploy.yml up -d --build
