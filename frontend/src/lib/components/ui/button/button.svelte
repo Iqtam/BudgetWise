@@ -58,6 +58,7 @@
 		bind:this={ref}
 		class={cn(buttonVariants({ variant, size }), className)}
 		{href}
+		on:click
 		{...restProps}
 	>
 		{@render children?.()}
@@ -67,6 +68,7 @@
 		bind:this={ref}
 		class={cn(buttonVariants({ variant, size }), className)}
 		{type}
+		on:click
 		{...restProps}
 	>
 		{@render children?.()}

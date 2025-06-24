@@ -143,21 +143,18 @@
 								class="pl-10 pr-10 bg-gray-700 border-gray-600 text-white placeholder-gray-400 h-12"
 								required
 								disabled={isLoading || isGoogleLoading}
-							/>
-							<Button
+							/>							<button
 								type="button"
-								variant="ghost"
-								size="sm"
-								class="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+								class="absolute right-0 top-0 h-full px-3 py-2 hover:bg-gray-600 bg-transparent border-none cursor-pointer rounded-r-md transition-colors"
 								on:click={() => (showPassword = !showPassword)}
 								disabled={isLoading || isGoogleLoading}
 							>
 								{#if showPassword}
-									<EyeOff class="h-4 w-4 text-gray-400" />
+									<EyeOff class="h-4 w-4 text-gray-400 hover:text-gray-200" />
 								{:else}
-									<Eye class="h-4 w-4 text-gray-400" />
+									<Eye class="h-4 w-4 text-gray-400 hover:text-gray-200" />
 								{/if}
-							</Button>
+							</button>
 						</div>
 					</div>
 
