@@ -6,126 +6,15 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { Checkbox } from '$lib/components/ui/checkbox';
 	import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '$lib/components/ui/dialog';
-	import { Tabs, TabsContent, TabsList, TabsTrigger } from '$lib/components/ui/tabs';
-	import { ArrowDownIcon, ArrowUpIcon, Camera, MessageSquare, Plus, Search, Repeat, ArrowUpDown } from 'lucide-svelte';
+	import { Tabs, TabsContent, TabsList, TabsTrigger } from '$lib/components/ui/tabs';	import { ArrowDownIcon, ArrowUpIcon, Camera, MessageSquare, Plus, Search, Repeat, ArrowUpDown } from 'lucide-svelte';
+	import { transactionService, type Transaction } from '$lib/services/transactions';
+	import { firebaseUser, loading as authLoading } from '$lib/stores/auth';
+	import { onMount } from 'svelte';
 
-	let transactions = $state([
-		{
-			id: 1,
-			description: "Salary Deposit",
-			amount: 5420.0,
-			type: "income",
-			category: "Salary",
-			date: "2024-01-15",
-			event: "Monthly paycheck",
-			isRecurrent: true,
-		},
-		{ id: 2, description: "Grocery Store", amount: -125.5, type: "expense", category: "Food", date: "2024-01-14" },
-		{ id: 3, description: "Gas Station", amount: -45.2, type: "expense", category: "Transportation", date: "2024-01-13" },
-		{
-			id: 4,
-			description: "Freelance Payment",
-			amount: 800.0,
-			type: "income",
-			category: "Freelance",
-			date: "2024-01-12",
-			event: "Website project completion",
-		},
-		{
-			id: 5,
-			description: "Netflix Subscription",
-			amount: -15.99,
-			type: "expense",
-			category: "Entertainment",
-			date: "2024-01-11",
-			isRecurrent: true,
-		},
-		{
-			id: 6,
-			description: "Coffee Shop",
-			amount: -4.5,
-			type: "expense",
-			category: "Food",
-			date: "2024-01-10",
-			event: "Morning coffee",
-		},
-		{
-			id: 7,
-			description: "Investment Dividend",
-			amount: 125.0,
-			type: "income",
-			category: "Investment",
-			date: "2024-01-09",
-			isRecurrent: true,
-		},
-		{
-			id: 8,
-			description: "Phone Bill",
-			amount: -89.99,
-			type: "expense",
-			category: "Utilities",
-			date: "2024-01-08",
-			isRecurrent: true,
-		},
-		{
-			id: 9,
-			description: "Restaurant Dinner",
-			amount: -67.85,
-			type: "expense",
-			category: "Food",
-			date: "2024-01-07",
-			event: "Date night",
-		},
-		{ id: 10, description: "Uber Ride", amount: -23.4, type: "expense", category: "Transportation", date: "2024-01-06" },
-		{
-			id: 11,
-			description: "Amazon Purchase",
-			amount: -156.99,
-			type: "expense",
-			category: "Shopping",
-			date: "2024-01-05",
-			event: "Home supplies",
-		},
-		{
-			id: 12,
-			description: "Gym Membership",
-			amount: -49.99,
-			type: "expense",
-			category: "Health",
-			date: "2024-01-04",
-			isRecurrent: true,
-		},
-		{
-			id: 13,
-			description: "Movie Theater",
-			amount: -28.5,
-			type: "expense",
-			category: "Entertainment",
-			date: "2024-01-03",
-		},
-		{ id: 14, description: "Pharmacy", amount: -34.75, type: "expense", category: "Health", date: "2024-01-02" },
-		{ id: 15, description: "Fast Food", amount: -12.99, type: "expense", category: "Food", date: "2024-01-01" },
-		{ id: 16, description: "Parking Fee", amount: -8.0, type: "expense", category: "Transportation", date: "2023-12-31" },
-		{
-			id: 17,
-			description: "Online Subscription",
-			amount: -9.99,
-			type: "expense",
-			category: "Entertainment",
-			date: "2023-12-30",
-			isRecurrent: true,
-		},
-		{
-			id: 18,
-			description: "Clothing Store",
-			amount: -89.99,
-			type: "expense",
-			category: "Shopping",
-			date: "2023-12-29",
-			event: "Winter clothes",
-		},
-	]);
-
+	// State variables
+	let transactions = $state<Transaction[]>([]);
+	let isLoading = $state(true);
+	let error = $state<string | null>(null);
 	let searchTerm = $state("");
 	let filterCategory = $state("all");
 	let sortBy = $state("date");
@@ -133,21 +22,9 @@
 	let activeTab = $state("expense");
 	let currentPage = $state(1);
 	let itemsPerPage = 10;
-	let categories = $state([
-		"Food",
-		"Transportation",
-		"Entertainment",
-		"Utilities",
-		"Salary",
-		"Freelance",
-		"Investment",
-		"Shopping",
-		"Health",
-	]);
 	let isDetailsOpen = $state(false);
-	let selectedTransactionDetails = $state<any>(null);
-	let isNewCategoryOpen = $state(false);
-	let newCategoryName = $state("");
+	let selectedTransactionDetails = $state<Transaction | null>(null);
+	let isSaving = $state(false);
 
 	// Form fields
 	let formDescription = $state("");
@@ -158,19 +35,54 @@
 	let formDate = $state(new Date().toISOString().split("T")[0]);
 	let formIsRecurrent = $state(false);
 
+	// Wait for authentication before loading data
+	$effect(() => {
+		if (!$authLoading && $firebaseUser) {
+			loadData();
+		}
+	});
+
+	// Function to load transactions from API
+	async function loadData() {
+		if (!$firebaseUser) {
+			error = 'User not authenticated';
+			isLoading = false;
+			return;
+		}
+
+		isLoading = true;
+		error = null;
+		
+		try {
+			const transactionsData = await transactionService.getAllTransactions();
+			transactions = transactionsData;
+		} catch (err) {
+			console.error('Error loading transactions:', err);
+			error = err instanceof Error ? err.message : 'Failed to load transactions';
+		} finally {
+			isLoading = false;
+		}
+	}
+
 	// Reset current page when filters change
 	$effect(() => {
 		currentPage = 1;
 	});
 
 	function filterAndSortTransactions(type: "income" | "expense") {
+		if (!transactions.length) {
+			return {
+				transactions: [],
+				totalCount: 0,
+				totalPages: 0,
+			};
+		}
+
 		const filtered = transactions
 			.filter((transaction) => {
 				const matchesType = transaction.type === type;
 				const matchesSearch = transaction.description.toLowerCase().includes(searchTerm.toLowerCase());
-				const matchesCategory =
-					filterCategory === "all" || transaction.category.toLowerCase() === filterCategory.toLowerCase();
-				return matchesType && matchesSearch && matchesCategory;
+				return matchesType && matchesSearch;
 			})
 			.sort((a, b) => {
 				if (sortBy === "date") {
@@ -191,53 +103,79 @@
 		};
 	}
 
-	function handleAddTransaction(event: Event) {
+	async function handleAddTransaction(event: Event) {
 		event.preventDefault();
-		const newTransaction = {
-			id: transactions.length + 1,
-			description: formDescription,
-			amount: formType === "expense" ? -Math.abs(Number(formAmount)) : Math.abs(Number(formAmount)),
-			type: formType,
-			category: formCategory,
-			event: formEvent || undefined,
-			date: formDate || new Date().toISOString().split("T")[0],
-			isRecurrent: formIsRecurrent,
-		};
+		isSaving = true;
+		error = null;
 
-		transactions = [newTransaction, ...transactions];
-		isDialogOpen = false;
-		
-		// Reset form
+		try {
+			const newTransactionData = {
+				description: formDescription,
+				amount: formType === "expense" ? -Math.abs(Number(formAmount)) : Math.abs(Number(formAmount)),
+				type: formType as 'income' | 'expense',
+				category_id: formCategory || undefined,
+				date: formDate || new Date().toISOString().split("T")[0],
+				recurrence: formIsRecurrent ? 'monthly' : undefined,
+			};
+
+			// Create transaction via API
+			const newTransaction = await transactionService.createTransaction(newTransactionData);
+			
+			// Add to local state
+			transactions = [newTransaction, ...transactions];
+			
+			// Close dialog and reset form
+			isDialogOpen = false;
+			resetForm();
+		} catch (err) {
+			console.error('Error creating transaction:', err);
+			error = err instanceof Error ? err.message : 'Failed to create transaction';
+		} finally {
+			isSaving = false;
+		}
+	}
+
+	function resetForm() {
 		formDescription = "";
 		formAmount = "";
 		formType = "";
 		formCategory = "";
 		formEvent = "";
-		formDate = "";
+		formDate = new Date().toISOString().split("T")[0];
 		formIsRecurrent = false;
 	}
 
-	function handleViewDetails(transaction: any) {
+	function handleViewDetails(transaction: Transaction) {
 		selectedTransactionDetails = transaction;
 		isDetailsOpen = true;
 	}
-
-	function handleAddCategory(event: Event) {
-		event.preventDefault();
-		if (newCategoryName && !categories.includes(newCategoryName)) {
-			categories = [...categories, newCategoryName];
-			newCategoryName = "";
-			isNewCategoryOpen = false;
-			// You can add a toast notification here if you have toast implemented
-		}
-	}
-
 	let paginatedData = $derived(filterAndSortTransactions(activeTab as "income" | "expense"));
 	let currentTransactions = $derived(paginatedData.transactions);
 </script>
 
-<div class="flex-1 space-y-6 p-6 bg-gray-950">
-	<!-- Header with Add Button -->
+<div class="flex-1 space-y-6 p-6 bg-gray-950">	<!-- Loading State -->
+	{#if $authLoading || isLoading}
+		<div class="flex items-center justify-center min-h-[400px]">
+			<div class="text-center">
+				<div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+				<p class="text-gray-400">
+					{$authLoading ? 'Authenticating...' : 'Loading transactions...'}
+				</p>
+			</div>
+		</div>
+	{:else if error}
+		<!-- Error State -->
+		<div class="flex items-center justify-center min-h-[400px]">
+			<div class="text-center">
+				<div class="text-red-500 text-xl mb-4">⚠️</div>
+				<p class="text-red-400 mb-4">{error}</p>
+				<Button onclick={loadData} variant="outline" class="border-gray-600 text-gray-300 hover:bg-gray-700">
+					Try Again
+				</Button>
+			</div>
+		</div>
+	{:else}
+		<!-- Main Content -->
 	<div class="flex items-center justify-between">
 		<div>
 			<h2 class="text-2xl font-bold text-white">Transaction History</h2>
@@ -302,70 +240,7 @@
 									<option value="">Select transaction type</option>
 									<option value="income">Income</option>
 									<option value="expense">Expense</option>
-								</select>
-							</div>
-
-							<div class="space-y-2">
-								<Label for="category">Category</Label>
-								<div class="flex gap-2">
-									<select bind:value={formCategory} required class="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white">
-										<option value="">Select category</option>
-										{#each categories as category}
-											<option value={category}>
-												{category === "Food" ? "Food & Dining" : category}
-											</option>
-										{/each}
-									</select>
-									<Dialog bind:open={isNewCategoryOpen}>
-										<DialogTrigger>
-											<Button
-												type="button"
-												variant="outline"
-												size="sm"
-												class="px-3 border-gray-600 text-gray-300 hover:bg-gray-700 bg-gray-800"
-											>
-												<Plus class="h-4 w-4" />
-											</Button>
-										</DialogTrigger>
-										<DialogContent class="sm:max-w-[300px] bg-gray-800 border-gray-700 text-white">
-											<DialogHeader>
-												<DialogTitle>Add New Category</DialogTitle>
-												<DialogDescription class="text-gray-400">
-													Create a new transaction category
-												</DialogDescription>
-											</DialogHeader>
-											<form onsubmit={handleAddCategory} class="space-y-4">
-												<div class="space-y-2">
-													<Label for="newCategory">Category Name</Label>
-													<Input
-														id="newCategory"
-														bind:value={newCategoryName}
-														placeholder="Enter category name"
-														required
-														class="bg-gray-700 border-gray-600"
-													/>
-												</div>
-												<div class="flex gap-2">
-													<Button
-														type="button"
-														variant="outline"
-														onclick={() => isNewCategoryOpen = false}
-														class="flex-1 border-gray-600 text-gray-300 hover:bg-gray-700"
-													>
-														Cancel
-													</Button>
-													<Button
-														type="submit"
-														class="flex-1 bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600"
-													>
-														Add
-													</Button>
-												</div>
-											</form>
-										</DialogContent>
-									</Dialog>
-								</div>
-							</div>
+								</select>							</div>
 
 							<div class="space-y-2">
 								<Label for="event">Event (Optional)</Label>
@@ -398,13 +273,12 @@
 									<Repeat class="h-4 w-4 text-blue-400" />
 									Recurring Transaction (Optional)
 								</Label>
-							</div>
-
-							<Button
+							</div>							<Button
 								type="submit"
-								class="w-full bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600"
+								disabled={isSaving}
+								class="w-full bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600 disabled:opacity-50"
 							>
-								Add Transaction
+								{isSaving ? 'Adding...' : 'Add Transaction'}
 							</Button>
 						</form>
 					</TabsContent>
@@ -516,11 +390,10 @@
 										<div class="flex items-center space-x-3">
 											<div class="flex h-10 w-10 items-center justify-center rounded-full bg-red-500/20 text-red-400">
 												<ArrowDownIcon class="h-5 w-5" />
-											</div>
-											<div>
+											</div>											<div>
 												<div class="flex items-center gap-2">
 													<p class="font-medium text-white">{transaction.description}</p>
-													{#if transaction.isRecurrent}
+													{#if transaction.recurrence}
 														<Badge variant="outline" class="text-xs border-blue-500 text-blue-400">
 															<Repeat class="h-3 w-3 mr-1" />
 															Recurring
@@ -532,11 +405,10 @@
 												{/if}
 												<p class="text-sm text-gray-400">{transaction.date}</p>
 											</div>
-										</div>
-										<div class="text-right">
+										</div>										<div class="text-right">
 											<p class="font-semibold text-red-400">-${Math.abs(transaction.amount).toFixed(2)}</p>
 											<Badge variant="secondary" class="text-xs bg-gray-800 text-gray-300">
-												{transaction.category}
+												{transaction.category_id ? 'Category ID: ' + transaction.category_id : 'No Category'}
 											</Badge>
 											<div class="mt-2">
 												<Button
@@ -593,7 +465,7 @@
 										<span class="text-gray-400 px-2">...</span>
 										<Button
 											variant="outline"
-											size="sm"
+										size="sm"
 											onclick={() => currentPage = paginatedData.totalPages}
 											class={currentPage === paginatedData.totalPages
 												? "bg-blue-600 border-blue-500 text-white hover:bg-blue-700"
@@ -666,11 +538,10 @@
 										<div class="flex items-center space-x-3">
 											<div class="flex h-10 w-10 items-center justify-center rounded-full bg-green-500/20 text-green-400">
 												<ArrowUpIcon class="h-5 w-5" />
-											</div>
-											<div>
+											</div>											<div>
 												<div class="flex items-center gap-2">
 													<p class="font-medium text-white">{transaction.description}</p>
-													{#if transaction.isRecurrent}
+													{#if transaction.recurrence}
 														<Badge variant="outline" class="text-xs border-blue-500 text-blue-400">
 															<Repeat class="h-3 w-3 mr-1" />
 															Recurring
@@ -682,11 +553,10 @@
 												{/if}
 												<p class="text-sm text-gray-400">{transaction.date}</p>
 											</div>
-										</div>
-										<div class="text-right">
+										</div>										<div class="text-right">
 											<p class="font-semibold text-green-400">+${Math.abs(transaction.amount).toFixed(2)}</p>
 											<Badge variant="secondary" class="text-xs bg-gray-800 text-gray-300">
-												{transaction.category}
+												{transaction.category_id ? 'Category ID: ' + transaction.category_id : 'No Category'}
 											</Badge>
 											<div class="mt-2">
 												<Button
@@ -807,8 +677,7 @@
 							<p class="text-sm text-gray-400">Event</p>
 							<p class="font-medium">{selectedTransactionDetails.event}</p>
 						</div>
-					{/if}
-					{#if selectedTransactionDetails.isRecurrent}
+					{/if}					{#if selectedTransactionDetails.recurrence}
 						<div class="flex items-center gap-2">
 							<Repeat class="h-4 w-4 text-blue-400" />
 							<span class="text-blue-400">Recurring Transaction</span>
@@ -818,4 +687,5 @@
 			{/if}
 		</DialogContent>
 	</Dialog>
-</div> 
+	{/if}
+</div>
