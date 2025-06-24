@@ -7,56 +7,22 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '$lib/components/ui/dialog';
 	import { PieChart, TrendingUp, AlertTriangle, Plus, DollarSign } from 'lucide-svelte';
-
-	const mockBudgets = [
-		{ id: 1, category: "Food & Dining", budgetAmount: 800, spent: 650, startDate: "2024-01-01", endDate: "2024-01-31" },
-		{ id: 2, category: "Transportation", budgetAmount: 300, spent: 280, startDate: "2024-01-01", endDate: "2024-01-31" },
-		{ id: 3, category: "Entertainment", budgetAmount: 200, spent: 150, startDate: "2024-01-01", endDate: "2024-01-31" },
-		{ id: 4, category: "Utilities", budgetAmount: 250, spent: 245, startDate: "2024-01-01", endDate: "2024-01-31" },
-		{ id: 5, category: "Shopping", budgetAmount: 400, spent: 320, startDate: "2024-01-01", endDate: "2024-01-31" },
-		{ id: 6, category: "Health & Fitness", budgetAmount: 150, spent: 85, startDate: "2024-01-01", endDate: "2024-01-31" },
-		{ id: 7, category: "Education", budgetAmount: 300, spent: 200, startDate: "2024-01-01", endDate: "2024-01-31" },
-		{ id: 8, category: "Travel", budgetAmount: 500, spent: 0, startDate: "2024-01-01", endDate: "2024-01-31" },
-		{ id: 9, category: "Insurance", budgetAmount: 180, spent: 180, startDate: "2024-01-01", endDate: "2024-01-31" },
-		{ id: 10, category: "Savings", budgetAmount: 1000, spent: 800, startDate: "2024-01-01", endDate: "2024-01-31" },
-		{ id: 11, category: "Gifts", budgetAmount: 100, spent: 75, startDate: "2024-01-01", endDate: "2024-01-31" },
-		{ id: 12, category: "Personal Care", budgetAmount: 120, spent: 95, startDate: "2024-01-01", endDate: "2024-01-31" },
-		{
-			id: 13,
-			category: "Home Maintenance",
-			budgetAmount: 200,
-			spent: 150,
-			startDate: "2024-01-01",
-			endDate: "2024-01-31",
-		},
-		{ id: 14, category: "Subscriptions", budgetAmount: 80, spent: 75, startDate: "2024-01-01", endDate: "2024-01-31" },
-		{ id: 15, category: "Miscellaneous", budgetAmount: 150, spent: 120, startDate: "2024-01-01", endDate: "2024-01-31" },
-	];
-
-	let budgets = $state([...mockBudgets]);
+	import { budgetService, type Budget } from '$lib/services/budgets';
+	import { categoryService, type Category } from '$lib/services/categories';
+	import { firebaseUser, loading as authLoading } from '$lib/stores/auth';
+	import { onMount } from 'svelte';
+	// State variables
+	let budgets = $state<Budget[]>([]);
+	let categories = $state<Category[]>([]);
+	let isLoading = $state(true);
+	let error = $state<string | null>(null);
+	let successMessage = $state<string | null>(null);
 	let isBudgetDialogOpen = $state(false);
 	let isDetailsOpen = $state(false);
-	let selectedBudgetDetails = $state<any>(null);
+	let selectedBudgetDetails = $state<Budget | null>(null);
 	let currentPage = $state(1);
 	let itemsPerPage = 10;
-
-	let categories = $state([
-		"Food & Dining",
-		"Transportation",
-		"Entertainment",
-		"Utilities",
-		"Shopping",
-		"Health & Fitness",
-		"Education",
-		"Travel",
-		"Insurance",
-		"Savings",
-		"Gifts",
-		"Personal Care",
-		"Home Maintenance",
-		"Subscriptions",
-		"Miscellaneous",
-	]);
+	let isSaving = $state(false);
 	let isNewCategoryOpen = $state(false);
 	let newCategoryName = $state("");
 
@@ -66,10 +32,88 @@
 	let formStartDate = $state(new Date().toISOString().split("T")[0]);
 	let formEndDate = $state("");
 
+	// Wait for authentication before loading data
+	$effect(() => {
+		if (!$authLoading && $firebaseUser) {
+			loadData();
+		}
+	});
+	// Function to load budgets and categories from API
+	async function loadData() {
+		isLoading = true;
+		error = null;
+		
+		try {
+			const [budgetData, categoryData] = await Promise.all([
+				budgetService.getAllBudgets(),
+				categoryService.getAllCategories()
+			]);
+			
+			// Add mock spent calculation for each budget
+			budgets = budgetData.map(budget => ({
+				...budget,
+				spent: Math.random() * budget.goal_amount * 0.8 // Mock spent amount (0-80% of goal)
+			}));
+			categories = categoryData;
+		} catch (err) {
+			console.error('Error loading data:', err);
+			error = err instanceof Error ? err.message : 'Failed to load data';
+		} finally {
+			isLoading = false;
+		}
+	}
 	// Reset current page when budgets change
 	$effect(() => {
 		currentPage = 1;
-	});
+	});	// Helper function to get category name by ID
+	function getCategoryName(categoryId: string | undefined) {
+		if (!categoryId) return 'No Category';
+		const category = categories.find(c => c.id === categoryId);
+		return category ? category.name : 'Unknown Category';
+	}
+
+	// Helper function to calculate or mock spent amount
+	// TODO: This should eventually fetch from transactions API
+	function getSpentAmount(budget: Budget): number {
+		// For now, return a mock spent amount based on the budget
+		// In a real app, this would be calculated from actual transactions
+		const mockSpentPercentage = Math.random() * 1.2; // 0% to 120% to show various states
+		return budget.goal_amount * mockSpentPercentage;
+	}
+
+	async function handleAddCategory(event: Event) {
+		event.preventDefault();
+		
+		if (!newCategoryName.trim()) {
+			error = 'Category name is required';
+			return;
+		}
+
+		try {
+			const newCategory = await categoryService.createCategory({
+				name: newCategoryName.trim(),
+				type: 'expense' // Default to expense for budget categories
+			});
+
+			// Add the new category to our local categories list
+			categories = [...categories, newCategory];
+			
+			// Select the new category in the form
+			formCategory = newCategory.id;
+			
+			// Reset form and close dialog
+			newCategoryName = "";
+			isNewCategoryOpen = false;
+			
+			successMessage = 'Category created successfully';
+			setTimeout(() => {
+				successMessage = null;
+			}, 3000);
+		} catch (err) {
+			console.error('Error creating category:', err);
+			error = err instanceof Error ? err.message : 'Failed to create category';
+		}
+	}
 
 	function getPaginatedBudgets() {
 		const startIndex = (currentPage - 1) * itemsPerPage;
@@ -82,36 +126,58 @@
 			totalPages: Math.ceil(budgets.length / itemsPerPage),
 			startIndex: startIndex + 1,
 			endIndex: Math.min(endIndex, budgets.length),
-		};
-	}
+		};	}
 
 	let paginatedData = $derived(getPaginatedBudgets());
-	let totalBudget = $derived(budgets.reduce((sum, budget) => sum + budget.budgetAmount, 0));
-	let totalSpent = $derived(budgets.reduce((sum, budget) => sum + budget.spent, 0));
-	let overallProgress = $derived((totalSpent / totalBudget) * 100);
+	let totalBudget = $derived(budgets.reduce((sum, budget) => sum + budget.goal_amount, 0));
+	let totalSpent = $derived(budgets.reduce((sum, budget) => sum + getSpentAmount(budget), 0));
+	let overallProgress = $derived(totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0);
 
-	function handleCreateBudget(event: Event) {
+	async function handleCreateBudget(event: Event) {
 		event.preventDefault();
-		const newBudget = {
-			id: budgets.length + 1,
-			category: formCategory,
-			budgetAmount: parseFloat(formBudgetAmount),
-			spent: 0,
-			startDate: formStartDate,
-			endDate: formEndDate,
-		};
-
-		budgets = [...budgets, newBudget];
-		isBudgetDialogOpen = false;
 		
-		// Reset form
-		formCategory = "";
-		formBudgetAmount = "";
-		formStartDate = new Date().toISOString().split("T")[0];
-		formEndDate = "";
+		if (!formBudgetAmount || !formStartDate || !formEndDate) {
+			error = 'Please fill in all required fields';
+			return;
+		}
+
+		isSaving = true;
+		error = null;
+		try {
+			await budgetService.createBudget({
+				category_id: formCategory || undefined,
+				start_date: formStartDate,
+				end_date: formEndDate,
+				goal_amount: parseFloat(formBudgetAmount),
+			});
+
+			// Reload data to get the new budget
+			await loadData();
+			
+			isBudgetDialogOpen = false;
+			
+			// Reset form
+			formCategory = "";
+			formBudgetAmount = "";
+			formStartDate = new Date().toISOString().split("T")[0];
+			formEndDate = "";
+
+			// Show success message
+			successMessage = 'Budget created successfully';
+
+			// Auto-hide success message after 3 seconds
+			setTimeout(() => {
+				successMessage = null;
+			}, 3000);
+		} catch (err) {
+			console.error('Error creating budget:', err);
+			error = err instanceof Error ? err.message : 'Failed to create budget';
+		} finally {
+			isSaving = false;
+		}
 	}
 
-	function handleViewDetails(budget: any) {
+	function handleViewDetails(budget: Budget) {
 		selectedBudgetDetails = budget;
 		isDetailsOpen = true;
 	}
@@ -122,18 +188,28 @@
 		if (percentage >= 80) return { status: "Near Limit", color: "text-yellow-400", bgColor: "bg-yellow-500/20" };
 		return { status: "On Track", color: "text-green-400", bgColor: "bg-green-500/20" };
 	}
-
-	function handleAddCategory(event: Event) {
-		event.preventDefault();
-		if (newCategoryName && !categories.includes(newCategoryName)) {
-			categories = [...categories, newCategoryName];
-			newCategoryName = "";
-			isNewCategoryOpen = false;
-		}
-	}
 </script>
 
 <div class="flex-1 space-y-6 p-6 bg-gray-950">
+	<!-- Error and Success Messages -->
+	{#if error}
+		<div class="p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
+			<p class="text-red-400 text-sm">{error}</p>
+		</div>
+	{/if}
+
+	{#if successMessage}
+		<div class="p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
+			<p class="text-green-400 text-sm">{successMessage}</p>
+		</div>
+	{/if}
+
+	<!-- Loading State -->
+	{#if isLoading}
+		<div class="flex items-center justify-center py-12">
+			<div class="text-gray-400">Loading budgets...</div>
+		</div>
+	{:else}
 	<!-- Header -->
 	<div class="flex items-center justify-between">
 		<div>
@@ -154,15 +230,14 @@
 						Set up a new spending budget for a category
 					</DialogDescription>
 				</DialogHeader>
-				<form onsubmit={handleCreateBudget} class="space-y-4">
-					<div class="space-y-2">
-						<Label for="category">Category</Label>
+				<form onsubmit={handleCreateBudget} class="space-y-4">					<div class="space-y-2">
+						<Label for="category">Category (Optional)</Label>
 						<div class="flex gap-2">
-							<select bind:value={formCategory} required class="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white">
-								<option value="">Select category</option>
+							<select bind:value={formCategory} class="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white">
+								<option value="">Select category (optional)</option>
 								{#each categories as category}
-									<option value={category}>
-										{category}
+									<option value={category.id}>
+										{category.name}
 									</option>
 								{/each}
 							</select>
@@ -248,13 +323,12 @@
 							required 
 							class="bg-gray-700 border-gray-600" 
 						/>
-					</div>
-
-					<Button
+					</div>					<Button
 						type="submit"
+						disabled={isSaving}
 						class="w-full bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600"
 					>
-						Create Budget
+						{isSaving ? 'Creating...' : 'Create Budget'}
 					</Button>
 				</form>
 			</DialogContent>
@@ -300,10 +374,8 @@
 			<CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
 				<CardTitle class="text-sm font-medium text-gray-300">Alerts</CardTitle>
 				<AlertTriangle class="h-4 w-4 text-gray-400" />
-			</CardHeader>
-			<CardContent>
-				<div class="text-2xl font-bold text-yellow-400">
-					{budgets.filter((b) => (b.spent / b.budgetAmount) * 100 >= 80).length}
+			</CardHeader>			<CardContent>				<div class="text-2xl font-bold text-yellow-400">
+					{budgets.filter((b) => (getSpentAmount(b) / b.goal_amount) * 100 >= 80).length}
 				</div>
 				<p class="text-xs text-gray-400">Budgets near limit</p>
 			</CardContent>
@@ -323,28 +395,25 @@
 				</span>
 			</CardDescription>
 		</CardHeader>
-		<CardContent>
-			<div class="space-y-6">
-				{#each paginatedData.budgets as budget}
-					{@const percentage = (budget.spent / budget.budgetAmount) * 100}
-					{@const remaining = budget.budgetAmount - budget.spent}
-					{@const budgetStatus = getBudgetStatus(budget.spent, budget.budgetAmount)}
+		<CardContent>			<div class="space-y-6">				{#each paginatedData.budgets as budget}
+					{@const spentAmount = getSpentAmount(budget)}
+					{@const percentage = (spentAmount / budget.goal_amount) * 100}
+					{@const remaining = budget.goal_amount - spentAmount}
+					{@const budgetStatus = getBudgetStatus(spentAmount, budget.goal_amount)}
 					<div class="border border-gray-800 rounded-lg p-4 space-y-4">
 						<div class="flex items-center justify-between">
 							<div>
 								<div class="flex items-center gap-2">
-									<h3 class="font-semibold text-white">{budget.category}</h3>
+									<h3 class="font-semibold text-white">{getCategoryName(budget.category_id)}</h3>
 									<Badge class="{budgetStatus.bgColor} {budgetStatus.color} border-0">
 										{budgetStatus.status}
 									</Badge>
-								</div>
-								<p class="text-sm text-gray-400">
-									{budget.startDate} to {budget.endDate}
+								</div>								<p class="text-sm text-gray-400">
+									{new Date(budget.start_date).toLocaleDateString()} to {new Date(budget.end_date).toLocaleDateString()}
 								</p>
-							</div>
-							<div class="text-right">
-								<p class="text-lg font-bold text-white">${budget.spent.toLocaleString()}</p>
-								<p class="text-sm text-gray-400">of ${budget.budgetAmount.toLocaleString()}</p>
+							</div>							<div class="text-right">
+								<p class="text-lg font-bold text-white">${spentAmount.toLocaleString()}</p>
+								<p class="text-sm text-gray-400">of ${budget.goal_amount.toLocaleString()}</p>
 							</div>
 						</div>
 
@@ -445,47 +514,45 @@
 					Budget Details
 				</DialogTitle>
 				<DialogDescription class="text-gray-400">Complete information about this budget</DialogDescription>
-			</DialogHeader>
-			{#if selectedBudgetDetails}
-				{@const detailPercentage = (selectedBudgetDetails.spent / selectedBudgetDetails.budgetAmount) * 100}
+			</DialogHeader>			{#if selectedBudgetDetails}
+				{@const spentAmount = getSpentAmount(selectedBudgetDetails)}
+				{@const detailPercentage = (spentAmount / selectedBudgetDetails.goal_amount) * 100}
 				<div class="space-y-4">
 					<div class="grid grid-cols-2 gap-4">
 						<div>
 							<Label class="text-gray-300">Category</Label>
-							<p class="text-white font-medium">{selectedBudgetDetails.category}</p>
+							<p class="text-white font-medium">{getCategoryName(selectedBudgetDetails.category_id)}</p>
 						</div>
 						<div>
 							<Label class="text-gray-300">Budget Amount</Label>
-							<p class="text-white font-bold text-lg">${selectedBudgetDetails.budgetAmount.toLocaleString()}</p>
+							<p class="text-white font-bold text-lg">${selectedBudgetDetails.goal_amount.toLocaleString()}</p>
 						</div>
 					</div>
 
 					<div class="grid grid-cols-2 gap-4">
 						<div>
 							<Label class="text-gray-300">Amount Spent</Label>
-							<p class="text-red-400 font-semibold">${selectedBudgetDetails.spent.toLocaleString()}</p>
+							<p class="text-red-400 font-semibold">${spentAmount.toLocaleString()}</p>
 						</div>
 						<div>
 							<Label class="text-gray-300">Remaining</Label>
 							<p
-								class="font-semibold {selectedBudgetDetails.budgetAmount - selectedBudgetDetails.spent >= 0
+								class="font-semibold {selectedBudgetDetails.goal_amount - spentAmount >= 0
 									? 'text-green-400'
 									: 'text-red-400'}"
 							>
-								${Math.abs(selectedBudgetDetails.budgetAmount - selectedBudgetDetails.spent).toLocaleString()}
-								{selectedBudgetDetails.budgetAmount - selectedBudgetDetails.spent < 0 ? " over" : ""}
+								${Math.abs(selectedBudgetDetails.goal_amount - spentAmount).toLocaleString()}
+								{selectedBudgetDetails.goal_amount - spentAmount < 0 ? " over" : ""}
 							</p>
 						</div>
-					</div>
-
-					<div class="grid grid-cols-2 gap-4">
+					</div><div class="grid grid-cols-2 gap-4">
 						<div>
 							<Label class="text-gray-300">Start Date</Label>
-							<p class="text-white">{selectedBudgetDetails.startDate}</p>
+							<p class="text-white">{new Date(selectedBudgetDetails.start_date).toLocaleDateString()}</p>
 						</div>
 						<div>
 							<Label class="text-gray-300">End Date</Label>
-							<p class="text-white">{selectedBudgetDetails.endDate}</p>
+							<p class="text-white">{new Date(selectedBudgetDetails.end_date).toLocaleDateString()}</p>
 						</div>
 					</div>
 
@@ -546,8 +613,8 @@
 					<p class="text-sm text-gray-300 mt-1">
 						Consider reallocating unused Travel budget to categories where you're approaching limits.
 					</p>
-				</div>
-			</div>
+				</div>			</div>
 		</CardContent>
 	</Card>
-</div> 
+	{/if}
+</div>

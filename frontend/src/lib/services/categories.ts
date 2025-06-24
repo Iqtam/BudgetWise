@@ -66,6 +66,11 @@ export class CategoryService {
 		}
 	}
 
+	// Alias for backwards compatibility
+	async getAllCategories(): Promise<Category[]> {
+		return this.getCategories();
+	}
+
 	async createCategory(categoryData: { name: string; type: 'income' | 'expense'; icon_url?: string; parent_id?: string }): Promise<Category> {
 		try {
 			return await this.apiCall('/categories', {
