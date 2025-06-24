@@ -10,7 +10,8 @@ import { auth, googleProvider } from '$lib/firebase';
 import {PUBLIC_BACKEND_API_URL} from '$env/static/public';
   
 
-const API_URL = PUBLIC_BACKEND_API_URL ;
+const API_URL = PUBLIC_BACKEND_API_URL;
+
 
 // Helper function to get Firebase token
 const getAuthToken = async (): Promise<string | null> => {

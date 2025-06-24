@@ -295,17 +295,15 @@
 						{:else}
 							<Moon class="h-4 w-4" />
 						{/if}
-					</Button>					<!-- User Avatar -->
+					</Button>					<!-- Logout Button -->
 					<Button
 						variant="ghost"
-						class="relative h-9 w-9 rounded-full hover:bg-gray-800"
+						size="sm"
+						class="h-9 px-3 text-gray-400 hover:text-white hover:bg-gray-800 flex items-center gap-2"
 						onclick={handleSignOut}
 					>
-						<Avatar class="h-8 w-8">
-							<AvatarFallback class="bg-gradient-to-r from-blue-500 to-green-500 text-white text-sm">
-								{$backendUser?.email?.charAt(0).toUpperCase() || 'U'}
-							</AvatarFallback>
-						</Avatar>
+						<LogOut class="h-4 w-4" />
+						<span class="text-sm">Logout</span>
 					</Button>
 				</div>
 			</div>
