@@ -6,7 +6,7 @@
 	import { Progress } from '$lib/components/ui/progress';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '$lib/components/ui/dialog';
-	import { PieChart, TrendingUp, AlertTriangle, Plus, DollarSign } from 'lucide-svelte';
+	import { PieChart, TrendingUp, AlertTriangle, Plus, DollarSign, Edit, Trash2 } from 'lucide-svelte';
 	import { budgetService, type Budget } from '$lib/services/budgets';
 	import { categoryService, type Category } from '$lib/services/categories';
 	import { firebaseUser, loading as authLoading } from '$lib/stores/auth';
@@ -575,7 +575,35 @@
 								</p>
 							</div>							<div class="text-right">
 								<p class="text-lg font-bold text-white">${spentAmount.toLocaleString()}</p>
-								<p class="text-sm text-gray-400">of ${budget.goal_amount.toLocaleString()}</p>
+								<p class="text-sm text-gray-400">of ${budget.goal_amount.toLocaleString()}</p>								<div class="mt-2 flex gap-2">
+									<Button
+										variant="outline"
+										size="sm"
+										onclick={() => handleViewDetails(budget)}
+										class="bg-gray-900 border-2 border-blue-500 text-blue-400 hover:bg-blue-500/20 hover:text-blue-300 font-semibold shadow-lg flex-1"
+									>
+										View Details
+									</Button>
+									<Button 
+										variant="outline" 
+										size="sm" 
+										onclick={() => handleEditBudget(budget)}
+										class="bg-gray-900 border-2 border-green-500 text-green-400 hover:bg-green-500/20 hover:text-green-300 font-semibold shadow-lg flex-1"
+									>
+										<Edit class="h-4 w-4 mr-1" />
+										Edit
+									</Button>
+									<Button 
+										variant="outline" 
+										size="sm" 
+										onclick={() => handleDeleteBudget(budget)}
+										disabled={isDeleting}
+										class="bg-gray-900 border-2 border-red-500 text-red-400 hover:bg-red-500/20 hover:text-red-300 font-semibold shadow-lg flex-1 disabled:opacity-50"
+									>
+										<Trash2 class="h-4 w-4 mr-1" />
+										{isDeleting ? 'Deleting...' : 'Delete'}
+									</Button>
+								</div>
 							</div>
 						</div>
 
@@ -589,34 +617,7 @@
 								{remaining > 0
 									? `$${remaining.toLocaleString()} remaining`
 									: `$${Math.abs(remaining).toLocaleString()} over budget`}
-							</p>
-						</div>						<div class="flex gap-2">
-							<Button
-								variant="outline"
-								size="sm"
-								onclick={() => handleViewDetails(budget)}
-								class="border-gray-600 text-gray-300 hover:bg-gray-700"
-							>
-								View Details
-							</Button>
-							<Button 
-								variant="outline" 
-								size="sm" 
-								onclick={() => handleEditBudget(budget)}
-								class="border-gray-600 text-gray-300 hover:bg-gray-700"
-							>
-								Edit
-							</Button>
-							<Button 
-								variant="outline" 
-								size="sm" 
-								onclick={() => handleDeleteBudget(budget)}
-								disabled={isDeleting}
-								class="border-red-600 text-red-400 hover:bg-red-900/20"
-							>
-								{isDeleting ? 'Deleting...' : 'Delete'}
-							</Button>
-						</div>
+							</p>						</div>
 					</div>
 				{/each}
 			</div>
@@ -751,7 +752,7 @@
 						</Button>
 						<Button 
 							variant="outline" 
-							class="flex-1 border-gray-600 text-gray-300 hover:bg-gray-700"
+							class="flex-1 bg-gray-900 border-2 border-green-500 text-green-400 hover:bg-green-500/20 hover:text-green-300 font-semibold shadow-lg"
 							onclick={() => {
 								isDetailsOpen = false;
 								if (selectedBudgetDetails) {
@@ -759,11 +760,12 @@
 								}
 							}}
 						>
+							<Edit class="h-4 w-4 mr-1" />
 							Edit Budget
 						</Button>
 						<Button 
 							variant="outline" 
-							class="border-red-600 text-red-400 hover:bg-red-900/20"
+							class="flex-1 bg-gray-900 border-2 border-red-500 text-red-400 hover:bg-red-500/20 hover:text-red-300 font-semibold shadow-lg"
 							onclick={() => {
 								if (selectedBudgetDetails) {
 									isDetailsOpen = false;
@@ -771,6 +773,7 @@
 								}
 							}}
 						>
+							<Trash2 class="h-4 w-4 mr-1" />
 							Delete
 						</Button>
 					</div>

@@ -702,31 +702,33 @@
 											<Badge variant="secondary" class="text-xs bg-gray-800 text-gray-300">
 												{getCategoryDisplay(transaction.category_id)}
 											</Badge>
-											<div class="mt-2">
+											<div class="mt-2 flex gap-2">
 												<Button
-													variant="ghost"
+													variant="outline"
 													size="sm"
 													onclick={() => handleViewDetails(transaction)}
-													class="text-gray-400 hover:text-white hover:bg-gray-700 mr-2"
+													class="bg-gray-900 border-2 border-blue-500 text-blue-400 hover:bg-blue-500/20 hover:text-blue-300 font-semibold shadow-lg flex-1"
 												>
 													View Details
 												</Button>
 												<Button
-													variant="ghost"
+													variant="outline"
 													size="sm"
 													onclick={() => handleEditTransaction(transaction)}
-													class="text-blue-400 hover:text-blue-300 hover:bg-blue-900/20 mr-2"
+													class="bg-gray-900 border-2 border-green-500 text-green-400 hover:bg-green-500/20 hover:text-green-300 font-semibold shadow-lg flex-1"
 												>
-													<Edit class="h-4 w-4" />
+													<Edit class="h-4 w-4 mr-1" />
+													Edit
 												</Button>
 												<Button
-													variant="ghost"
+													variant="outline"
 													size="sm"
 													onclick={() => handleDeleteTransaction(transaction)}
-													class="text-red-400 hover:text-red-300 hover:bg-red-900/20"
+													class="bg-gray-900 border-2 border-red-500 text-red-400 hover:bg-red-500/20 hover:text-red-300 font-semibold shadow-lg flex-1"
 													disabled={isDeleting}
 												>
-													<Trash2 class="h-4 w-4" />
+													<Trash2 class="h-4 w-4 mr-1" />
+													Delete
 												</Button>
 											</div>
 										</div>
@@ -867,31 +869,33 @@
 											<Badge variant="secondary" class="text-xs bg-gray-800 text-gray-300">
 												{getCategoryDisplay(transaction.category_id)}
 											</Badge>
-											<div class="mt-2">
+											<div class="mt-2 flex gap-2">
 												<Button
-													variant="ghost"
-												size="sm"
+													variant="outline"
+													size="sm"
 													onclick={() => handleViewDetails(transaction)}
-													class="text-gray-400 hover:text-white hover:bg-gray-700 mr-2"
+													class="bg-gray-900 border-2 border-blue-500 text-blue-400 hover:bg-blue-500/20 hover:text-blue-300 font-semibold shadow-lg flex-1"
 												>
 													View Details
 												</Button>
 												<Button
-													variant="ghost"
+													variant="outline"
 													size="sm"
 													onclick={() => handleEditTransaction(transaction)}
-													class="text-blue-400 hover:text-blue-300 hover:bg-blue-900/20 mr-2"
+													class="bg-gray-900 border-2 border-green-500 text-green-400 hover:bg-green-500/20 hover:text-green-300 font-semibold shadow-lg flex-1"
 												>
-													<Edit class="h-4 w-4" />
+													<Edit class="h-4 w-4 mr-1" />
+													Edit
 												</Button>
 												<Button
-													variant="ghost"
+													variant="outline"
 													size="sm"
 													onclick={() => handleDeleteTransaction(transaction)}
-													class="text-red-400 hover:text-red-300 hover:bg-red-900/20"
+													class="bg-gray-900 border-2 border-red-500 text-red-400 hover:bg-red-500/20 hover:text-red-300 font-semibold shadow-lg flex-1"
 													disabled={isDeleting}
 												>
-													<Trash2 class="h-4 w-4" />
+													<Trash2 class="h-4 w-4 mr-1" />
+													Delete
 												</Button>
 											</div>
 										</div>
@@ -1126,9 +1130,7 @@
 						class="border-gray-600 data-[state=checked]:bg-blue-600"
 					/>
 					<Label for="edit-recurring" class="text-white">Recurring transaction</Label>
-				</div>
-
-				<!-- Action Buttons -->
+				</div>				<!-- Action Buttons -->
 				<div class="flex gap-2 pt-4">
 					<Button
 						variant="outline"
@@ -1140,7 +1142,7 @@
 					</Button>
 					<Button
 						onclick={handleUpdateTransaction}
-						class="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+						class="flex-1 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-semibold shadow-lg"
 						disabled={isSaving}
 					>
 						{isSaving ? 'Updating...' : 'Update Transaction'}
