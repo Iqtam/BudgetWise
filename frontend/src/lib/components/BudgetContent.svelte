@@ -21,16 +21,24 @@
 	let isDetailsOpen = $state(false);
 	let selectedBudgetDetails = $state<Budget | null>(null);
 	let currentPage = $state(1);
-	let itemsPerPage = 10;
-	let isSaving = $state(false);
+	let itemsPerPage = 10;	let isSaving = $state(false);
 	let isNewCategoryOpen = $state(false);
 	let newCategoryName = $state("");
+	let isEditDialogOpen = $state(false);
+	let editingBudget = $state<Budget | null>(null);
+	let isDeleting = $state(false);
 
 	// Form fields
 	let formCategory = $state("");
 	let formBudgetAmount = $state("");
 	let formStartDate = $state(new Date().toISOString().split("T")[0]);
 	let formEndDate = $state("");
+
+	// Edit form fields
+	let editFormCategory = $state("");
+	let editFormBudgetAmount = $state("");
+	let editFormStartDate = $state("");
+	let editFormEndDate = $state("");
 
 	// Wait for authentication before loading data
 	$effect(() => {
@@ -176,10 +184,85 @@
 			isSaving = false;
 		}
 	}
-
 	function handleViewDetails(budget: Budget) {
 		selectedBudgetDetails = budget;
 		isDetailsOpen = true;
+	}
+
+	function handleEditBudget(budget: Budget) {
+		editingBudget = budget;
+		editFormCategory = budget.category_id || "";
+		editFormBudgetAmount = budget.goal_amount.toString();
+		editFormStartDate = budget.start_date;
+		editFormEndDate = budget.end_date;
+		isEditDialogOpen = true;
+	}
+
+	async function handleUpdateBudget(event: Event) {
+		event.preventDefault();
+		
+		if (!editingBudget || !editFormBudgetAmount || !editFormStartDate || !editFormEndDate) {
+			error = 'Please fill in all required fields';
+			return;
+		}
+
+		isSaving = true;
+		error = null;
+		try {
+			await budgetService.updateBudget(editingBudget.id, {
+				category_id: editFormCategory || undefined,
+				start_date: editFormStartDate,
+				end_date: editFormEndDate,
+				goal_amount: parseFloat(editFormBudgetAmount),
+			});
+
+			// Reload data to get the updated budget
+			await loadData();
+			
+			isEditDialogOpen = false;
+			editingBudget = null;
+			
+			// Show success message
+			successMessage = 'Budget updated successfully';
+
+			// Auto-hide success message after 3 seconds
+			setTimeout(() => {
+				successMessage = null;
+			}, 3000);
+		} catch (err) {
+			console.error('Error updating budget:', err);
+			error = err instanceof Error ? err.message : 'Failed to update budget';
+		} finally {
+			isSaving = false;
+		}
+	}
+
+	async function handleDeleteBudget(budget: Budget) {
+		if (!confirm(`Are you sure you want to delete the budget for "${getCategoryName(budget.category_id)}"?`)) {
+			return;
+		}
+
+		isDeleting = true;
+		error = null;
+		try {
+			await budgetService.deleteBudget(budget.id);
+			
+			// Reload data to remove the deleted budget
+			await loadData();
+			
+			// Show success message
+			successMessage = 'Budget deleted successfully';
+
+			// Auto-hide success message after 3 seconds
+			setTimeout(() => {
+				successMessage = null;
+			}, 3000);
+		} catch (err) {
+			console.error('Error deleting budget:', err);
+			error = err instanceof Error ? err.message : 'Failed to delete budget';
+		} finally {
+			isDeleting = false;
+		}
 	}
 
 	function getBudgetStatus(spent: number, budgetAmount: number) {
@@ -331,9 +414,88 @@
 						{isSaving ? 'Creating...' : 'Create Budget'}
 					</Button>
 				</form>
-			</DialogContent>
-		</Dialog>
+			</DialogContent>		</Dialog>
 	</div>
+
+	<!-- Edit Budget Dialog -->
+	<Dialog bind:open={isEditDialogOpen}>
+		<DialogContent class="sm:max-w-[425px] bg-gray-800 border-gray-700 text-white">
+			<DialogHeader>
+				<DialogTitle>Edit Budget</DialogTitle>
+				<DialogDescription class="text-gray-400">
+					Update your budget settings
+				</DialogDescription>
+			</DialogHeader>
+			<form onsubmit={handleUpdateBudget} class="space-y-4">
+				<div class="space-y-2">
+					<Label for="editCategory">Category (Optional)</Label>
+					<div class="flex gap-2">
+						<select bind:value={editFormCategory} class="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white">
+							<option value="">Select category (optional)</option>
+							{#each categories as category}
+								<option value={category.id}>
+									{category.name}
+								</option>
+							{/each}
+						</select>
+					</div>
+				</div>
+
+				<div class="space-y-2">
+					<Label for="editBudgetAmount">Budget Amount</Label>
+					<Input
+						id="editBudgetAmount"
+						bind:value={editFormBudgetAmount}
+						type="number"
+						step="0.01"
+						placeholder="0.00"
+						required
+						class="bg-gray-700 border-gray-600"
+					/>
+				</div>
+
+				<div class="space-y-2">
+					<Label for="editStartDate">Start Date</Label>
+					<Input
+						id="editStartDate"
+						bind:value={editFormStartDate}
+						type="date"
+						required
+						class="bg-gray-700 border-gray-600"
+					/>
+				</div>
+
+				<div class="space-y-2">
+					<Label for="editEndDate">End Date</Label>
+					<Input 
+						id="editEndDate" 
+						bind:value={editFormEndDate} 
+						type="date" 
+						required 
+						class="bg-gray-700 border-gray-600" 
+					/>
+				</div>
+
+				<div class="flex gap-2">
+					<Button
+						type="button"
+						variant="outline"
+						onclick={() => isEditDialogOpen = false}
+						class="flex-1 border-gray-600 text-gray-300 hover:bg-gray-700"
+					>
+						Cancel
+					</Button>
+					<Button
+						type="submit"
+						disabled={isSaving}
+						class="flex-1 bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600"
+					>
+						{isSaving ? 'Updating...' : 'Update Budget'}
+					</Button>
+				</div>
+			</form>
+		</DialogContent>
+	</Dialog>
 
 	<!-- Budget Overview -->
 	<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -428,9 +590,7 @@
 									? `$${remaining.toLocaleString()} remaining`
 									: `$${Math.abs(remaining).toLocaleString()} over budget`}
 							</p>
-						</div>
-
-						<div class="flex gap-2">
+						</div>						<div class="flex gap-2">
 							<Button
 								variant="outline"
 								size="sm"
@@ -439,8 +599,22 @@
 							>
 								View Details
 							</Button>
-							<Button variant="ghost" size="sm" class="text-gray-400 hover:text-white hover:bg-gray-800">
-								Edit Budget
+							<Button 
+								variant="outline" 
+								size="sm" 
+								onclick={() => handleEditBudget(budget)}
+								class="border-gray-600 text-gray-300 hover:bg-gray-700"
+							>
+								Edit
+							</Button>
+							<Button 
+								variant="outline" 
+								size="sm" 
+								onclick={() => handleDeleteBudget(budget)}
+								disabled={isDeleting}
+								class="border-red-600 text-red-400 hover:bg-red-900/20"
+							>
+								{isDeleting ? 'Deleting...' : 'Delete'}
 							</Button>
 						</div>
 					</div>
@@ -567,9 +741,7 @@
 							</div>
 							<Progress value={Math.min(detailPercentage, 100)} class="h-3" />
 						</div>
-					</div>
-
-					<div class="flex gap-2 pt-4">
+					</div>					<div class="flex gap-2 pt-4">
 						<Button
 							variant="outline"
 							class="flex-1 border-gray-600 text-gray-300 hover:bg-gray-700"
@@ -577,8 +749,29 @@
 						>
 							Close
 						</Button>
-						<Button variant="outline" class="flex-1 border-gray-600 text-gray-300 hover:bg-gray-700">
+						<Button 
+							variant="outline" 
+							class="flex-1 border-gray-600 text-gray-300 hover:bg-gray-700"
+							onclick={() => {
+								isDetailsOpen = false;
+								if (selectedBudgetDetails) {
+									handleEditBudget(selectedBudgetDetails);
+								}
+							}}
+						>
 							Edit Budget
+						</Button>
+						<Button 
+							variant="outline" 
+							class="border-red-600 text-red-400 hover:bg-red-900/20"
+							onclick={() => {
+								if (selectedBudgetDetails) {
+									isDetailsOpen = false;
+									handleDeleteBudget(selectedBudgetDetails);
+								}
+							}}
+						>
+							Delete
 						</Button>
 					</div>
 				</div>
