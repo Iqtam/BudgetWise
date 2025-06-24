@@ -4,9 +4,8 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import { Badge } from '$lib/components/ui/badge';
-	import { Checkbox } from '$lib/components/ui/checkbox';	import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '$lib/components/ui/dialog';
-	import { Tabs, TabsContent, TabsList, TabsTrigger } from '$lib/components/ui/tabs';
-	import { ArrowDownIcon, ArrowUpIcon, Camera, MessageSquare, Plus, Search, Repeat, ArrowUpDown } from 'lucide-svelte';
+	import { Checkbox } from '$lib/components/ui/checkbox';	import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '$lib/components/ui/dialog';	import { Tabs, TabsContent, TabsList, TabsTrigger } from '$lib/components/ui/tabs';
+	import { ArrowDownIcon, ArrowUpIcon, Camera, MessageSquare, Plus, Search, Repeat, ArrowUpDown, Trash2 } from 'lucide-svelte';
 	import { transactionService, type Transaction } from '$lib/services/transactions';
 	import { categoryService, type Category } from '$lib/services/categories';
 	import { firebaseUser, loading as authLoading } from '$lib/stores/auth';
@@ -23,10 +22,10 @@
 	let isDialogOpen = $state(false);
 	let activeTab = $state("expense");
 	let currentPage = $state(1);
-	let itemsPerPage = 10;
-	let isDetailsOpen = $state(false);
+	let itemsPerPage = 10;	let isDetailsOpen = $state(false);
 	let selectedTransactionDetails = $state<Transaction | null>(null);
 	let isSaving = $state(false);
+	let isDeleting = $state(false);
 	let isNewCategoryOpen = $state(false);
 	let newCategoryName = $state("");
 	let newCategoryType = $state<'income' | 'expense'>('expense');
@@ -225,6 +224,37 @@
 		selectedTransactionDetails = transaction;
 		isDetailsOpen = true;
 	}
+	// Function to handle deleting a transaction
+	async function handleDeleteTransaction(transaction: Transaction) {
+		const confirmed = confirm(`Are you sure you want to delete this transaction: "${transaction.description}"?`);
+		
+		if (!confirmed) {
+			return;
+		}
+
+		isDeleting = true;
+		try {
+			await transactionService.deleteTransaction(transaction.id);
+			
+			// Remove the transaction from the local state
+			transactions = transactions.filter(t => t.id !== transaction.id);
+			
+			// Show success message
+			successMessage = 'Transaction deleted successfully';
+			error = null;
+
+			// Auto-hide success message after 3 seconds
+			setTimeout(() => {
+				successMessage = null;
+			}, 3000);
+		} catch (err) {
+			console.error('Error deleting transaction:', err);
+			error = err instanceof Error ? err.message : 'Failed to delete transaction';
+		} finally {
+			isDeleting = false;
+		}
+	}
+	
 	let paginatedData = $derived(filterAndSortTransactions(activeTab as "income" | "expense"));
 	let currentTransactions = $derived(paginatedData.transactions);
 </script>
@@ -580,9 +610,18 @@
 													variant="ghost"
 													size="sm"
 													onclick={() => handleViewDetails(transaction)}
-													class="text-gray-400 hover:text-white hover:bg-gray-700"
+													class="text-gray-400 hover:text-white hover:bg-gray-700 mr-2"
 												>
 													View Details
+												</Button>
+												<Button
+													variant="ghost"
+													size="sm"
+													onclick={() => handleDeleteTransaction(transaction)}
+													class="text-red-400 hover:text-red-300 hover:bg-red-900/20"
+													disabled={isDeleting}
+												>
+													<Trash2 class="h-4 w-4" />
 												</Button>
 											</div>
 										</div>
@@ -728,9 +767,18 @@
 													variant="ghost"
 													size="sm"
 													onclick={() => handleViewDetails(transaction)}
-													class="text-gray-400 hover:text-white hover:bg-gray-700"
+													class="text-gray-400 hover:text-white hover:bg-gray-700 mr-2"
 												>
 													View Details
+												</Button>
+												<Button
+													variant="ghost"
+													size="sm"
+													onclick={() => handleDeleteTransaction(transaction)}
+													class="text-red-400 hover:text-red-300 hover:bg-red-900/20"
+													disabled={isDeleting}
+												>
+													<Trash2 class="h-4 w-4" />
 												</Button>
 											</div>
 										</div>

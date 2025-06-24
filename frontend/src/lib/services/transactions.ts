@@ -10,6 +10,7 @@ export interface Transaction {
 	category_id?: string;
 	type: 'income' | 'expense';
 	event_id?: string;
+	event?: string;
 	recurrence?: string;
 	confirmed: boolean;
 }
@@ -106,6 +107,17 @@ export class TransactionService {
 			});
 		} catch (error) {
 			console.error('Error creating transaction:', error);
+			throw error;
+		}
+	}
+
+	async deleteTransaction(transactionId: string): Promise<void> {
+		try {
+			await this.apiCall(`/transactions/${transactionId}`, {
+				method: 'DELETE',
+			});
+		} catch (error) {
+			console.error('Error deleting transaction:', error);
 			throw error;
 		}
 	}

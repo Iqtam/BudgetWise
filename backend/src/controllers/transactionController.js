@@ -117,11 +117,15 @@ exports.deleteTransaction = async (req, res) => {
   const { id } = req.params;
 
   try {
-    const deletedCount = await Transaction.destroy({ where: { id } });
+    // Find and delete the transaction by ID
+    const transaction = await Transaction.findByPk(id);
 
-    if (deletedCount === 0) {
+    if (!transaction) {
       return res.status(404).json({ message: 'Transaction not found' });
     }
+
+    // Delete the transaction
+    await transaction.destroy();
 
     res.json({ message: 'Transaction deleted successfully' });
   } catch (error) {
