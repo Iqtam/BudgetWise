@@ -11,12 +11,12 @@
 	import { categoryService, type Category } from '$lib/services/categories';
 	import { firebaseUser, loading as authLoading } from '$lib/stores/auth';
 	import { onMount } from 'svelte';
-
 	// State variables
 	let transactions = $state<Transaction[]>([]);
 	let categories = $state<Category[]>([]);
 	let isLoading = $state(true);
 	let error = $state<string | null>(null);
+	let successMessage = $state<string | null>(null);
 	let searchTerm = $state("");
 	let filterCategory = $state("all");
 	let sortBy = $state("date");
@@ -114,11 +114,11 @@
 			totalPages: Math.ceil(filtered.length / itemsPerPage),
 		};
 	}
-
 	async function handleAddTransaction(event: Event) {
 		event.preventDefault();
 		isSaving = true;
 		error = null;
+		successMessage = null;
 
 		try {
 			const newTransactionData = {
@@ -136,9 +136,17 @@
 			// Add to local state
 			transactions = [newTransaction, ...transactions];
 			
+			// Show success message
+			successMessage = `Transaction "${formDescription}" added successfully!`;
+			
 			// Close dialog and reset form
 			isDialogOpen = false;
 			resetForm();
+
+			// Auto-hide success message after 5 seconds
+			setTimeout(() => {
+				successMessage = null;
+			}, 0);
 		} catch (err) {
 			console.error('Error creating transaction:', err);
 			error = err instanceof Error ? err.message : 'Failed to create transaction';
@@ -154,9 +162,7 @@
 		formEvent = "";
 		formDate = new Date().toISOString().split("T")[0];
 		formIsRecurrent = false;
-	}
-
-	// Function to handle creating a new category
+	}	// Function to handle creating a new category
 	async function handleCreateCategory(event: Event) {
 		event.preventDefault();
 		if (!newCategoryName.trim()) return;
@@ -173,14 +179,34 @@
 			// Auto-select the new category
 			formCategory = newCategory.id.toString();
 			
+			// Show success message
+			successMessage = `Category "${newCategoryName}" created successfully!`;
+			
 			// Close the new category dialog and reset form
 			isNewCategoryOpen = false;
 			newCategoryName = "";
 			newCategoryType = 'expense';
+
+			// Auto-hide success message after 3 seconds
+			setTimeout(() => {
+				successMessage = null;
+			}, 3000);
 		} catch (err) {
 			console.error('Error creating category:', err);
 			error = err instanceof Error ? err.message : 'Failed to create category';
 		}
+	}
+
+	// Function to handle opening new category dialog
+	function handleNewCategoryClick() {
+		if (!formType) {
+			error = 'Please select a transaction type first';
+			return;
+		}
+		
+		// Set the category type to match the transaction type
+		newCategoryType = formType as 'income' | 'expense';
+		isNewCategoryOpen = true;
 	}
 
 	function handleViewDetails(transaction: Transaction) {
@@ -211,8 +237,25 @@
 					Try Again
 				</Button>
 			</div>
-		</div>
-	{:else}
+		</div>	{:else}
+		<!-- Success Message -->
+		{#if successMessage}
+			<div class="mb-4 p-4 bg-green-900/50 border border-green-500 rounded-lg">
+				<div class="flex items-center gap-2">
+					<div class="text-green-400 text-lg">✅</div>
+					<p class="text-green-300 font-medium">{successMessage}</p>
+					<Button
+						onclick={() => successMessage = null}
+						variant="ghost"
+						size="sm"
+						class="ml-auto text-green-400 hover:text-green-300 p-1 h-auto"
+					>
+						×
+					</Button>
+				</div>
+			</div>
+		{/if}
+
 		<!-- Main Content -->
 	<div class="flex items-center justify-between">
 		<div>
@@ -280,13 +323,13 @@
 								</div>
 							</div><div class="space-y-2">
 								<div class="flex items-center justify-between">
-									<Label for="category">Category (Optional)</Label>
-									<Button
+									<Label for="category">Category (Optional)</Label>									<Button
 										type="button"
 										variant="ghost"
 										size="sm"
-										onclick={() => isNewCategoryOpen = true}
-										class="text-blue-400 hover:text-blue-300 p-0 h-auto font-normal"
+										onclick={() => handleNewCategoryClick()}
+										disabled={!formType}
+										class="text-blue-400 hover:text-blue-300 p-0 h-auto font-normal disabled:text-gray-500 disabled:cursor-not-allowed"
 									>
 										+ New Category
 									</Button>
@@ -397,13 +440,14 @@
 						required
 						class="bg-gray-700 border-gray-600"
 					/>
-				</div>
-				<div class="space-y-2">
+				</div>				<div class="space-y-2">
 					<Label for="categoryType">Category Type</Label>
-					<select bind:value={newCategoryType} required class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white">
-						<option value="expense">Expense</option>
-						<option value="income">Income</option>
-					</select>
+					<div class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white capitalize">
+						{newCategoryType}
+					</div>
+					<p class="text-xs text-gray-400">
+						Type is automatically set based on your transaction type
+					</p>
 				</div>
 				<div class="flex gap-2">
 					<Button
@@ -456,15 +500,12 @@
 							class="pl-10 bg-gray-800 border-gray-700 text-white"
 						/>
 					</div>
-					<div class="flex gap-2">
-						<select bind:value={filterCategory} class="w-full sm:w-[180px] px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white">
+					<div class="flex gap-2">						<select bind:value={filterCategory} class="w-full sm:w-[180px] px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white">
 							<option value="all">All Categories</option>
-							<option value="food">Food & Dining</option>
-							<option value="transportation">Transportation</option>
-							<option value="entertainment">Entertainment</option>
-							<option value="utilities">Utilities</option>
-							<option value="shopping">Shopping</option>
-							<option value="health">Health</option>
+							<!-- <option value="none">No Category</option> -->
+							{#each categories.filter(cat => cat.type === 'expense') as category}
+								<option value={category.id.toString()}>{category.name}</option>
+							{/each}
 						</select>
 						<select bind:value={sortBy} class="w-full sm:w-[140px] px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white">
 							<option value="date">Sort by Date</option>
@@ -607,12 +648,12 @@
 							class="pl-10 bg-gray-800 border-gray-700 text-white"
 						/>
 					</div>
-					<div class="flex gap-2">
-						<select bind:value={filterCategory} class="w-full sm:w-[180px] px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white">
+					<div class="flex gap-2">						<select bind:value={filterCategory} class="w-full sm:w-[180px] px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white">
 							<option value="all">All Categories</option>
-							<option value="salary">Salary</option>
-							<option value="freelance">Freelance</option>
-							<option value="investment">Investment</option>
+							<!-- <option value="none">No Category</option> -->
+							{#each categories.filter(cat => cat.type === 'income') as category}
+								<option value={category.id.toString()}>{category.name}</option>
+							{/each}
 						</select>
 						<select bind:value={sortBy} class="w-full sm:w-[140px] px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white">
 							<option value="date">Sort by Date</option>
