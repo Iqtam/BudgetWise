@@ -1,5 +1,8 @@
 import { auth } from '$lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
+import { PUBLIC_BACKEND_API_URL } from '$env/static/public';
+
+const API_URL = PUBLIC_BACKEND_API_URL || "http://localhost/api";
 
 export interface Transaction {
 	id: string;
@@ -16,7 +19,6 @@ export interface Transaction {
 }
 
 export class TransactionService {
-	private baseUrl = '/api';
 
 	// Helper function to wait for auth to be ready and get Firebase token
 	private async getAuthToken(): Promise<string | null> {
@@ -46,7 +48,7 @@ export class TransactionService {
 			throw new Error('Authentication required');
 		}
 
-		const response = await fetch(`${this.baseUrl}${endpoint}`, {
+		const response = await fetch(`${API_URL}${endpoint}`, {
 			...options,
 			headers: {
 				...options.headers,

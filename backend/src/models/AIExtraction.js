@@ -1,49 +1,72 @@
-const { DataTypes } = require('sequelize');
-const { sequelize } = require('../config/database');
+const { DataTypes } = require("sequelize");
+const { sequelize } = require("../config/database");
 
-const AIExtraction = sequelize.define('AIExtraction', {
-  id: {
-    type: DataTypes.UUID,
-    defaultValue: DataTypes.UUIDV4,
-    primaryKey: true
-  },
-  upload_id: {
-    type: DataTypes.UUID,
-    allowNull: false,
-    references: {
-      model: 'uploads',
-      key: 'id'
+const AIExtraction = sequelize.define(
+  "AIExtraction",
+  {
+    id: {
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
+      primaryKey: true,
     },
-    onDelete: 'CASCADE'
+    user_id: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      references: {
+        model: "users",
+        key: "id",
+      },
+      onDelete: "CASCADE",
+    },
+    linked_transaction_id: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      references: {
+        model: "transaction",
+        key: "id",
+      },
+      onDelete: "SET NULL",
+    },
+    upload_id: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      references: {
+        model: "uploads",
+        key: "id",
+      },
+      onDelete: "SET NULL",
+    },
+    source: {
+      type: DataTypes.TEXT,
+    },
+    interpreted_type: {
+      type: DataTypes.STRING(20),
+      validate: {
+        isIn: [["income", "expense", "budget", "debt", "saving"]],
+      },
+    },
+    category_suggestion: {
+      type: DataTypes.STRING(100),
+    },
+    amount: {
+      type: DataTypes.DECIMAL(12, 2),
+    },
+    extraction_method: {
+      type: DataTypes.STRING(20),
+      validate: {
+        isIn: [["chat", "ocr"]],
+      },
+    },
+    confidence_score: {
+      type: DataTypes.FLOAT,
+    },
   },
-  extracted_data: {
-    type: DataTypes.JSON,
-    allowNull: false
-  },
-  confidence_score: {
-    type: DataTypes.DECIMAL(5, 2)
-  },
-  extraction_type: {
-    type: DataTypes.STRING(50),
-    validate: {
-      isIn: [['receipt', 'invoice', 'bank_statement', 'other']]
-    }
-  },
-  status: {
-    type: DataTypes.STRING(20),
-    defaultValue: 'pending',
-    validate: {
-      isIn: [['pending', 'processing', 'completed', 'failed']]
-    }
-  },
-  error_message: {
-    type: DataTypes.TEXT
+  {
+    tableName: "ai_extractions",
+    timestamps: true,
+    createdAt: "created_at",
+    updatedAt: "updated_at",
   }
-}, {
-  tableName: 'ai_extractions',
-  timestamps: true,
-  createdAt: 'created_at',
-  updatedAt: 'updated_at'
-});
+);
 
-module.exports = AIExtraction; 
+module.exports = AIExtraction;

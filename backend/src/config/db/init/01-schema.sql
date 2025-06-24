@@ -201,6 +201,7 @@ CREATE TABLE log_table (
   action VARCHAR(10) CHECK (action IN ('INSERT', 'UPDATE', 'DELETE')),
   old_data JSONB,
   new_data JSONB,
-  changed_by VARCHAR(128) REFERENCES users(id),
+  changed_by UUID REFERENCES users(id),
   changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ); 
+

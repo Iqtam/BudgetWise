@@ -11,7 +11,7 @@ import { isLoggingOut } from '$lib/stores/auth';
 import {PUBLIC_BACKEND_API_URL} from '$env/static/public';
   
 
-const API_URL = "http://localhost/api";
+const API_URL = PUBLIC_BACKEND_API_URL ||  "http://localhost/api";
 // const API_URL="http://localhost:5000/api";
 // const API_URL = PUBLIC_BACKEND_API_URL;
 

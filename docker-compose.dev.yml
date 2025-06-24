@@ -57,6 +57,7 @@ services:
     container_name: budgetwise_frontend_dev
     environment:
       NODE_ENV: development
+      CHOKIDAR_USEPOLLING: "true"
       PUBLIC_BACKEND_API_URL: ${PUBLIC_BACKEND_API_URL}
       PUBLIC_FIREBASE_API_KEY: ${PUBLIC_FIREBASE_API_KEY}
       PUBLIC_FIREBASE_AUTH_DOMAIN: ${PUBLIC_FIREBASE_AUTH_DOMAIN}
