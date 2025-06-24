@@ -121,6 +121,18 @@ export class TransactionService {
 			throw error;
 		}
 	}
+
+	async updateTransaction(transactionId: string, transactionData: Partial<Omit<Transaction, 'id' | 'user_id'>>): Promise<any> {
+		try {
+			return await this.apiCall(`/transactions/${transactionId}`, {
+				method: 'PUT',
+				body: JSON.stringify(transactionData),
+			});
+		} catch (error) {
+			console.error('Error updating transaction:', error);
+			throw error;
+		}
+	}
 }
 
 export const transactionService = new TransactionService();

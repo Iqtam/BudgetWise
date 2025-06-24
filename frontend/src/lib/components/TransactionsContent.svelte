@@ -5,7 +5,7 @@
 	import { Label } from '$lib/components/ui/label';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Checkbox } from '$lib/components/ui/checkbox';	import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '$lib/components/ui/dialog';	import { Tabs, TabsContent, TabsList, TabsTrigger } from '$lib/components/ui/tabs';
-	import { ArrowDownIcon, ArrowUpIcon, Camera, MessageSquare, Plus, Search, Repeat, ArrowUpDown, Trash2 } from 'lucide-svelte';
+	import { ArrowDownIcon, ArrowUpIcon, Camera, MessageSquare, Plus, Search, Repeat, ArrowUpDown, Trash2, Edit } from 'lucide-svelte';
 	import { transactionService, type Transaction } from '$lib/services/transactions';
 	import { categoryService, type Category } from '$lib/services/categories';
 	import { firebaseUser, loading as authLoading } from '$lib/stores/auth';
@@ -26,10 +26,11 @@
 	let selectedTransactionDetails = $state<Transaction | null>(null);
 	let isSaving = $state(false);
 	let isDeleting = $state(false);
+	let isEditOpen = $state(false);
+	let editingTransaction = $state<Transaction | null>(null);
 	let isNewCategoryOpen = $state(false);
 	let newCategoryName = $state("");
 	let newCategoryType = $state<'income' | 'expense'>('expense');
-
 	// Form fields
 	let formDescription = $state("");
 	let formAmount = $state("");
@@ -38,6 +39,15 @@
 	let formEvent = $state("");
 	let formDate = $state(new Date().toISOString().split("T")[0]);
 	let formIsRecurrent = $state(false);
+
+	// Edit form fields
+	let editDescription = $state("");
+	let editAmount = $state("");
+	let editType = $state("");
+	let editCategory = $state("");
+	let editEvent = $state("");
+	let editDate = $state("");
+	let editIsRecurrent = $state(false);
 
 	// Wait for authentication before loading data
 	$effect(() => {
@@ -83,6 +93,11 @@
 	function getCategoryDisplay(categoryId: string | null | undefined) {
 		const category = getCategoryById(categoryId);
 		return category ? category.name : 'No Category';
+	}
+
+	// Helper function to get filtered categories by type
+	function getFilteredCategories(type: string): Category[] {
+		return categories.filter(category => category.type === type);
 	}
 
 	// Reset current page when filters change
@@ -252,6 +267,88 @@
 			error = err instanceof Error ? err.message : 'Failed to delete transaction';
 		} finally {
 			isDeleting = false;
+		}
+	}
+
+	// Function to handle opening edit dialog
+	function handleEditTransaction(transaction: Transaction) {
+		editingTransaction = transaction;
+		// Pre-fill the edit form with transaction data
+		editDescription = transaction.description;
+		editAmount = transaction.amount.toString();
+		editType = transaction.type;
+		editCategory = transaction.category_id || "";
+		editEvent = transaction.event || "";
+		editDate = transaction.date;
+		editIsRecurrent = !!transaction.recurrence;
+		isEditOpen = true;
+	}
+
+	// Function to handle updating a transaction
+	async function handleUpdateTransaction() {
+		if (!editingTransaction) return;
+
+		if (!editDescription || !editAmount || !editType) {
+			error = 'Please fill in all required fields';
+			return;
+		}
+
+		isSaving = true;		try {			const updatedTransaction = await transactionService.updateTransaction(editingTransaction.id, {
+				description: editDescription,
+				amount: parseFloat(editAmount),
+				type: editType as 'income' | 'expense',
+				category_id: editCategory || undefined,
+				event: editEvent || undefined,
+				date: editDate,
+				recurrence: editIsRecurrent ? 'monthly' : undefined
+			});			console.log('Updated transaction response:', updatedTransaction);
+
+			// Update the transaction in the local state
+			// Backend returns { message: "...", data: transaction }
+			const updatedData = (updatedTransaction as any).data || updatedTransaction;
+			const updatedTransactionData = {
+				...editingTransaction,
+				description: editDescription,
+				amount: parseFloat(editAmount),
+				type: editType as 'income' | 'expense',
+				category_id: editCategory || undefined,
+				event: editEvent || undefined,
+				date: editDate,
+				recurrence: editIsRecurrent ? 'monthly' : undefined,
+				...updatedData
+			};
+			
+			console.log('Updating local transaction:', updatedTransactionData);
+			
+			transactions = transactions.map(t => 
+				t.id === editingTransaction!.id ? updatedTransactionData : t
+			);
+
+			console.log('Updated transactions array:', transactions);
+
+			// If the transaction type changed, switch to the appropriate tab
+			if (editType !== editingTransaction.type) {
+				activeTab = editType;
+			}
+
+			// Close the edit dialog
+			isEditOpen = false;
+			editingTransaction = null;			// Show success message
+			successMessage = 'Transaction updated successfully';
+			error = null;
+
+			// Force reactivity by creating a new array reference
+			transactions = [...transactions];
+
+			// Auto-hide success message after 3 seconds
+			setTimeout(() => {
+				successMessage = null;
+			}, 3000);
+		} catch (err) {
+			console.error('Error updating transaction:', err);
+			error = err instanceof Error ? err.message : 'Failed to update transaction';
+		} finally {
+			isSaving = false;
 		}
 	}
 	
@@ -617,6 +714,14 @@
 												<Button
 													variant="ghost"
 													size="sm"
+													onclick={() => handleEditTransaction(transaction)}
+													class="text-blue-400 hover:text-blue-300 hover:bg-blue-900/20 mr-2"
+												>
+													<Edit class="h-4 w-4" />
+												</Button>
+												<Button
+													variant="ghost"
+													size="sm"
 													onclick={() => handleDeleteTransaction(transaction)}
 													class="text-red-400 hover:text-red-300 hover:bg-red-900/20"
 													disabled={isDeleting}
@@ -765,11 +870,19 @@
 											<div class="mt-2">
 												<Button
 													variant="ghost"
-													size="sm"
+												size="sm"
 													onclick={() => handleViewDetails(transaction)}
 													class="text-gray-400 hover:text-white hover:bg-gray-700 mr-2"
 												>
 													View Details
+												</Button>
+												<Button
+													variant="ghost"
+													size="sm"
+													onclick={() => handleEditTransaction(transaction)}
+													class="text-blue-400 hover:text-blue-300 hover:bg-blue-900/20 mr-2"
+												>
+													<Edit class="h-4 w-4" />
 												</Button>
 												<Button
 													variant="ghost"
@@ -914,8 +1027,126 @@
 						</div>
 					{/if}
 				</div>
-			{/if}
-		</DialogContent>
+			{/if}		</DialogContent>
+	</Dialog>
+	{/if}
+
+	<!-- Edit Transaction Dialog -->
+	{#if isEditOpen && editingTransaction}
+	<Dialog bind:open={isEditOpen}>
+		<DialogContent class="bg-gray-900 border-gray-800 text-white max-w-md mx-auto">
+			<DialogHeader>
+				<DialogTitle class="text-white">Edit Transaction</DialogTitle>
+				<DialogDescription class="text-gray-400">
+					Update the transaction details below.
+				</DialogDescription>
+			</DialogHeader>
+			
+			<div class="space-y-4">
+				<!-- Description -->
+				<div>
+					<Label for="edit-description" class="text-white">Description</Label>
+					<Input
+						id="edit-description"
+						bind:value={editDescription}
+						placeholder="Transaction description"
+						class="bg-gray-800 border-gray-700 text-white"
+					/>
+				</div>
+
+				<!-- Amount -->
+				<div>
+					<Label for="edit-amount" class="text-white">Amount</Label>
+					<Input
+						id="edit-amount"
+						type="number"
+						step="0.01"
+						bind:value={editAmount}
+						placeholder="0.00"
+						class="bg-gray-800 border-gray-700 text-white"
+					/>
+				</div>
+
+				<!-- Type -->
+				<div>
+					<Label for="edit-type" class="text-white">Type</Label>
+					<select
+						id="edit-type"
+						bind:value={editType}
+						class="w-full p-2 bg-gray-800 border border-gray-700 rounded-md text-white"
+					>
+						<option value="">Select type</option>
+						<option value="income">Income</option>
+						<option value="expense">Expense</option>
+					</select>
+				</div>
+
+				<!-- Category -->
+				<div>
+					<Label for="edit-category" class="text-white">Category</Label>
+					<select
+						id="edit-category"
+						bind:value={editCategory}
+						class="w-full p-2 bg-gray-800 border border-gray-700 rounded-md text-white"
+					>
+						<option value="">Select category</option>
+						{#each getFilteredCategories(editType) as category}
+							<option value={category.id}>{category.name}</option>
+						{/each}
+					</select>
+				</div>
+
+				<!-- Date -->
+				<div>
+					<Label for="edit-date" class="text-white">Date</Label>
+					<Input
+						id="edit-date"
+						type="date"
+						bind:value={editDate}
+						class="bg-gray-800 border-gray-700 text-white"
+					/>
+				</div>
+
+				<!-- Event (optional) -->
+				<div>
+					<Label for="edit-event" class="text-white">Event (Optional)</Label>
+					<Input
+						id="edit-event"
+						bind:value={editEvent}
+						placeholder="Related event"
+						class="bg-gray-800 border-gray-700 text-white"
+					/>
+				</div>
+
+				<!-- Recurring -->
+				<div class="flex items-center space-x-2">
+					<Checkbox
+						id="edit-recurring"
+						bind:checked={editIsRecurrent}
+						class="border-gray-600 data-[state=checked]:bg-blue-600"
+					/>
+					<Label for="edit-recurring" class="text-white">Recurring transaction</Label>
+				</div>
+
+				<!-- Action Buttons -->
+				<div class="flex gap-2 pt-4">
+					<Button
+						variant="outline"
+						onclick={() => (isEditOpen = false)}
+						class="flex-1 border-gray-600 text-gray-300 hover:bg-gray-700"
+						disabled={isSaving}
+					>
+						Cancel
+					</Button>
+					<Button
+						onclick={handleUpdateTransaction}
+						class="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+						disabled={isSaving}
+					>
+						{isSaving ? 'Updating...' : 'Update Transaction'}
+					</Button>
+				</div>
+			</div>		</DialogContent>
 	</Dialog>
 	{/if}
 </div>

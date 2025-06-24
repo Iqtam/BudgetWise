@@ -134,3 +134,46 @@ exports.deleteTransaction = async (req, res) => {
   }
 };
 
+exports.updateTransaction = async (req, res) => {
+  const { id } = req.params;
+  const {
+    amount,
+    date,
+    description,
+    category_id,
+    type,
+    event_id,
+    recurrence,
+    confirmed
+  } = req.body;
+
+  try {
+    // Find the transaction by ID
+    const transaction = await Transaction.findByPk(id);
+
+    if (!transaction) {
+      return res.status(404).json({ message: 'Transaction not found' });
+    }
+
+    // Update the transaction
+    await transaction.update({
+      amount: amount !== undefined ? amount : transaction.amount,
+      date: date !== undefined ? date : transaction.date,
+      description: description !== undefined ? description : transaction.description,
+      category_id: category_id !== undefined ? category_id : transaction.category_id,
+      type: type !== undefined ? type : transaction.type,
+      event_id: event_id !== undefined ? event_id : transaction.event_id,
+      recurrence: recurrence !== undefined ? recurrence : transaction.recurrence,
+      confirmed: confirmed !== undefined ? confirmed : transaction.confirmed
+    });
+
+    res.json({
+      message: 'Transaction updated successfully',
+      data: transaction
+    });
+  } catch (error) {
+    console.error('Update Transaction Error:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
