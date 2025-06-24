@@ -10,8 +10,7 @@
 	import { budgetService, type Budget } from '$lib/services/budgets';
 	import { categoryService, type Category } from '$lib/services/categories';
 	import { firebaseUser, loading as authLoading } from '$lib/stores/auth';
-	import { onMount } from 'svelte';
-	// State variables
+	import { onMount } from 'svelte';	// State variables
 	let budgets = $state<Budget[]>([]);
 	let categories = $state<Category[]>([]);
 	let isLoading = $state(true);
@@ -24,6 +23,7 @@
 	let itemsPerPage = 10;	let isSaving = $state(false);
 	let isNewCategoryOpen = $state(false);
 	let newCategoryName = $state("");
+	let categoryNameError = $state(false);
 	let isEditDialogOpen = $state(false);
 	let editingBudget = $state<Budget | null>(null);
 	let isDeleting = $state(false);
@@ -50,18 +50,13 @@
 	async function loadData() {
 		isLoading = true;
 		error = null;
-		
-		try {
+				try {
 			const [budgetData, categoryData] = await Promise.all([
 				budgetService.getAllBudgets(),
 				categoryService.getAllCategories()
 			]);
 			
-			// Add mock spent calculation for each budget
-			budgets = budgetData.map(budget => ({
-				...budget,
-				spent: Math.random() * budget.goal_amount * 0.8 // Mock spent amount (0-80% of goal)
-			}));
+			budgets = budgetData;
 			categories = categoryData;
 		} catch (err) {
 			console.error('Error loading data:', err);
@@ -69,31 +64,59 @@
 		} finally {
 			isLoading = false;
 		}
-	}
-	// Reset current page when budgets change
+	}	// Reset current page when budgets change
 	$effect(() => {
 		currentPage = 1;
-	});	// Helper function to get category name by ID
+	});	// Computed values for budget summary
+	let totalBudget = $derived(budgets.reduce((sum, budget) => sum + parseFloat(String(budget.goal_amount || '0')), 0));
+	let totalSpent = $derived(budgets.reduce((sum, budget) => sum + getSpentAmount(budget), 0));
+	let overallProgress = $derived(totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0);
+	let budgetsNearLimit = $derived(budgets.filter((b) => (getSpentAmount(b) / parseFloat(String(b.goal_amount || '0'))) * 100 >= 80).length);
+	let totalRemaining = $derived(totalBudget - totalSpent);// Helper function to get category name by ID
 	function getCategoryName(categoryId: string | undefined) {
 		if (!categoryId) return 'No Category';
 		const category = categories.find(c => c.id === categoryId);
 		return category ? category.name : 'Unknown Category';
-	}
-
-	// Helper function to calculate or mock spent amount
+	}	// Helper function to calculate or mock spent amount
 	// TODO: This should eventually fetch from transactions API
 	function getSpentAmount(budget: Budget): number {
-		// For now, return a mock spent amount based on the budget
+		// Ensure we have a valid budget with goal_amount
+		if (!budget || !budget.goal_amount) return 0;
+		
+		const goalAmount = parseFloat(String(budget.goal_amount));
+		if (isNaN(goalAmount) || goalAmount <= 0) return 0;
+		
+		// For now, return a more realistic mock spent amount based on the budget
 		// In a real app, this would be calculated from actual transactions
-		const mockSpentPercentage = Math.random() * 1.2; // 0% to 120% to show various states
-		return budget.goal_amount * mockSpentPercentage;
-	}
-
-	async function handleAddCategory(event: Event) {
+		
+		// Use budget ID as a seed to get consistent mock data
+		const seed = parseInt(budget.id.slice(-2), 16) || 1;
+		const random = (seed * 9301 + 49297) % 233280 / 233280; // Simple seeded random
+		
+		// Mock spent percentage between 0% and 120% based on budget duration
+		const startDate = new Date(budget.start_date);
+		const endDate = new Date(budget.end_date);
+		const today = new Date();
+		
+		// Calculate how far through the budget period we are
+		const totalDays = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
+		const daysPassed = Math.min(totalDays, (today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+		const progressRatio = Math.max(0, daysPassed / totalDays);
+		
+		// Base spending on time progress with some randomness
+		const baseSpentRatio = progressRatio * (0.5 + random * 0.7); // 50-120% of expected progress
+		const mockSpentPercentage = Math.max(0, baseSpentRatio);
+		
+		return Math.round(goalAmount * mockSpentPercentage * 100) / 100;
+	}	async function handleAddCategory(event: Event) {
 		event.preventDefault();
 		
 		if (!newCategoryName.trim()) {
-			error = 'Category name is required';
+			// Show visual indication instead of blocking message
+			categoryNameError = true;
+			setTimeout(() => {
+				categoryNameError = false;
+			}, 2000);
 			return;
 		}
 
@@ -111,6 +134,7 @@
 			
 			// Reset form and close dialog
 			newCategoryName = "";
+			categoryNameError = false;
 			isNewCategoryOpen = false;
 			
 			successMessage = 'Category created successfully';
@@ -135,11 +159,7 @@
 			startIndex: startIndex + 1,
 			endIndex: Math.min(endIndex, budgets.length),
 		};	}
-
 	let paginatedData = $derived(getPaginatedBudgets());
-	let totalBudget = $derived(budgets.reduce((sum, budget) => sum + budget.goal_amount, 0));
-	let totalSpent = $derived(budgets.reduce((sum, budget) => sum + getSpentAmount(budget), 0));
-	let overallProgress = $derived(totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0);
 
 	async function handleCreateBudget(event: Event) {
 		event.preventDefault();
@@ -264,8 +284,8 @@
 			isDeleting = false;
 		}
 	}
-
 	function getBudgetStatus(spent: number, budgetAmount: number) {
+		if (budgetAmount <= 0) return { status: "No Budget", color: "text-gray-400", bgColor: "bg-gray-500/20" };
 		const percentage = (spent / budgetAmount) * 100;
 		if (percentage >= 100) return { status: "Over Budget", color: "text-red-400", bgColor: "bg-red-500/20" };
 		if (percentage >= 80) return { status: "Near Limit", color: "text-yellow-400", bgColor: "bg-yellow-500/20" };
@@ -339,30 +359,41 @@
 									<DialogHeader>
 										<DialogTitle>Add New Category</DialogTitle>
 										<DialogDescription class="text-gray-400">Create a new budget category</DialogDescription>
-									</DialogHeader>
-									<form onsubmit={handleAddCategory} class="space-y-4">
-										<div class="space-y-2">
-											<Label for="newCategory">Category Name</Label>
-											<Input
-												id="newCategory"
-												bind:value={newCategoryName}
-												placeholder="Enter category name"
-												required
-												class="bg-gray-700 border-gray-600"
-											/>
-										</div>
-										<div class="flex gap-2">
-											<Button
+									</DialogHeader>									<form onsubmit={handleAddCategory} novalidate class="space-y-4">										<div class="space-y-2 relative">
+											<Label for="newCategory">Category Name</Label>											<div class="relative group">
+												<Input
+													id="newCategory"
+													bind:value={newCategoryName}
+													placeholder="Enter category name"
+													oninput={() => categoryNameError = false}
+													class="bg-gray-700 {categoryNameError ? 'border-red-500 focus:border-red-500 focus:ring-1 focus:ring-red-500' : 'border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500'}"
+												/>
+												<!-- Error message only shows on hover -->
+												<div class="absolute left-0 top-full mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10 pointer-events-none">
+													<div class="bg-red-500 text-white text-xs px-2 py-1 rounded shadow-lg whitespace-nowrap">
+														{#if categoryNameError}
+															Category name is required
+														{:else}
+															Please fill out this field
+														{/if}
+													</div>
+												</div>
+											</div>
+										</div>										<div class="flex gap-2">											<Button
 												type="button"
 												variant="outline"
-												onclick={() => isNewCategoryOpen = false}
-												class="flex-1 border-gray-600 text-gray-300 hover:bg-gray-700"
+												onclick={() => {
+													isNewCategoryOpen = false;
+													categoryNameError = false;
+													newCategoryName = "";
+												}}
+												class="flex-1 bg-black border-black text-red-500 hover:bg-gray-900 font-bold"
 											>
 												Cancel
 											</Button>
 											<Button
 												type="submit"
-												class="flex-1 bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600"
+												class="flex-1 bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600 text-white font-bold"
 											>
 												Add
 											</Button>
@@ -503,9 +534,14 @@
 			<CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
 				<CardTitle class="text-sm font-medium text-gray-300">Total Budget</CardTitle>
 				<DollarSign class="h-4 w-4 text-gray-400" />
-			</CardHeader>
-			<CardContent>
-				<div class="text-2xl font-bold text-white">${totalBudget.toLocaleString()}</div>
+			</CardHeader>			<CardContent>
+				<div class="text-2xl font-bold text-white">
+					{#if isNaN(totalBudget) || totalBudget <= 0}
+						$0
+					{:else}
+						${totalBudget.toLocaleString()}
+					{/if}
+				</div>
 				<p class="text-xs text-gray-400">{budgets.length} active budgets</p>
 			</CardContent>
 		</Card>
@@ -514,10 +550,17 @@
 			<CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
 				<CardTitle class="text-sm font-medium text-gray-300">Total Spent</CardTitle>
 				<TrendingUp class="h-4 w-4 text-gray-400" />
-			</CardHeader>
-			<CardContent>
-				<div class="text-2xl font-bold text-red-400">${totalSpent.toLocaleString()}</div>
-				<p class="text-xs text-gray-400">{overallProgress.toFixed(1)}% of total budget</p>
+			</CardHeader>			<CardContent>
+				<div class="text-2xl font-bold text-red-400">
+					{#if isNaN(totalSpent) || totalSpent <= 0}
+						$0
+					{:else}
+						${totalSpent.toLocaleString()}
+					{/if}
+				</div>
+				<p class="text-xs text-gray-400">
+					{totalBudget > 0 && !isNaN(overallProgress) ? `${overallProgress.toFixed(1)}% of total budget` : '0.0% of total budget'}
+				</p>
 			</CardContent>
 		</Card>
 
@@ -525,10 +568,19 @@
 			<CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
 				<CardTitle class="text-sm font-medium text-gray-300">Remaining</CardTitle>
 				<PieChart class="h-4 w-4 text-gray-400" />
-			</CardHeader>
-			<CardContent>
-				<div class="text-2xl font-bold text-green-400">${(totalBudget - totalSpent).toLocaleString()}</div>
-				<p class="text-xs text-gray-400">Available to spend</p>
+			</CardHeader>			<CardContent>
+				<div class="text-2xl font-bold {totalRemaining >= 0 ? 'text-green-400' : 'text-red-400'}">
+					{#if isNaN(totalRemaining)}
+						$0
+					{:else if totalRemaining >= 0}
+						${totalRemaining.toLocaleString()}
+					{:else}
+						-${Math.abs(totalRemaining).toLocaleString()}
+					{/if}
+				</div>
+				<p class="text-xs text-gray-400">
+					{totalRemaining >= 0 ? 'Available to spend' : 'Over budget'}
+				</p>
 			</CardContent>
 		</Card>
 
@@ -536,8 +588,9 @@
 			<CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
 				<CardTitle class="text-sm font-medium text-gray-300">Alerts</CardTitle>
 				<AlertTriangle class="h-4 w-4 text-gray-400" />
-			</CardHeader>			<CardContent>				<div class="text-2xl font-bold text-yellow-400">
-					{budgets.filter((b) => (getSpentAmount(b) / b.goal_amount) * 100 >= 80).length}
+			</CardHeader>			<CardContent>
+				<div class="text-2xl font-bold text-yellow-400">
+					{budgetsNearLimit}
 				</div>
 				<p class="text-xs text-gray-400">Budgets near limit</p>
 			</CardContent>
@@ -559,9 +612,10 @@
 		</CardHeader>
 		<CardContent>			<div class="space-y-6">				{#each paginatedData.budgets as budget}
 					{@const spentAmount = getSpentAmount(budget)}
-					{@const percentage = (spentAmount / budget.goal_amount) * 100}
-					{@const remaining = budget.goal_amount - spentAmount}
-					{@const budgetStatus = getBudgetStatus(spentAmount, budget.goal_amount)}
+					{@const goalAmount = parseFloat(String(budget.goal_amount || '0'))}
+					{@const percentage = goalAmount > 0 ? (spentAmount / goalAmount) * 100 : 0}
+					{@const remaining = goalAmount - spentAmount}
+					{@const budgetStatus = getBudgetStatus(spentAmount, goalAmount)}
 					<div class="border border-gray-800 rounded-lg p-4 space-y-4">
 						<div class="flex items-center justify-between">
 							<div>
@@ -575,7 +629,7 @@
 								</p>
 							</div>							<div class="text-right">
 								<p class="text-lg font-bold text-white">${spentAmount.toLocaleString()}</p>
-								<p class="text-sm text-gray-400">of ${budget.goal_amount.toLocaleString()}</p>								<div class="mt-2 flex gap-2">
+								<p class="text-sm text-gray-400">of ${goalAmount.toLocaleString()}</p><div class="mt-2 flex gap-2">
 									<Button
 										variant="outline"
 										size="sm"
@@ -691,16 +745,16 @@
 				<DialogDescription class="text-gray-400">Complete information about this budget</DialogDescription>
 			</DialogHeader>			{#if selectedBudgetDetails}
 				{@const spentAmount = getSpentAmount(selectedBudgetDetails)}
-				{@const detailPercentage = (spentAmount / selectedBudgetDetails.goal_amount) * 100}
+				{@const detailGoalAmount = parseFloat(String(selectedBudgetDetails.goal_amount || '0'))}
+				{@const detailPercentage = detailGoalAmount > 0 ? (spentAmount / detailGoalAmount) * 100 : 0}
 				<div class="space-y-4">
 					<div class="grid grid-cols-2 gap-4">
 						<div>
 							<Label class="text-gray-300">Category</Label>
 							<p class="text-white font-medium">{getCategoryName(selectedBudgetDetails.category_id)}</p>
-						</div>
-						<div>
+						</div>						<div>
 							<Label class="text-gray-300">Budget Amount</Label>
-							<p class="text-white font-bold text-lg">${selectedBudgetDetails.goal_amount.toLocaleString()}</p>
+							<p class="text-white font-bold text-lg">${detailGoalAmount.toLocaleString()}</p>
 						</div>
 					</div>
 
@@ -712,12 +766,12 @@
 						<div>
 							<Label class="text-gray-300">Remaining</Label>
 							<p
-								class="font-semibold {selectedBudgetDetails.goal_amount - spentAmount >= 0
+								class="font-semibold {detailGoalAmount - spentAmount >= 0
 									? 'text-green-400'
 									: 'text-red-400'}"
 							>
-								${Math.abs(selectedBudgetDetails.goal_amount - spentAmount).toLocaleString()}
-								{selectedBudgetDetails.goal_amount - spentAmount < 0 ? " over" : ""}
+								${Math.abs(detailGoalAmount - spentAmount).toLocaleString()}
+								{detailGoalAmount - spentAmount < 0 ? " over" : ""}
 							</p>
 						</div>
 					</div><div class="grid grid-cols-2 gap-4">

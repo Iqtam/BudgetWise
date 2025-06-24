@@ -568,10 +568,9 @@
 				<DialogDescription class="text-gray-400">
 					Add a new category for your transactions
 				</DialogDescription>
-			</DialogHeader>
-			<form onsubmit={handleCreateCategory} class="space-y-4">
+			</DialogHeader>			<form onsubmit={handleCreateCategory} class="space-y-4">
 				<div class="space-y-2">
-					<Label for="categoryName">Category Name</Label>
+					<Label for="categoryName" class="text-white">Category Name</Label>
 					<Input
 						id="categoryName"
 						bind:value={newCategoryName}
@@ -580,7 +579,7 @@
 						class="bg-gray-700 border-gray-600"
 					/>
 				</div>				<div class="space-y-2">
-					<Label for="categoryType">Category Type</Label>
+					<Label for="categoryType" class="text-white">Category Type</Label>
 					<div class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white capitalize">
 						{newCategoryType}
 					</div>
@@ -593,13 +592,13 @@
 						type="button"
 						variant="outline"
 						onclick={() => isNewCategoryOpen = false}
-						class="flex-1 border-gray-600 text-gray-300 hover:bg-gray-700"
+						class="flex-1 bg-black border-black text-red-500 hover:bg-gray-900 font-bold"
 					>
 						Cancel
 					</Button>
 					<Button
 						type="submit"
-						class="flex-1 bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600"
+						class="flex-1 bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600 text-white font-bold"
 					>
 						Create Category
 					</Button>

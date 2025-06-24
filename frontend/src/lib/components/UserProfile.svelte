@@ -17,7 +17,9 @@
 		X,
 		Camera,
 		Eye,
-		EyeOff
+		EyeOff,
+		Circle,
+		Download
 	} from 'lucide-svelte';
 	import { firebaseUser, backendUser } from '$lib/stores/auth';
 	import { signOut } from '$lib/services/auth';
@@ -110,6 +112,10 @@
 	}
 
 	async function handleSignOut() {
+		// Show confirmation dialog
+		const confirmed = confirm('Are you sure you want to sign out?');
+		if (!confirmed) return;
+		
 		try {
 			await signOut();
 			goto('/signin');
@@ -126,6 +132,16 @@
 		});
 	}
 
+	function formatDateTime(dateString: string) {
+		return new Date(dateString).toLocaleString('en-US', {
+			year: 'numeric',
+			month: 'short',
+			day: 'numeric',
+			hour: '2-digit',
+			minute: '2-digit'
+		});
+	}
+
 	function getInitials(name: string) {
 		return name
 			.split(' ')
@@ -139,7 +155,7 @@
 <Dialog bind:open>
 	<DialogContent class="sm:max-w-[500px] bg-gray-800 border-gray-700 text-white">
 		<DialogHeader>
-			<DialogTitle class="text-xl font-semibold">User Profile</DialogTitle>
+			<DialogTitle class="text-xl font-bold text-white">User Profile</DialogTitle>
 			<DialogDescription class="text-gray-400">
 				View and manage your account information
 			</DialogDescription>
@@ -158,8 +174,8 @@
 			<TabsContent value="profile" class="space-y-6">
 				<!-- Profile Header -->
 				<div class="flex items-center space-x-4">
-					<Avatar class="h-20 w-20">
-						<AvatarFallback class="bg-gradient-to-r from-blue-500 to-green-500 text-white text-lg">
+					<Avatar class="h-20 w-20 ring-2 ring-amber-400/50 shadow-xl">
+						<AvatarFallback class="bg-gradient-to-br from-amber-600 via-orange-500 to-amber-700 text-white text-lg font-bold shadow-lg">
 							{$backendUser?.UserProfile?.full_name 
 								? getInitials($backendUser.UserProfile.full_name)
 								: $backendUser?.email?.charAt(0).toUpperCase() || 'U'}
@@ -167,10 +183,11 @@
 					</Avatar>
 					<div class="flex-1">
 						<div class="flex items-center gap-2">
-							<h3 class="text-lg font-semibold text-white">
+							<h3 class="text-lg font-bold text-white">
 								{$backendUser?.UserProfile?.full_name || 'User'}
 							</h3>
-							<Badge variant="outline" class="border-green-500 text-green-400">
+							<Badge variant="outline" class="border-violet-400/50 text-violet-200 bg-gradient-to-r from-violet-500/20 to-blue-500/20 backdrop-blur-sm shadow-lg">
+								<User class="h-3 w-3 mr-1" />
 								{$backendUser?.role || 'Member'}
 							</Badge>
 						</div>
@@ -182,7 +199,12 @@
 						{/if}
 					</div>
 					{#if !isEditing}
-						<Button variant="outline" size="sm" onclick={startEditing} class="border-gray-600 text-gray-300 hover:bg-gray-700">
+						<Button 
+							variant="outline" 
+							size="sm" 
+							onclick={startEditing} 
+							class="bg-transparent border-2 border-emerald-400 text-emerald-300 hover:bg-emerald-400/20 hover:text-emerald-200 hover:border-emerald-300 font-semibold shadow-lg transition-all duration-200 min-w-[90px]"
+						>
 							<Edit3 class="h-4 w-4 mr-2" />
 							Edit
 						</Button>
@@ -288,15 +310,16 @@
 							<CardContent class="space-y-3">
 								<div class="flex justify-between">
 									<span class="text-sm text-gray-400">Full Name</span>
-									<span class="text-sm text-white">{$backendUser?.UserProfile?.full_name || 'Not set'}</span>
+									<span class="text-sm text-white font-medium">{$backendUser?.UserProfile?.full_name || 'Not set'}</span>
 								</div>
 								<div class="flex justify-between">
 									<span class="text-sm text-gray-400">Email</span>
-									<span class="text-sm text-white">{$backendUser?.email}</span>
+									<span class="text-sm text-white font-medium">{$backendUser?.email}</span>
 								</div>
 								<div class="flex justify-between">
 									<span class="text-sm text-gray-400">Role</span>
-									<Badge variant="outline" class="border-green-500 text-green-400 text-xs">
+									<Badge variant="outline" class="border-violet-400/50 text-violet-200 bg-gradient-to-r from-violet-500/20 to-blue-500/20 text-xs backdrop-blur-sm shadow-lg">
+										<User class="h-3 w-3 mr-1" />
 										{$backendUser?.role || 'Member'}
 									</Badge>
 								</div>
@@ -313,14 +336,15 @@
 							<CardContent class="space-y-3">
 								<div class="flex justify-between">
 									<span class="text-sm text-gray-400">Account Status</span>
-									<Badge variant="outline" class="border-green-500 text-green-400 text-xs">
+									<Badge variant="outline" class="border-green-400/50 text-green-200 bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-xs flex items-center gap-1 backdrop-blur-sm shadow-lg">
+										<Circle class="h-2 w-2 fill-current" />
 										Active
 									</Badge>
 								</div>
 								{#if $firebaseUser?.metadata?.lastSignInTime}
 									<div class="flex justify-between">
 										<span class="text-sm text-gray-400">Last Sign In</span>
-										<span class="text-sm text-white">{formatDate($firebaseUser.metadata.lastSignInTime)}</span>
+										<span class="text-sm text-white font-medium">{formatDateTime($firebaseUser.metadata.lastSignInTime)}</span>
 									</div>
 								{/if}
 							</CardContent>
@@ -339,17 +363,18 @@
 							</CardDescription>
 						</CardHeader>
 						<CardContent class="space-y-3">
-							<Button variant="outline" class="w-full justify-start border-gray-600 text-gray-300 hover:bg-gray-600">
+							<Button variant="outline" class="w-full justify-start bg-black border-black text-white font-bold hover:bg-gray-900">
 								<Camera class="h-4 w-4 mr-2" />
 								Upload Profile Picture
 							</Button>
-							<Button variant="outline" class="w-full justify-start border-red-600 text-red-400 hover:bg-red-900/20">
+							<Button variant="outline" class="w-full justify-start bg-black border-black text-amber-600 font-bold hover:bg-gray-900">
+								<Download class="h-4 w-4 mr-2" />
 								Export Data
 							</Button>
 							<Button 
 								variant="destructive" 
 								onclick={handleSignOut}
-								class="w-full justify-start bg-red-600 hover:bg-red-700"
+								class="w-full justify-start bg-red-600 hover:bg-red-700 text-white font-bold"
 							>
 								Sign Out
 							</Button>
