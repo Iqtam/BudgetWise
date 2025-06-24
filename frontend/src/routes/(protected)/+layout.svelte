@@ -29,7 +29,7 @@
   <div class="error-container">
     <div class="error-message">
       <h2>🔒 Access Denied</h2>
-      <p>You must log in first to access this page</p>
+      <p>You must log in first to access this page changed</p>
       <p>Redirecting to login...</p>
     </div>
   </div>

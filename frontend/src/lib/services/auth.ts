@@ -6,6 +6,7 @@ import {
     type UserCredential
 } from 'firebase/auth';
 import { auth, googleProvider } from '$lib/firebase';
+import { isLoggingOut } from '$lib/stores/auth';
 
 import {PUBLIC_BACKEND_API_URL} from '$env/static/public';
   
@@ -76,8 +77,16 @@ export const signInWithGoogle = async (): Promise<any> => {
 };
 
 export const signOut = async (): Promise<void> => {
-    await firebaseSignOut(auth);
-  };
+    isLoggingOut.set(true);
+    try {
+        await firebaseSignOut(auth);
+    } finally {
+        // Reset the flag after a short delay to allow for navigation
+        setTimeout(() => {
+            isLoggingOut.set(false);
+        }, 1000);
+    }
+};
 
 
 export const syncWithBackend = async (): Promise<any> => {

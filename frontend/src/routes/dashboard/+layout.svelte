@@ -41,8 +41,13 @@
 	const aiItems = [
 		{ title: "AI Assistant", url: "/dashboard/chat", icon: Bot },
 	];
-
 	async function handleSignOut() {
+		// Show confirmation dialog
+		const confirmed = confirm('Do you want to log out?');
+		if (!confirmed) {
+			return;
+		}
+		
 		try {
 			await signOut();
 			goto('/signin');

@@ -19,3 +19,4 @@ export interface BackendUser {
 export const firebaseUser = writable<User | null>(null);
 export const backendUser = writable<BackendUser | null>(null);
 export const loading = writable(true);
+export const isLoggingOut = writable(false);

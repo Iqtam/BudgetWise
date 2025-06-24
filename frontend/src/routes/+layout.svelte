@@ -4,7 +4,7 @@
   import { page } from "$app/stores";
   import { goto } from "$app/navigation";
   import { auth } from "$lib/firebase";
-  import { firebaseUser, backendUser, loading } from "$lib/stores/auth";
+  import { firebaseUser, backendUser, loading, isLoggingOut } from "$lib/stores/auth";
   import { onAuthStateChanged } from "firebase/auth";
   import { getCurrentUser, signOut } from "$lib/services/auth";
 
@@ -18,7 +18,8 @@
   $: isDashboardRoute = $page.url.pathname.startsWith('/dashboard');
   
   // Redirect to login if accessing protected route without authentication
-  $: if (!$loading && isProtectedRoute && !$firebaseUser) {
+  // But only if the user is not intentionally logging out
+  $: if (!$loading && isProtectedRoute && !$firebaseUser && !$isLoggingOut) {
     alert("You must log in first to access this page");
     goto('/signin');
   }

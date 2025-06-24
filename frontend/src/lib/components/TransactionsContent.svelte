@@ -74,6 +74,18 @@
 		}
 	}
 
+	// Helper function to get category by ID
+	function getCategoryById(categoryId: string | null | undefined) {
+		if (!categoryId) return null;
+		return categories.find(cat => cat.id.toString() === categoryId.toString());
+	}
+
+	// Helper function to format category display
+	function getCategoryDisplay(categoryId: string | null | undefined) {
+		const category = getCategoryById(categoryId);
+		return category ? category.name : 'No Category';
+	}
+
 	// Reset current page when filters change
 	$effect(() => {
 		currentPage = 1;
@@ -561,7 +573,7 @@
 										</div>										<div class="text-right">
 											<p class="font-semibold text-red-400">-${Math.abs(transaction.amount).toFixed(2)}</p>
 											<Badge variant="secondary" class="text-xs bg-gray-800 text-gray-300">
-												{transaction.category_id ? 'Category ID: ' + transaction.category_id : 'No Category'}
+												{getCategoryDisplay(transaction.category_id)}
 											</Badge>
 											<div class="mt-2">
 												<Button
@@ -709,7 +721,7 @@
 										</div>										<div class="text-right">
 											<p class="font-semibold text-green-400">+${Math.abs(transaction.amount).toFixed(2)}</p>
 											<Badge variant="secondary" class="text-xs bg-gray-800 text-gray-300">
-												{transaction.category_id ? 'Category ID: ' + transaction.category_id : 'No Category'}
+												{getCategoryDisplay(transaction.category_id)}
 											</Badge>
 											<div class="mt-2">
 												<Button
@@ -813,12 +825,29 @@
 							<p class="font-medium {selectedTransactionDetails.type === 'income' ? 'text-green-400' : 'text-red-400'}">
 								{selectedTransactionDetails.type === 'income' ? '+' : '-'}${Math.abs(selectedTransactionDetails.amount).toFixed(2)}
 							</p>
-						</div>
-						<div>
+						</div>						<div>
 							<p class="text-sm text-gray-400">Category</p>
-							<Badge variant="secondary" class="bg-gray-700 text-gray-300">
-								{selectedTransactionDetails.category}
-							</Badge>
+							{#if selectedTransactionDetails.category_id}
+								{@const category = getCategoryById(selectedTransactionDetails.category_id)}
+								{#if category}
+									<div class="space-y-1">
+										<Badge variant="secondary" class="bg-gray-700 text-gray-300">
+											{category.name}
+										</Badge>
+										<p class="text-xs text-gray-500 capitalize">
+											{category.type}
+										</p>
+									</div>
+								{:else}
+									<Badge variant="secondary" class="bg-gray-700 text-gray-300">
+										No Category
+									</Badge>
+								{/if}
+							{:else}
+								<Badge variant="secondary" class="bg-gray-700 text-gray-300">
+									No Category
+								</Badge>
+							{/if}
 						</div>
 						<div>
 							<p class="text-sm text-gray-400">Date</p>
