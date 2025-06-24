@@ -4,15 +4,17 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import { Badge } from '$lib/components/ui/badge';
-	import { Checkbox } from '$lib/components/ui/checkbox';
-	import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '$lib/components/ui/dialog';
-	import { Tabs, TabsContent, TabsList, TabsTrigger } from '$lib/components/ui/tabs';	import { ArrowDownIcon, ArrowUpIcon, Camera, MessageSquare, Plus, Search, Repeat, ArrowUpDown } from 'lucide-svelte';
+	import { Checkbox } from '$lib/components/ui/checkbox';	import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '$lib/components/ui/dialog';
+	import { Tabs, TabsContent, TabsList, TabsTrigger } from '$lib/components/ui/tabs';
+	import { ArrowDownIcon, ArrowUpIcon, Camera, MessageSquare, Plus, Search, Repeat, ArrowUpDown } from 'lucide-svelte';
 	import { transactionService, type Transaction } from '$lib/services/transactions';
+	import { categoryService, type Category } from '$lib/services/categories';
 	import { firebaseUser, loading as authLoading } from '$lib/stores/auth';
 	import { onMount } from 'svelte';
 
 	// State variables
 	let transactions = $state<Transaction[]>([]);
+	let categories = $state<Category[]>([]);
 	let isLoading = $state(true);
 	let error = $state<string | null>(null);
 	let searchTerm = $state("");
@@ -25,6 +27,9 @@
 	let isDetailsOpen = $state(false);
 	let selectedTransactionDetails = $state<Transaction | null>(null);
 	let isSaving = $state(false);
+	let isNewCategoryOpen = $state(false);
+	let newCategoryName = $state("");
+	let newCategoryType = $state<'income' | 'expense'>('expense');
 
 	// Form fields
 	let formDescription = $state("");
@@ -41,8 +46,7 @@
 			loadData();
 		}
 	});
-
-	// Function to load transactions from API
+	// Function to load transactions and categories from API
 	async function loadData() {
 		if (!$firebaseUser) {
 			error = 'User not authenticated';
@@ -54,11 +58,17 @@
 		error = null;
 		
 		try {
-			const transactionsData = await transactionService.getAllTransactions();
+			// Load categories and transactions in parallel
+			const [categoriesData, transactionsData] = await Promise.all([
+				categoryService.getCategories(),
+				transactionService.getAllTransactions()
+			]);
+			
+			categories = categoriesData;
 			transactions = transactionsData;
 		} catch (err) {
-			console.error('Error loading transactions:', err);
-			error = err instanceof Error ? err.message : 'Failed to load transactions';
+			console.error('Error loading data:', err);
+			error = err instanceof Error ? err.message : 'Failed to load data';
 		} finally {
 			isLoading = false;
 		}
@@ -77,12 +87,14 @@
 				totalPages: 0,
 			};
 		}
-
 		const filtered = transactions
 			.filter((transaction) => {
 				const matchesType = transaction.type === type;
 				const matchesSearch = transaction.description.toLowerCase().includes(searchTerm.toLowerCase());
-				return matchesType && matchesSearch;
+				const matchesCategory = filterCategory === "all" || 
+					(filterCategory === "none" && !transaction.category_id) ||
+					(filterCategory !== "none" && transaction.category_id?.toString() === filterCategory);
+				return matchesType && matchesSearch && matchesCategory;
 			})
 			.sort((a, b) => {
 				if (sortBy === "date") {
@@ -134,7 +146,6 @@
 			isSaving = false;
 		}
 	}
-
 	function resetForm() {
 		formDescription = "";
 		formAmount = "";
@@ -143,6 +154,33 @@
 		formEvent = "";
 		formDate = new Date().toISOString().split("T")[0];
 		formIsRecurrent = false;
+	}
+
+	// Function to handle creating a new category
+	async function handleCreateCategory(event: Event) {
+		event.preventDefault();
+		if (!newCategoryName.trim()) return;
+
+		try {
+			const newCategory = await categoryService.createCategory({
+				name: newCategoryName.trim(),
+				type: newCategoryType,
+			});
+
+			// Add the new category to the list
+			categories = [...categories, newCategory];
+			
+			// Auto-select the new category
+			formCategory = newCategory.id.toString();
+			
+			// Close the new category dialog and reset form
+			isNewCategoryOpen = false;
+			newCategoryName = "";
+			newCategoryType = 'expense';
+		} catch (err) {
+			console.error('Error creating category:', err);
+			error = err instanceof Error ? err.message : 'Failed to create category';
+		}
 	}
 
 	function handleViewDetails(transaction: Transaction) {
@@ -219,48 +257,76 @@
 									required
 									class="bg-gray-700 border-gray-600"
 								/>
-							</div>
-
-							<div class="space-y-2">
-								<Label for="amount">Amount</Label>
-								<Input
-									id="amount"
-									bind:value={formAmount}
-									type="number"
-									step="0.01"
-									placeholder="0.00"
-									required
-									class="bg-gray-700 border-gray-600"
-								/>
-							</div>
-
-							<div class="space-y-2">
-								<Label for="type">Type</Label>
-								<select bind:value={formType} required class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white">
-									<option value="">Select transaction type</option>
-									<option value="income">Income</option>
-									<option value="expense">Expense</option>
-								</select>							</div>
-
-							<div class="space-y-2">
-								<Label for="event">Event (Optional)</Label>
-								<Input
-									id="event"
-									bind:value={formEvent}
-									placeholder="e.g., Birthday dinner, Gas for road trip"
-									class="bg-gray-700 border-gray-600"
-								/>
-							</div>
-
-							<div class="space-y-2">
-								<Label for="date">Date</Label>
-								<Input
-									id="date"
-									bind:value={formDate}
-									type="date"
-									required
-									class="bg-gray-700 border-gray-600"
-								/>
+							</div>							<div class="grid grid-cols-2 gap-4">
+								<div class="space-y-2">
+									<Label for="amount">Amount</Label>
+									<Input
+										id="amount"
+										bind:value={formAmount}
+										type="number"
+										step="0.01"
+										placeholder="0.00"
+										required
+										class="bg-gray-700 border-gray-600"
+									/>
+								</div>
+								<div class="space-y-2">
+									<Label for="type">Type</Label>
+									<select bind:value={formType} required class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white">
+										<option value="">Select transaction type</option>
+										<option value="income">Income</option>
+										<option value="expense">Expense</option>
+									</select>
+								</div>
+							</div><div class="space-y-2">
+								<div class="flex items-center justify-between">
+									<Label for="category">Category (Optional)</Label>
+									<Button
+										type="button"
+										variant="ghost"
+										size="sm"
+										onclick={() => isNewCategoryOpen = true}
+										class="text-blue-400 hover:text-blue-300 p-0 h-auto font-normal"
+									>
+										+ New Category
+									</Button>
+								</div>
+								<div class="grid grid-cols-1 gap-2">
+									<select bind:value={formCategory} class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white">
+										<option value="">No Category</option>
+										{#each categories.filter(cat => !formType || cat.type === formType) as category}
+											<option value={category.id.toString()}>{category.name}</option>
+										{/each}
+									</select>
+									{#if formCategory}
+										{@const selectedCategory = categories.find(cat => cat.id.toString() === formCategory)}
+										{#if selectedCategory}
+											<div class="text-xs text-gray-400 px-1">
+												Selected: {selectedCategory.name} ({selectedCategory.type})
+											</div>
+										{/if}
+									{/if}
+								</div>
+							</div>							<div class="grid grid-cols-2 gap-4">
+								<div class="space-y-2">
+									<Label for="event">Event (Optional)</Label>
+									<Input
+										id="event"
+										bind:value={formEvent}
+										placeholder="e.g., Birthday dinner, Gas for road trip"
+										class="bg-gray-700 border-gray-600"
+									/>
+								</div>
+								<div class="space-y-2">
+									<Label for="date">Date</Label>
+									<Input
+										id="date"
+										bind:value={formDate}
+										type="date"
+										required
+										class="bg-gray-700 border-gray-600"
+									/>
+								</div>
 							</div>
 
 							<div class="flex items-center space-x-2 p-3 bg-gray-700/50 rounded-lg border border-gray-600">
@@ -309,9 +375,55 @@
 						</div>
 					</TabsContent>
 				</Tabs>
-			</DialogContent>
-		</Dialog>
+			</DialogContent>		</Dialog>
 	</div>
+
+	<!-- New Category Dialog -->
+	<Dialog bind:open={isNewCategoryOpen}>
+		<DialogContent class="bg-gray-800 border-gray-700">
+			<DialogHeader>
+				<DialogTitle class="text-white">Create New Category</DialogTitle>
+				<DialogDescription class="text-gray-400">
+					Add a new category for your transactions
+				</DialogDescription>
+			</DialogHeader>
+			<form onsubmit={handleCreateCategory} class="space-y-4">
+				<div class="space-y-2">
+					<Label for="categoryName">Category Name</Label>
+					<Input
+						id="categoryName"
+						bind:value={newCategoryName}
+						placeholder="Enter category name"
+						required
+						class="bg-gray-700 border-gray-600"
+					/>
+				</div>
+				<div class="space-y-2">
+					<Label for="categoryType">Category Type</Label>
+					<select bind:value={newCategoryType} required class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white">
+						<option value="expense">Expense</option>
+						<option value="income">Income</option>
+					</select>
+				</div>
+				<div class="flex gap-2">
+					<Button
+						type="button"
+						variant="outline"
+						onclick={() => isNewCategoryOpen = false}
+						class="flex-1 border-gray-600 text-gray-300 hover:bg-gray-700"
+					>
+						Cancel
+					</Button>
+					<Button
+						type="submit"
+						class="flex-1 bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600"
+					>
+						Create Category
+					</Button>
+				</div>
+			</form>
+		</DialogContent>
+	</Dialog>
 
 	<!-- Main Content with Tabs -->
 	<div class="space-y-6">
