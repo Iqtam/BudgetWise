@@ -10,6 +10,10 @@ export interface BackendUser {
     email_verified: boolean;
     created_at: string;
     updated_at: string;
+    UserProfile?: {
+        full_name: string;
+        profile_picture_url: string;
+    };
 }
 
 export const firebaseUser = writable<User | null>(null);

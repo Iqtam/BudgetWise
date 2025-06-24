@@ -17,14 +17,14 @@
 		LogOut
 	} from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
-	import { Badge } from '$lib/components/ui/badge';
-	import { Avatar, AvatarFallback } from '$lib/components/ui/avatar';
+	import { Badge } from '$lib/components/ui/badge';	import { Avatar, AvatarFallback } from '$lib/components/ui/avatar';
 	import { signOut } from '$lib/services/auth';
 	import { firebaseUser, backendUser } from '$lib/stores/auth';
-
+	import UserProfile from '$lib/components/UserProfile.svelte';
 	let sidebarOpen = $state(true);
 	let notificationCount = $state(3);
 	let theme = $state('dark');
+	let profileDialogOpen = $state(false);
 
 	const navigationItems = [
 		{ title: "Dashboard", url: "/dashboard", icon: Home },
@@ -96,10 +96,13 @@
 	function handleNotificationClick() {
 		notificationCount = 0;
 		console.log("Notifications clicked");
-	}
-	function handleThemeToggle() {
+	}	function handleThemeToggle() {
 		theme = theme === "dark" ? "light" : "dark";
 		console.log(`Theme changed to ${theme}`);
+	}
+
+	function openProfileDialog() {
+		profileDialogOpen = true;
 	}
 
 	function isActiveRoute(url: string) {
@@ -212,11 +215,13 @@
 					{/each}
 				</nav>
 			</div>
-		</div>
-		<!-- Sidebar Footer -->
+		</div>		<!-- Sidebar Footer -->
 		<div class="border-t border-gray-800 p-4 flex-shrink-0">
 			<div class="flex items-center justify-between gap-2">
-				<div class="flex items-center gap-2">
+				<button 
+					class="flex items-center gap-2 flex-1 rounded-lg p-2 text-left hover:bg-gray-800 transition-colors cursor-pointer"
+					onclick={openProfileDialog}
+				>
 					<Avatar class="h-8 w-8">
 						<AvatarFallback class="bg-gradient-to-r from-blue-500 to-green-500 text-white text-sm">
 							{$backendUser?.email?.charAt(0).toUpperCase() || 'U'}
@@ -228,13 +233,13 @@
 							<span class="text-xs text-gray-400">{$backendUser?.role || 'Member'}</span>
 						</div>
 					{/if}
-				</div>
+				</button>
 				{#if sidebarOpen}
 					<Button
 						variant="ghost"
 						size="sm"
 						class="text-gray-400 hover:text-white hover:bg-gray-800"
-						on:click={handleSignOut}
+						onclick={handleSignOut}
 					>
 						<LogOut class="h-4 w-4" />
 					</Button>
@@ -308,10 +313,12 @@
 				</div>
 			</div>
 		</header>
-
 		<!-- Main Content Area -->
 		<main class="flex-1 overflow-auto bg-gray-950">
 			{@render children()}
 		</main>
 	</div>
-</div> 
+</div>
+
+<!-- User Profile Dialog -->
+<UserProfile bind:open={profileDialogOpen} />
