@@ -65,7 +65,7 @@
 	let isProcessingOCR = $state(false);
 	let ocrResult = $state<OCRResult | null>(null);
 	let ocrError = $state<string | null>(null);
-	let fileInputRef: HTMLInputElement;
+	let fileInputRef = $state<HTMLInputElement>();
 	let temporaryCategories = $state<Category[]>([]); // For storing temp categories from OCR
 	let activeTabValue = $state('manual'); // Track active tab
 	// Form fields
@@ -221,7 +221,7 @@
 			const response = await transactionService.createTransaction(newTransactionData);
 
 			// Extract transaction from response (backend returns { message, data })
-			const newTransaction = response.data || response;
+			const newTransaction = (response as any).data || response;
 
 			// Add to local state (ensure it's valid)
 			if (newTransaction && newTransaction.id) {
@@ -780,11 +780,11 @@
 										>
 											<option value="">No Category</option>
 											{#each getAllCategories().filter((cat) => !formType || cat.type === formType) as category}
-												<option value={category.id.toString()}>
-													{category.name}
-													{#if category.id.startsWith('temp_')}
-														<span class="text-blue-400"> (New)</span>
-													{/if}
+												<option
+													value={category.id.toString()}
+													class={category.id.startsWith('temp_') ? 'text-blue-400' : ''}
+												>
+													{category.name}{category.id.startsWith('temp_') ? ' (New)' : ''}
 												</option>
 											{/each}
 										</select>

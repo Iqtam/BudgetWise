@@ -1,7 +1,7 @@
 <script lang="ts" module>
-	import { DropdownMenu as DropdownMenuPrimitive } from "bits-ui";
+	import { DropdownMenu as DropdownMenuPrimitive } from 'bits-ui';
 
-	export type DropdownMenuProps = DropdownMenuPrimitive.Props;
+	export type DropdownMenuProps = DropdownMenuPrimitive.RootProps;
 </script>
 
 <script lang="ts">
@@ -10,4 +10,4 @@
 
 <DropdownMenuPrimitive.Root {...restProps}>
 	{@render children?.()}
-</DropdownMenuPrimitive.Root> 
+</DropdownMenuPrimitive.Root>
