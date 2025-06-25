@@ -35,7 +35,7 @@
 BudgetWise is a comprehensive personal finance management system that helps users track their income, expenses, manage budgets, monitor debts, and achieve savings goals. Built with modern web technologies, it provides a seamless and secure experience for managing personal finances.
 
 ### 🎨 Live Demo
-- **Production**: https://budgetwis.me
+- **Production**: http://budgetwis.me
 - **Frontend (Local)**: `http://localhost:3000`
 - **Backend API (Local)**: `http://localhost:5000/api`
 - **Admin Panel**: Available for admin users
