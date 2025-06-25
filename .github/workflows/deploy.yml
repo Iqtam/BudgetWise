@@ -17,17 +17,18 @@ jobs:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' # Only run when pushing to main
     steps:
-      - name: Wait for CI Pipeline to complete
+      - name: Wait for CI jobs to complete
         uses: lewagon/wait-on-check-action@v1.3.1
         with:
           ref: ${{ github.ref }}
-          check-name: "CI Pipeline" # Must match the name in ci.yml
+          check-regexp: "(test-backend|test-frontend|docker-build|security-scan).*"
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-          wait-interval: 10 # Check every 10 seconds
+          wait-interval: 30 # Check every 30 seconds
           running-workflow-name: "Deploy to Production" # Exclude self
+          allowed-conclusions: success # Only proceed if all checks pass
 
-      - name: CI Pipeline completed
-        run: echo "✅ CI Pipeline has completed successfully! Proceeding with deployment..."
+      - name: CI jobs completed
+        run: echo "✅ All CI jobs have completed successfully! Proceeding with deployment..."
 
   build-and-push:
     runs-on: ubuntu-latest
@@ -113,5 +114,10 @@ jobs:
             docker compose -f docker-compose.deploy.yml up -d --build
             docker compose -f docker-compose.deploy.yml ps
           EOF
+
       - name: Notify deployment success
-        run: echo "Deployment to Azure VM completed successfully."
+        run: |
+          echo "🚀 Deployment to Azure VM completed successfully!"
+          echo "📍 Branch: ${{ github.ref_name }}"
+          echo "📝 Commit: ${{ github.sha }}"
+          echo "👤 Triggered by: ${{ github.actor }}"
