@@ -1,0 +1,186 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main, develop, new-frontend-test]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  test-backend:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "npm"
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          npm ci
+
+      - name: Run backend tests
+        run: |
+          cd backend
+          npm test
+
+      - name: Run backend tests with coverage
+        run: |
+          cd backend
+          npm run test:coverage
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          directory: backend/coverage
+          flags: backend
+
+  test-frontend:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Build frontend
+        env:
+          PUBLIC_BACKEND_API_URL: ${{ secrets.PUBLIC_BACKEND_API_URL }}
+        run: |
+          cd frontend
+          npm run build
+
+  docker-build:
+    runs-on: ubuntu-latest
+    needs: [test-backend, test-frontend]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build backend Docker image
+        run: |
+          docker build -t budgetwise-backend ./backend
+
+      - name: Build frontend Docker image
+        run: |
+          docker build -t budgetwise-frontend ./frontend
+
+      - name: Test Docker containers
+        env:
+          # Backend environment variables
+          PORT: "5000"
+          POSTGRES_DB: ${{secrets.POSTGRES_DB}}
+          POSTGRES_USER: ${{secrets.POSTGRES_USER}}
+          POSTGRES_PASSWORD: ${{secrets.POSTGRES_PASSWORD}}
+          POSTGRES_HOST: "localhost"
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          # Frontend environment variables
+          PUBLIC_BACKEND_API_URL: ${{ secrets.PUBLIC_BACKEND_API_URL }}
+          PUBLIC_FIREBASE_API_KEY: ${{ secrets.PUBLIC_FIREBASE_API_KEY }}
+          PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ secrets.PUBLIC_FIREBASE_AUTH_DOMAIN }}
+          PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.PUBLIC_FIREBASE_PROJECT_ID }}
+          PUBLIC_FIREBASE_STORAGE_BUCKET: ${{ secrets.PUBLIC_FIREBASE_STORAGE_BUCKET }}
+          PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
+          PUBLIC_FIREBASE_APP_ID: ${{ secrets.PUBLIC_FIREBASE_APP_ID }}
+        run: |
+          # Test that containers can be built and run
+          echo "Starting backend container..."
+          BACKEND_ID=$(docker run --rm -d --name test-backend \
+            -e PORT="$PORT" \
+            -e POSTGRES_DB="$POSTGRES_DB" \
+            -e POSTGRES_USER="$POSTGRES_USER" \
+            -e POSTGRES_PASSWORD="$POSTGRES_PASSWORD" \
+            -e POSTGRES_HOST="$POSTGRES_HOST" \
+            -e GEMINI_API_KEY="$GEMINI_API_KEY" \
+            -e ADMIN_EMAIL="$ADMIN_EMAIL" \
+            -e FIREBASE_SERVICE_ACCOUNT="$FIREBASE_SERVICE_ACCOUNT" \
+            -p 5000:5000 \
+            budgetwise-backend)
+          echo "Backend container ID: $BACKEND_ID"
+
+          echo "Starting frontend container..."
+          FRONTEND_ID=$(docker run --rm -d --name test-frontend \
+            -e PUBLIC_BACKEND_API_URL="$PUBLIC_BACKEND_API_URL" \
+            -e PUBLIC_FIREBASE_API_KEY="$PUBLIC_FIREBASE_API_KEY" \
+            -e PUBLIC_FIREBASE_AUTH_DOMAIN="$PUBLIC_FIREBASE_AUTH_DOMAIN" \
+            -e PUBLIC_FIREBASE_PROJECT_ID="$PUBLIC_FIREBASE_PROJECT_ID" \
+            -e PUBLIC_FIREBASE_STORAGE_BUCKET="$PUBLIC_FIREBASE_STORAGE_BUCKET" \
+            -e PUBLIC_FIREBASE_MESSAGING_SENDER_ID="$PUBLIC_FIREBASE_MESSAGING_SENDER_ID" \
+            -e PUBLIC_FIREBASE_APP_ID="$PUBLIC_FIREBASE_APP_ID" \
+            -p 3000:3000 \
+            budgetwise-frontend)
+          echo "Frontend container ID: $FRONTEND_ID"
+
+          sleep 10
+
+          echo "Checking container status..."
+          docker ps -a
+
+          echo "Checking container logs..."
+          echo "Backend logs:"
+          docker logs test-backend --tail 20 || true
+          echo "Frontend logs:"
+          docker logs test-frontend --tail 20 || true
+
+          echo "Stopping containers..."
+          # Stop containers if they're still running
+          if docker ps -q --filter "name=test-backend" | grep -q .; then
+            docker stop test-backend
+          else
+            echo "Backend container already stopped"
+          fi
+
+          if docker ps -q --filter "name=test-frontend" | grep -q .; then
+            docker stop test-frontend
+          else
+            echo "Frontend container already stopped"
+          fi
+
+  security-scan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run security audit on backend
+        run: |
+          cd backend
+          npm audit --audit-level moderate
+
+      - name: Run security audit on frontend
+        run: |
+          cd frontend
+          npm audit --audit-level moderate
