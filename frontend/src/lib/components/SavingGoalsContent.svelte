@@ -4,7 +4,9 @@
 		TrendingUp, 
 		Calendar, 
 		Plus, 
-		DollarSign 
+		DollarSign,
+		Edit,
+		Trash2
 	} from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
@@ -17,33 +19,64 @@
 		DialogContent,
 		DialogDescription,
 		DialogHeader,
-		DialogTitle
+		DialogTitle,
+		DialogTrigger
 	} from '$lib/components/ui/dialog';
+	import { savingService, type SavingGoal } from '$lib/services/savings';
+	import { firebaseUser, loading as authLoading } from '$lib/stores/auth';
+	import { onMount } from 'svelte';
 
-	const mockGoals = [
-		{ id: 1, name: "Emergency Fund", target: 10000, current: 6800, deadline: "2024-12-31", priority: "high" },
-		{ id: 2, name: "Vacation Fund", target: 3000, current: 1850, deadline: "2024-08-15", priority: "medium" },
-		{ id: 3, name: "New Car", target: 25000, current: 8500, deadline: "2025-06-30", priority: "low" },
-		{ id: 4, name: "Home Down Payment", target: 50000, current: 12000, deadline: "2026-01-01", priority: "high" },
-		{ id: 5, name: "Wedding Fund", target: 15000, current: 4500, deadline: "2025-09-15", priority: "high" },
-		{ id: 6, name: "Retirement Boost", target: 20000, current: 8900, deadline: "2024-12-31", priority: "medium" },
-		{ id: 7, name: "Education Fund", target: 8000, current: 2100, deadline: "2025-08-30", priority: "medium" },
-		{ id: 8, name: "Home Renovation", target: 12000, current: 3200, deadline: "2025-05-01", priority: "low" },
-		{ id: 9, name: "Business Investment", target: 30000, current: 5600, deadline: "2026-03-15", priority: "medium" },
-		{ id: 10, name: "Travel Fund", target: 5000, current: 1200, deadline: "2024-11-20", priority: "low" },
-		{ id: 11, name: "Tech Upgrade", target: 2500, current: 800, deadline: "2024-09-01", priority: "low" },
-		{ id: 12, name: "Health & Wellness", target: 4000, current: 1500, deadline: "2024-12-31", priority: "medium" },
-		{ id: 13, name: "Gift Fund", target: 1500, current: 600, deadline: "2024-12-15", priority: "low" },
-		{ id: 14, name: "Pet Care Fund", target: 3000, current: 900, deadline: "2025-06-01", priority: "medium" },
-		{ id: 15, name: "Hobby Equipment", target: 2000, current: 450, deadline: "2025-03-30", priority: "low" }
-	];
-
-	let goals = $state(mockGoals);
+	// State variables
+	let goals = $state<SavingGoal[]>([]);
+	let isLoading = $state(true);
+	let error = $state<string | null>(null);
+	let successMessage = $state<string | null>(null);
 	let isGoalDialogOpen = $state(false);
 	let isDepositDialogOpen = $state(false);
-	let selectedGoal = $state<number | null>(null);
+	let isEditDialogOpen = $state(false);
+	let isDeleteDialogOpen = $state(false);
+	let selectedGoal = $state<SavingGoal | null>(null);
+	let editingGoal = $state<SavingGoal | null>(null);
 	let currentPage = $state(1);
+	let isSaving = $state(false);
+	let isDeleting = $state(false);
 	const itemsPerPage = 10;
+
+	// Form fields
+	let formName = $state("");
+	let formTarget = $state("");
+	let formStartAmount = $state("");
+	let formStartDate = $state(new Date().toISOString().split("T")[0]);
+	let formEndDate = $state("");
+
+	// Edit form fields
+	let editFormName = $state("");
+	let editFormTarget = $state("");
+	let editFormStartAmount = $state("");
+	let editFormStartDate = $state("");
+	let editFormEndDate = $state("");
+
+	// Wait for authentication before loading data
+	$effect(() => {
+		if (!$authLoading && $firebaseUser) {
+			loadData();
+		}
+	});
+
+	// Function to load savings goals from API
+	async function loadData() {
+		isLoading = true;
+		error = null;
+		try {
+			const savingData = await savingService.getAllSavings();
+			goals = savingData;
+		} catch (err) {
+			console.error('Error loading data:', err);
+			error = err instanceof Error ? err.message : 'Failed to load data';
+		} finally {
+			isLoading = false;
+		}
+	}
 
 	$effect(() => {
 		currentPage = 1;
@@ -64,52 +97,171 @@
 	};
 
 	const paginatedData = $derived(getPaginatedGoals());
-	const totalTargets = $derived(goals.reduce((sum, goal) => sum + goal.target, 0));
-	const totalSaved = $derived(goals.reduce((sum, goal) => sum + goal.current, 0));
-	const overallProgress = $derived((totalSaved / totalTargets) * 100);
-	const completedGoals = $derived(goals.filter((goal) => goal.current >= goal.target).length);
+	const totalTargets = $derived(goals.reduce((sum, goal) => sum + goal.target_amount, 0));
+	const totalSaved = $derived(goals.reduce((sum, goal) => sum + goal.start_amount, 0));
+	const overallProgress = $derived(totalTargets > 0 ? (totalSaved / totalTargets) * 100 : 0);
+	const completedGoals = $derived(goals.filter((goal) => goal.completed || goal.start_amount >= goal.target_amount).length);
 
-	function handleAddGoal(event: Event) {
+	async function handleAddGoal(event: Event) {
 		event.preventDefault();
-		const formData = new FormData(event.target as HTMLFormElement);
 		
-		const name = formData.get("name") as string;
-		const target = Number.parseFloat(formData.get("target") as string);
-		const startAmount = Number.parseFloat(formData.get("startAmount") as string) || 0;
-		const startDate = formData.get("startDate") as string;
-		const deadline = formData.get("deadline") as string;
+		if (!formName || !formTarget || !formStartDate || !formEndDate) {
+			error = 'Please fill in all required fields';
+			return;
+		}
 
-		const newGoal = {
-			id: goals.length + 1,
-			name,
-			target,
-			current: startAmount,
-			deadline,
-			startDate,
-			priority: "medium"
-		};
+		isSaving = true;
+		error = null;
+		try {
+			await savingService.createSaving({
+				description: formName,
+				target_amount: parseFloat(formTarget),
+				start_amount: parseFloat(formStartAmount) || 0,
+				start_date: formStartDate,
+				end_date: formEndDate
+			});
 
-		goals = [...goals, newGoal];
-		isGoalDialogOpen = false;
-		
-		console.log(`Goal Created: Savings goal "${name}" with target of $${target.toLocaleString()} has been set.`);
+			// Reload data to get the new saving goal
+			await loadData();
+			
+			isGoalDialogOpen = false;
+			
+			// Reset form
+			formName = "";
+			formTarget = "";
+			formStartAmount = "";
+			formStartDate = new Date().toISOString().split("T")[0];
+			formEndDate = "";
+
+			// Show success message
+			successMessage = 'Savings goal created successfully';
+			setTimeout(() => {
+				successMessage = null;
+			}, 3000);
+		} catch (err) {
+			console.error('Error creating saving goal:', err);
+			error = err instanceof Error ? err.message : 'Failed to create saving goal';
+		} finally {
+			isSaving = false;
+		}
 	}
 
-	function handleAddMoney(event: Event) {
+	async function handleAddMoney(event: Event) {
 		event.preventDefault();
+		
+		if (!selectedGoal) return;
+		
 		const formData = new FormData(event.target as HTMLFormElement);
 		const amount = Number.parseFloat(formData.get("amount") as string);
 
-		if (selectedGoal !== null) {
-			goals = goals.map((goal) =>
-				goal.id === selectedGoal ? { ...goal, current: Math.min(goal.current + amount, goal.target) } : goal
-			);
+		if (isNaN(amount) || amount <= 0) {
+			error = 'Please enter a valid amount';
+			return;
+		}
 
-			const goalName = goals.find((g) => g.id === selectedGoal)?.name;
+		isSaving = true;
+		error = null;
+		try {
+			const newAmount = Math.min(selectedGoal.start_amount + amount, selectedGoal.target_amount);
+			const isCompleted = newAmount >= selectedGoal.target_amount;
+			
+			await savingService.updateSaving(selectedGoal.id, {
+				start_amount: newAmount,
+				completed: isCompleted
+			});
+
+			// Reload data to get updated amounts
+			await loadData();
+			
 			isDepositDialogOpen = false;
 			selectedGoal = null;
 			
-			console.log(`Money Added: $${amount.toLocaleString()} added to ${goalName}.`);
+			successMessage = `$${amount.toLocaleString()} added successfully`;
+			setTimeout(() => {
+				successMessage = null;
+			}, 3000);
+		} catch (err) {
+			console.error('Error adding money:', err);
+			error = err instanceof Error ? err.message : 'Failed to add money';
+		} finally {
+			isSaving = false;
+		}
+	}
+
+	function handleEditGoal(goal: SavingGoal) {
+		editingGoal = goal;
+		editFormName = goal.description;
+		editFormTarget = goal.target_amount.toString();
+		editFormStartAmount = goal.start_amount.toString();
+		editFormStartDate = goal.start_date;
+		editFormEndDate = goal.end_date;
+		isEditDialogOpen = true;
+	}
+
+	async function handleUpdateGoal(event: Event) {
+		event.preventDefault();
+		
+		if (!editingGoal || !editFormName || !editFormTarget || !editFormStartDate || !editFormEndDate) {
+			error = 'Please fill in all required fields';
+			return;
+		}
+
+		isSaving = true;
+		error = null;
+		try {
+			const targetAmount = parseFloat(editFormTarget);
+			const startAmount = parseFloat(editFormStartAmount);
+			const isCompleted = startAmount >= targetAmount;
+			
+			await savingService.updateSaving(editingGoal.id, {
+				description: editFormName,
+				target_amount: targetAmount,
+				start_amount: startAmount,
+				start_date: editFormStartDate,
+				end_date: editFormEndDate,
+				completed: isCompleted
+			});
+
+			// Reload data to get the updated goal
+			await loadData();
+			
+			isEditDialogOpen = false;
+			editingGoal = null;
+			
+			successMessage = 'Savings goal updated successfully';
+			setTimeout(() => {
+				successMessage = null;
+			}, 3000);
+		} catch (err) {
+			console.error('Error updating saving goal:', err);
+			error = err instanceof Error ? err.message : 'Failed to update saving goal';
+		} finally {
+			isSaving = false;
+		}
+	}
+
+	async function handleDeleteGoal(goal: SavingGoal) {
+		if (!confirm(`Are you sure you want to delete the savings goal "${goal.description}"?`)) {
+			return;
+		}
+
+		isDeleting = true;
+		error = null;
+		try {
+			await savingService.deleteSaving(goal.id);
+			
+			// Reload data to remove the deleted goal
+			await loadData();
+			
+			successMessage = 'Savings goal deleted successfully';
+			setTimeout(() => {
+				successMessage = null;
+			}, 3000);
+		} catch (err) {
+			console.error('Error deleting saving goal:', err);
+			error = err instanceof Error ? err.message : 'Failed to delete saving goal';
+		} finally {
+			isDeleting = false;
 		}
 	}
 
@@ -131,21 +283,46 @@
 		if (input) input.value = amount;
 	}
 
-	function setCompleteAmount(goalId: number) {
-		const goal = goals.find(g => g.id === goalId);
-		if (goal) {
-			const remaining = goal.target - goal.current;
-			const input = document.getElementById("amount") as HTMLInputElement;
-			if (input) input.value = remaining.toString();
-		}
+	function setCompleteAmount(goal: SavingGoal) {
+		const remaining = goal.target_amount - goal.start_amount;
+		const input = document.getElementById("amount") as HTMLInputElement;
+		if (input) input.value = remaining.toString();
 	}
 
 	function getTodayDate() {
 		return new Date().toISOString().split("T")[0];
 	}
+
+	function getGoalStatus(current: number, target: number) {
+		if (target <= 0) return { status: "No Target", color: "text-gray-400", bgColor: "bg-gray-500/20" };
+		const percentage = (current / target) * 100;
+		if (percentage >= 100) return { status: "Completed", color: "text-green-400", bgColor: "bg-green-500/20" };
+		if (percentage >= 75) return { status: "Almost There", color: "text-yellow-400", bgColor: "bg-yellow-500/20" };
+		if (percentage >= 25) return { status: "In Progress", color: "text-blue-400", bgColor: "bg-blue-500/20" };
+		return { status: "Getting Started", color: "text-gray-400", bgColor: "bg-gray-500/20" };
+	}
 </script>
 
-<div class="flex-1 space-y-6 p-6">
+<div class="flex-1 space-y-6 p-6 bg-gray-950">
+	<!-- Error and Success Messages -->
+	{#if error}
+		<div class="p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
+			<p class="text-red-400 text-sm">{error}</p>
+		</div>
+	{/if}
+
+	{#if successMessage}
+		<div class="p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
+			<p class="text-green-400 text-sm">{successMessage}</p>
+		</div>
+	{/if}
+
+	<!-- Loading State -->
+	{#if isLoading}
+		<div class="flex items-center justify-center py-12">
+			<div class="text-gray-400">Loading savings goals...</div>
+		</div>
+	{:else}
 	<!-- Header -->
 	<div class="flex items-center justify-between">
 		<div>
@@ -154,13 +331,12 @@
 		</div>
 		
 		<Dialog bind:open={isGoalDialogOpen}>
-			<Button 
-				onclick={() => isGoalDialogOpen = true}
-				class="bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600"
-			>
-				<Plus class="h-4 w-4 mr-2" />
-				Add Goal
-			</Button>
+			<DialogTrigger>
+				<Button class="bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600">
+					<Plus class="h-4 w-4 mr-2" />
+					Add Goal
+				</Button>
+			</DialogTrigger>
 			<DialogContent class="sm:max-w-[425px] bg-gray-800 border-gray-700 text-white">
 				<DialogHeader>
 					<DialogTitle>Create New Savings Goal</DialogTitle>
@@ -171,7 +347,7 @@
 						<Label for="name">Goal Name</Label>
 						<Input
 							id="name"
-							name="name"
+							bind:value={formName}
 							placeholder="e.g., Emergency Fund, Vacation"
 							required
 							class="bg-gray-700 border-gray-600"
@@ -181,7 +357,7 @@
 						<Label for="target">Target Amount</Label>
 						<Input
 							id="target"
-							name="target"
+							bind:value={formTarget}
 							type="number"
 							step="0.01"
 							placeholder="0.00"
@@ -193,7 +369,7 @@
 						<Label for="startAmount">Starting Amount (Optional)</Label>
 						<Input
 							id="startAmount"
-							name="startAmount"
+							bind:value={formStartAmount}
 							type="number"
 							step="0.01"
 							placeholder="0.00"
@@ -204,9 +380,8 @@
 						<Label for="startDate">Start Date</Label>
 						<Input
 							id="startDate"
-							name="startDate"
+							bind:value={formStartDate}
 							type="date"
-							value={getTodayDate()}
 							required
 							class="bg-gray-700 border-gray-600"
 						/>
@@ -215,7 +390,7 @@
 						<Label for="deadline">Target Date</Label>
 						<Input 
 							id="deadline" 
-							name="deadline" 
+							bind:value={formEndDate}
 							type="date" 
 							required 
 							class="bg-gray-700 border-gray-600" 
@@ -223,14 +398,97 @@
 					</div>
 					<Button
 						type="submit"
+						disabled={isSaving}
 						class="w-full bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600"
 					>
-						Create Goal
+						{isSaving ? 'Creating...' : 'Create Goal'}
 					</Button>
 				</form>
 			</DialogContent>
 		</Dialog>
 	</div>
+
+	<!-- Edit Goal Dialog -->
+	<Dialog bind:open={isEditDialogOpen}>
+		<DialogContent class="sm:max-w-[425px] bg-gray-800 border-gray-700 text-white">
+			<DialogHeader>
+				<DialogTitle>Edit Savings Goal</DialogTitle>
+				<DialogDescription class="text-gray-400">Update your savings goal settings</DialogDescription>
+			</DialogHeader>
+			<form onsubmit={handleUpdateGoal} class="space-y-4">
+				<div class="space-y-2">
+					<Label for="editName">Goal Name</Label>
+					<Input
+						id="editName"
+						bind:value={editFormName}
+						placeholder="e.g., Emergency Fund, Vacation"
+						required
+						class="bg-gray-700 border-gray-600"
+					/>
+				</div>
+				<div class="space-y-2">
+					<Label for="editTarget">Target Amount</Label>
+					<Input
+						id="editTarget"
+						bind:value={editFormTarget}
+						type="number"
+						step="0.01"
+						placeholder="0.00"
+						required
+						class="bg-gray-700 border-gray-600"
+					/>
+				</div>
+				<div class="space-y-2">
+					<Label for="editStartAmount">Current Amount</Label>
+					<Input
+						id="editStartAmount"
+						bind:value={editFormStartAmount}
+						type="number"
+						step="0.01"
+						placeholder="0.00"
+						class="bg-gray-700 border-gray-600"
+					/>
+				</div>
+				<div class="space-y-2">
+					<Label for="editStartDate">Start Date</Label>
+					<Input
+						id="editStartDate"
+						bind:value={editFormStartDate}
+						type="date"
+						required
+						class="bg-gray-700 border-gray-600"
+					/>
+				</div>
+				<div class="space-y-2">
+					<Label for="editEndDate">Target Date</Label>
+					<Input 
+						id="editEndDate" 
+						bind:value={editFormEndDate}
+						type="date" 
+						required 
+						class="bg-gray-700 border-gray-600" 
+					/>
+				</div>
+				<div class="flex gap-2">
+					<Button
+						type="button"
+						variant="outline"
+						onclick={() => isEditDialogOpen = false}
+						class="flex-1 border-gray-600 text-gray-300 hover:bg-gray-700"
+					>
+						Cancel
+					</Button>
+					<Button
+						type="submit"
+						disabled={isSaving}
+						class="flex-1 bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600"
+					>
+						{isSaving ? 'Updating...' : 'Update Goal'}
+					</Button>
+				</div>
+			</form>
+		</DialogContent>
+	</Dialog>
 
 	<!-- Goals Overview -->
 	<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -252,7 +510,7 @@
 			</CardHeader>
 			<CardContent>
 				<div class="text-2xl font-bold text-green-400">${totalSaved.toLocaleString()}</div>
-				<p class="text-xs text-gray-400">{overallProgress.toFixed(1)}% of total goals</p>
+				<p class="text-xs text-gray-400">{totalTargets > 0 ? overallProgress.toFixed(1) : '0.0'}% of total goals</p>
 			</CardContent>
 		</Card>
 
@@ -295,25 +553,62 @@
 		<CardContent>
 			<div class="space-y-6">
 				{#each paginatedData.goals as goal (goal.id)}
-					{@const percentage = (goal.current / goal.target) * 100}
-					{@const remaining = goal.target - goal.current}
-					{@const isCompleted = goal.current >= goal.target}
+					{@const percentage = goal.target_amount > 0 ? (goal.start_amount / goal.target_amount) * 100 : 0}
+					{@const remaining = goal.target_amount - goal.start_amount}
+					{@const isCompleted = goal.completed || goal.start_amount >= goal.target_amount}
+					{@const goalStatus = getGoalStatus(goal.start_amount, goal.target_amount)}
 					
 					<div class="border border-gray-800 rounded-lg p-4 space-y-4 bg-gray-800">
 						<div class="flex items-center justify-between">
 							<div>
 								<div class="flex items-center gap-2">
-									<h3 class="font-semibold text-white">{goal.name}</h3>
-									<Badge class={getPriorityColor(goal.priority)}>{goal.priority} priority</Badge>
+									<h3 class="font-semibold text-white">{goal.description}</h3>
+									<Badge class="{goalStatus.bgColor} {goalStatus.color} border-0">
+										{goalStatus.status}
+									</Badge>
 									{#if isCompleted}
 										<Badge class="bg-green-500/20 text-green-400 border-green-500/50">Completed</Badge>
 									{/if}
 								</div>
-								<p class="text-sm text-gray-400">Target: {goal.deadline}</p>
+								<p class="text-sm text-gray-400">Target: {new Date(goal.end_date).toLocaleDateString()}</p>
 							</div>
 							<div class="text-right">
-								<p class="text-lg font-bold text-white">${goal.current.toLocaleString()}</p>
-								<p class="text-sm text-gray-400">of ${goal.target.toLocaleString()}</p>
+								<p class="text-lg font-bold text-white">${goal.start_amount.toLocaleString()}</p>
+								<p class="text-sm text-gray-400">of ${goal.target_amount.toLocaleString()}</p>
+								<div class="mt-2 flex gap-2">
+									{#if !isCompleted}
+										<Button
+											variant="outline"
+											size="sm"
+											onclick={() => {
+												selectedGoal = goal;
+												isDepositDialogOpen = true;
+											}}
+											class="bg-gray-900 border-2 border-blue-500 text-blue-400 hover:bg-blue-500/20 hover:text-blue-300 font-semibold shadow-lg flex-1"
+										>
+											Add Money
+										</Button>
+									{/if}
+									<Button 
+										variant="outline" 
+										size="sm" 
+										onclick={() => handleEditGoal(goal)}
+										class="bg-gray-900 border-2 border-green-500 text-green-400 hover:bg-green-500/20 hover:text-green-300 font-semibold shadow-lg flex-1"
+									>
+										<Edit class="h-4 w-4 mr-1" />
+										Edit
+									</Button>
+									<Button 
+										variant="outline" 
+										size="sm" 
+										onclick={() => handleDeleteGoal(goal)}
+										disabled={isDeleting}
+										class="bg-gray-900 border-2 border-red-500 text-red-400 hover:bg-red-500/20 hover:text-red-300 font-semibold shadow-lg flex-1 disabled:opacity-50"
+									>
+										<Trash2 class="h-4 w-4 mr-1" />
+										{isDeleting ? 'Deleting...' : 'Delete'}
+									</Button>
+								</div>
 							</div>
 						</div>
 
@@ -330,95 +625,6 @@
 									Goal achieved!
 								{/if}
 							</p>
-						</div>
-
-						<div class="flex gap-2">
-							{#if !isCompleted}
-								<Dialog 
-									bind:open={isDepositDialogOpen} 
-									onOpenChange={(open) => {
-										if (!open) selectedGoal = null;
-									}}
-								>
-									<Button
-										variant="outline"
-										size="sm"
-										onclick={() => {
-											selectedGoal = goal.id;
-											isDepositDialogOpen = true;
-										}}
-										class="border-gray-600 text-gray-300 hover:bg-gray-700"
-									>
-										Add Money
-									</Button>
-									{#if selectedGoal === goal.id}
-										<DialogContent class="sm:max-w-[425px] bg-gray-800 border-gray-700 text-white">
-											<DialogHeader>
-												<DialogTitle>Add Money - {goal.name}</DialogTitle>
-												<DialogDescription class="text-gray-400">
-													Current: ${goal.current.toLocaleString()} / ${goal.target.toLocaleString()}
-												</DialogDescription>
-											</DialogHeader>
-											<form onsubmit={handleAddMoney} class="space-y-4">
-												<div class="space-y-2">
-													<Label for="amount">Amount to Add</Label>
-													<Input
-														id="amount"
-														name="amount"
-														type="number"
-														step="0.01"
-														placeholder="0.00"
-														min={0}
-														max={remaining}
-														required
-														class="bg-gray-700 border-gray-600"
-													/>
-												</div>
-												<div class="flex gap-2">
-													<Button
-														type="button"
-														variant="outline"
-														onclick={() => setQuickAmount("100")}
-														class="border-gray-600 text-gray-300 hover:bg-gray-700"
-													>
-														$100
-													</Button>
-													<Button
-														type="button"
-														variant="outline"
-														onclick={() => setQuickAmount("500")}
-														class="border-gray-600 text-gray-300 hover:bg-gray-700"
-													>
-														$500
-													</Button>
-													<Button
-														type="button"
-														variant="outline"
-														onclick={() => setCompleteAmount(goal.id)}
-														class="border-gray-600 text-gray-300 hover:bg-gray-700"
-													>
-														Complete Goal
-													</Button>
-												</div>
-												<Button
-													type="submit"
-													class="w-full bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600"
-												>
-													Add Money
-												</Button>
-											</form>
-										</DialogContent>
-									{/if}
-								</Dialog>
-							{/if}
-
-							<Button 
-								variant="ghost" 
-								size="sm" 
-								class="text-gray-400 hover:text-white hover:bg-gray-800"
-							>
-								View Details
-							</Button>
 						</div>
 					</div>
 				{/each}
@@ -485,6 +691,84 @@
 		</CardContent>
 	</Card>
 
+	<!-- Add Money Dialog -->
+	<Dialog bind:open={isDepositDialogOpen}>
+		<DialogContent class="sm:max-w-[425px] bg-gray-800 border-gray-700 text-white">
+			<DialogHeader>
+				<DialogTitle>Add Money - {selectedGoal?.description}</DialogTitle>
+				<DialogDescription class="text-gray-400">
+					{#if selectedGoal}
+						Current: ${selectedGoal.start_amount.toLocaleString()} / ${selectedGoal.target_amount.toLocaleString()}
+					{/if}
+				</DialogDescription>
+			</DialogHeader>
+			<form onsubmit={handleAddMoney} class="space-y-4">
+				<div class="space-y-2">
+					<Label for="amount">Amount to Add</Label>
+					<Input
+						id="amount"
+						name="amount"
+						type="number"
+						step="0.01"
+						placeholder="0.00"
+						min={0}
+						max={selectedGoal ? selectedGoal.target_amount - selectedGoal.start_amount : undefined}
+						required
+						class="bg-gray-700 border-gray-600"
+					/>
+				</div>
+				<div class="flex gap-2">
+					<Button
+						type="button"
+						variant="outline"
+						onclick={() => setQuickAmount("100")}
+						class="border-gray-600 text-gray-300 hover:bg-gray-700"
+					>
+						$100
+					</Button>
+					<Button
+						type="button"
+						variant="outline"
+						onclick={() => setQuickAmount("500")}
+						class="border-gray-600 text-gray-300 hover:bg-gray-700"
+					>
+						$500
+					</Button>
+					{#if selectedGoal}
+						<Button
+							type="button"
+							variant="outline"
+							onclick={() => setCompleteAmount(selectedGoal)}
+							class="border-gray-600 text-gray-300 hover:bg-gray-700"
+						>
+							Complete Goal
+						</Button>
+					{/if}
+				</div>
+				<div class="flex gap-2">
+					<Button
+						type="button"
+						variant="outline"
+						onclick={() => {
+							isDepositDialogOpen = false;
+							selectedGoal = null;
+						}}
+						class="flex-1 border-gray-600 text-gray-300 hover:bg-gray-700"
+					>
+						Cancel
+					</Button>
+					<Button
+						type="submit"
+						disabled={isSaving}
+						class="flex-1 bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600"
+					>
+						{isSaving ? 'Adding...' : 'Add Money'}
+					</Button>
+				</div>
+			</form>
+		</DialogContent>
+	</Dialog>
+
 	<!-- Goal Insights -->
 	<Card class="bg-gray-900 border-gray-800">
 		<CardHeader>
@@ -516,4 +800,5 @@
 			</div>
 		</CardContent>
 	</Card>
+	{/if}
 </div> 
