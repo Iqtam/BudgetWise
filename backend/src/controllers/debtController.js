@@ -63,6 +63,25 @@ exports.getDebtById = async (req, res) => {
   }
 };
 
+exports.updateDebt = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const debt = await Debt.findByPk(id);
+    if (!debt) return res.status(404).json({ message: 'Debt not found' });
+
+    const updatedData = req.body;
+    await debt.update(updatedData);
+
+    res.json({
+      message: 'Debt updated successfully',
+      data: debt
+    });
+  } catch (error) {
+    console.error('Update Debt Error:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
 
 exports.deleteDebt = async (req, res) => {
   const { id } = req.params;

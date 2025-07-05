@@ -4,7 +4,9 @@
 		DollarSign, 
 		TrendingDown, 
 		Wallet, 
-		Plus 
+		Plus,
+		Edit,
+		Trash2
 	} from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
@@ -26,148 +28,64 @@
 		SelectItem,
 		SelectTrigger
 	} from '$lib/components/ui/select';
+	import { debtService, type Debt } from '$lib/services/debts';
+	import { firebaseUser, loading as authLoading } from '$lib/stores/auth';
+	import { onMount } from 'svelte';
 
-	const mockDebts = [
-		{
-			id: 1,
-			name: "Credit Card",
-			balance: 2450,
-			originalAmount: 5000,
-			interestRate: 18.99,
-			minimumPayment: 75,
-			dueDate: "2024-02-15",
-			type: "bank",
-			takenFrom: "Chase Bank",
-		},
-		{
-			id: 2,
-			name: "Student Loan",
-			balance: 15600,
-			originalAmount: 25000,
-			interestRate: 4.5,
-			minimumPayment: 280,
-			dueDate: "2024-02-20",
-			type: "bank",
-			takenFrom: "Federal Student Aid",
-		},
-		{
-			id: 3,
-			name: "Car Loan",
-			balance: 8200,
-			originalAmount: 18000,
-			interestRate: 6.2,
-			minimumPayment: 320,
-			dueDate: "2024-02-10",
-			type: "bank",
-			takenFrom: "Auto Finance Corp",
-		},
-		{
-			id: 4,
-			name: "Personal Loan",
-			balance: 3500,
-			originalAmount: 5000,
-			interestRate: 12.5,
-			minimumPayment: 150,
-			dueDate: "2024-02-25",
-			type: "personal",
-			takenFrom: "John Smith",
-		},
-		{
-			id: 5,
-			name: "Home Equity Loan",
-			balance: 45000,
-			originalAmount: 50000,
-			interestRate: 5.8,
-			minimumPayment: 425,
-			dueDate: "2024-02-05",
-			type: "bank",
-			takenFrom: "Wells Fargo",
-		},
-		{
-			id: 6,
-			name: "Business Loan",
-			balance: 12000,
-			originalAmount: 20000,
-			interestRate: 8.9,
-			minimumPayment: 245,
-			dueDate: "2024-02-18",
-			type: "bank",
-			takenFrom: "Small Business Bank",
-		},
-		{
-			id: 7,
-			name: "Medical Debt",
-			balance: 1800,
-			originalAmount: 2500,
-			interestRate: 0,
-			minimumPayment: 100,
-			dueDate: "2024-02-28",
-			type: "personal",
-			takenFrom: "City Hospital",
-		},
-		{
-			id: 8,
-			name: "Family Loan",
-			balance: 2200,
-			originalAmount: 3000,
-			interestRate: 2.0,
-			minimumPayment: 75,
-			dueDate: "2024-02-12",
-			type: "personal",
-			takenFrom: "Mom & Dad",
-		},
-		{
-			id: 9,
-			name: "Store Credit Card",
-			balance: 890,
-			originalAmount: 1500,
-			interestRate: 24.99,
-			minimumPayment: 35,
-			dueDate: "2024-02-22",
-			type: "bank",
-			takenFrom: "Department Store",
-		},
-		{
-			id: 10,
-			name: "Payday Loan",
-			balance: 650,
-			originalAmount: 800,
-			interestRate: 35.0,
-			minimumPayment: 85,
-			dueDate: "2024-02-08",
-			type: "personal",
-			takenFrom: "Quick Cash",
-		},
-		{
-			id: 11,
-			name: "Motorcycle Loan",
-			balance: 4200,
-			originalAmount: 8000,
-			interestRate: 7.5,
-			minimumPayment: 180,
-			dueDate: "2024-02-16",
-			type: "bank",
-			takenFrom: "Bike Finance",
-		},
-		{
-			id: 12,
-			name: "Furniture Loan",
-			balance: 1100,
-			originalAmount: 2000,
-			interestRate: 15.9,
-			minimumPayment: 65,
-			dueDate: "2024-02-20",
-			type: "bank",
-			takenFrom: "Furniture Store",
-		}
-	];
-
-	let debts = $state(mockDebts);
+	// State variables
+	let debts = $state<Debt[]>([]);
+	let isLoading = $state(true);
+	let error = $state<string | null>(null);
+	let successMessage = $state<string | null>(null);
 	let isAddDebtOpen = $state(false);
 	let isPaymentOpen = $state(false);
-	let selectedDebt = $state<number | null>(null);
+	let isEditDialogOpen = $state(false);
+	let selectedDebt = $state<Debt | null>(null);
+	let editingDebt = $state<Debt | null>(null);
 	let currentPage = $state(1);
+	let isSaving = $state(false);
+	let isDeleting = $state(false);
 	const itemsPerPage = 10;
+
+	// Form fields
+	let formDescription = $state("");
+	let formType = $state<'bank' | 'personal'>('bank');
+	let formAmount = $state("");
+	let formInterestRate = $state("");
+	let formTakenFrom = $state("");
+	let formStartDate = $state(new Date().toISOString().split("T")[0]);
+	let formExpirationDate = $state("");
+
+	// Edit form fields
+	let editFormDescription = $state("");
+	let editFormType = $state<'bank' | 'personal'>('bank');
+	let editFormAmount = $state("");
+	let editFormInterestRate = $state("");
+	let editFormTakenFrom = $state("");
+	let editFormStartDate = $state("");
+	let editFormExpirationDate = $state("");
+
+	// Wait for authentication before loading data
+	$effect(() => {
+		if (!$authLoading && $firebaseUser) {
+			loadData();
+		}
+	});
+
+	// Function to load debts from API
+	async function loadData() {
+		isLoading = true;
+		error = null;
+		try {
+			const debtData = await debtService.getAllDebts();
+			debts = debtData;
+		} catch (err) {
+			console.error('Error loading data:', err);
+			error = err instanceof Error ? err.message : 'Failed to load data';
+		} finally {
+			isLoading = false;
+		}
+	}
 
 	$effect(() => {
 		currentPage = 1;
@@ -188,78 +106,216 @@
 	};
 
 	const paginatedData = $derived(getPaginatedDebts());
-	const totalDebt = $derived(debts.reduce((sum, debt) => sum + debt.balance, 0));
-	const totalMinimumPayment = $derived(debts.reduce((sum, debt) => sum + debt.minimumPayment, 0));
-	const highestInterestRate = $derived(Math.max(...debts.map(debt => debt.interestRate)));
-	const highestInterestDebt = $derived(debts.find(debt => debt.interestRate === highestInterestRate));
+	const totalDebt = $derived(debts.reduce((sum, debt) => sum + debt.amount, 0));
+	const totalMinimumPayment = $derived(debts.reduce((sum, debt) => sum + (debt.amount * 0.02), 0)); // Estimate 2% minimum payment
+	const highestInterestRate = $derived(debts.length > 0 ? Math.max(...debts.map(debt => debt.interest_rate)) : 0);
+	const highestInterestDebt = $derived(debts.find(debt => debt.interest_rate === highestInterestRate));
 
-	function handleAddDebt(event: Event) {
+	async function handleAddDebt(event: Event) {
 		event.preventDefault();
-		const formData = new FormData(event.target as HTMLFormElement);
 		
-		const description = formData.get("description") as string;
-		const type = formData.get("type") as string;
-		const amount = Number.parseFloat(formData.get("amount") as string);
-		const interestRate = Number.parseFloat(formData.get("interestRate") as string);
-		const takenFrom = formData.get("takenFrom") as string;
-		const startDate = formData.get("startDate") as string;
-		const expirationDate = formData.get("expirationDate") as string;
+		if (!formDescription || !formAmount || !formInterestRate || !formTakenFrom || !formStartDate || !formExpirationDate) {
+			error = 'Please fill in all required fields';
+			return;
+		}
 
-		const newDebt = {
-			id: debts.length + 1,
-			name: description,
-			balance: amount,
-			originalAmount: amount,
-			interestRate,
-			minimumPayment: Math.round(amount * 0.02), // Estimate 2% minimum payment
-			dueDate: expirationDate,
-			type,
-			takenFrom,
-			startDate,
-		};
+		isSaving = true;
+		error = null;
+		try {
+			await debtService.createDebt({
+				description: formDescription,
+				type: formType,
+				amount: parseFloat(formAmount),
+				interest_rate: parseFloat(formInterestRate),
+				taken_from: formTakenFrom,
+				start_date: formStartDate,
+				expiration_date: formExpirationDate
+			});
 
-		debts = [...debts, newDebt];
-		isAddDebtOpen = false;
-		
-		console.log(`Debt Added: ${description} with balance of $${amount}`);
+			// Reload data to get the new debt
+			await loadData();
+			
+			isAddDebtOpen = false;
+			
+			// Reset form
+			formDescription = "";
+			formType = 'bank';
+			formAmount = "";
+			formInterestRate = "";
+			formTakenFrom = "";
+			formStartDate = new Date().toISOString().split("T")[0];
+			formExpirationDate = "";
+
+			// Show success message
+			successMessage = 'Debt added successfully';
+			setTimeout(() => {
+				successMessage = null;
+			}, 3000);
+		} catch (err) {
+			console.error('Error creating debt:', err);
+			error = err instanceof Error ? err.message : 'Failed to create debt';
+		} finally {
+			isSaving = false;
+		}
 	}
 
-	function handlePayment(event: Event) {
+	async function handlePayment(event: Event) {
 		event.preventDefault();
+		
+		if (!selectedDebt) return;
+		
 		const formData = new FormData(event.target as HTMLFormElement);
-		const amount = Number.parseFloat(formData.get("amount") as string);
+		const paymentAmount = Number.parseFloat(formData.get("amount") as string);
 
-		if (selectedDebt !== null) {
-			debts = debts.map((debt) =>
-				debt.id === selectedDebt ? { ...debt, balance: Math.max(0, debt.balance - amount) } : debt
-			);
+		if (isNaN(paymentAmount) || paymentAmount <= 0) {
+			error = 'Please enter a valid payment amount';
+			return;
+		}
 
-			const debtName = debts.find((d) => d.id === selectedDebt)?.name;
+		isSaving = true;
+		error = null;
+		try {
+			const newAmount = Math.max(0, selectedDebt.amount - paymentAmount);
+			
+			await debtService.updateDebt(selectedDebt.id, {
+				amount: newAmount
+			});
+
+			// Reload data to get updated amounts
+			await loadData();
+			
 			isPaymentOpen = false;
 			selectedDebt = null;
 			
-			console.log(`Payment Recorded: Payment of $${amount} applied to ${debtName}`);
+			successMessage = `Payment of $${paymentAmount.toLocaleString()} recorded successfully`;
+			setTimeout(() => {
+				successMessage = null;
+			}, 3000);
+		} catch (err) {
+			console.error('Error recording payment:', err);
+			error = err instanceof Error ? err.message : 'Failed to record payment';
+		} finally {
+			isSaving = false;
 		}
 	}
 
-	function setMinimumPayment(debtId: number) {
-		const debt = debts.find(d => d.id === debtId);
-		if (debt) {
-			const input = document.getElementById("amount") as HTMLInputElement;
-			if (input) input.value = debt.minimumPayment.toString();
+	function handleEditDebt(debt: Debt) {
+		editingDebt = debt;
+		editFormDescription = debt.description;
+		editFormType = debt.type;
+		editFormAmount = debt.amount.toString();
+		editFormInterestRate = debt.interest_rate.toString();
+		editFormTakenFrom = debt.taken_from;
+		editFormStartDate = debt.start_date;
+		editFormExpirationDate = debt.expiration_date;
+		isEditDialogOpen = true;
+	}
+
+	async function handleUpdateDebt(event: Event) {
+		event.preventDefault();
+		
+		if (!editingDebt || !editFormDescription || !editFormAmount || !editFormInterestRate || !editFormTakenFrom || !editFormStartDate || !editFormExpirationDate) {
+			error = 'Please fill in all required fields';
+			return;
+		}
+
+		isSaving = true;
+		error = null;
+		try {
+			await debtService.updateDebt(editingDebt.id, {
+				description: editFormDescription,
+				type: editFormType,
+				amount: parseFloat(editFormAmount),
+				interest_rate: parseFloat(editFormInterestRate),
+				taken_from: editFormTakenFrom,
+				start_date: editFormStartDate,
+				expiration_date: editFormExpirationDate
+			});
+
+			// Reload data to get the updated debt
+			await loadData();
+			
+			isEditDialogOpen = false;
+			editingDebt = null;
+			
+			successMessage = 'Debt updated successfully';
+			setTimeout(() => {
+				successMessage = null;
+			}, 3000);
+		} catch (err) {
+			console.error('Error updating debt:', err);
+			error = err instanceof Error ? err.message : 'Failed to update debt';
+		} finally {
+			isSaving = false;
 		}
 	}
 
-	function setPayoffAmount(debtId: number) {
-		const debt = debts.find(d => d.id === debtId);
-		if (debt) {
-			const input = document.getElementById("amount") as HTMLInputElement;
-			if (input) input.value = debt.balance.toString();
+	async function handleDeleteDebt(debt: Debt) {
+		if (!confirm(`Are you sure you want to delete the debt "${debt.description}"?`)) {
+			return;
 		}
+
+		isDeleting = true;
+		error = null;
+		try {
+			await debtService.deleteDebt(debt.id);
+			
+			// Reload data to remove the deleted debt
+			await loadData();
+			
+			successMessage = 'Debt deleted successfully';
+			setTimeout(() => {
+				successMessage = null;
+			}, 3000);
+		} catch (err) {
+			console.error('Error deleting debt:', err);
+			error = err instanceof Error ? err.message : 'Failed to delete debt';
+		} finally {
+			isDeleting = false;
+		}
+	}
+
+	function setMinimumPayment(debt: Debt) {
+		const minimumPayment = debt.amount * 0.02; // 2% minimum payment estimate
+		const input = document.getElementById("amount") as HTMLInputElement;
+		if (input) input.value = minimumPayment.toFixed(2);
+	}
+
+	function setPayoffAmount(debt: Debt) {
+		const input = document.getElementById("amount") as HTMLInputElement;
+		if (input) input.value = debt.amount.toString();
+	}
+
+	function getDebtStatus(amount: number, originalAmount: number) {
+		if (originalAmount <= 0) return { status: "No Debt", color: "text-gray-400", bgColor: "bg-gray-500/20" };
+		const percentage = ((originalAmount - amount) / originalAmount) * 100;
+		if (percentage >= 100) return { status: "Paid Off", color: "text-green-400", bgColor: "bg-green-500/20" };
+		if (percentage >= 75) return { status: "Almost Done", color: "text-yellow-400", bgColor: "bg-yellow-500/20" };
+		if (percentage >= 25) return { status: "In Progress", color: "text-blue-400", bgColor: "bg-blue-500/20" };
+		return { status: "Getting Started", color: "text-red-400", bgColor: "bg-red-500/20" };
 	}
 </script>
 
-<div class="flex-1 space-y-6 p-6">
+<div class="flex-1 space-y-6 p-6 bg-gray-950">
+	<!-- Error and Success Messages -->
+	{#if error}
+		<div class="p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
+			<p class="text-red-400 text-sm">{error}</p>
+		</div>
+	{/if}
+
+	{#if successMessage}
+		<div class="p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
+			<p class="text-green-400 text-sm">{successMessage}</p>
+		</div>
+	{/if}
+
+	<!-- Loading State -->
+	{#if isLoading}
+		<div class="flex items-center justify-center py-12">
+			<div class="text-gray-400">Loading debts...</div>
+		</div>
+	{:else}
 	<!-- Header with Add Button -->
 	<div class="flex items-center justify-between mb-6">
 		<div>
@@ -268,13 +324,12 @@
 		</div>
 		
 		<Dialog bind:open={isAddDebtOpen}>
-			<Button 
-				onclick={() => isAddDebtOpen = true}
-				class="bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600"
-			>
-				<Plus class="h-4 w-4 mr-2" />
-				Add Debt
-			</Button>
+			<DialogTrigger>
+				<Button class="bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600">
+					<Plus class="h-4 w-4 mr-2" />
+					Add Debt
+				</Button>
+			</DialogTrigger>
 			<DialogContent class="sm:max-w-[425px] bg-gray-800 border-gray-700 text-white">
 				<DialogHeader>
 					<DialogTitle>Add New Debt</DialogTitle>
@@ -285,7 +340,7 @@
 						<Label for="description">Description</Label>
 						<Input
 							id="description"
-							name="description"
+							bind:value={formDescription}
 							placeholder="e.g., Credit Card, Student Loan"
 							required
 							class="bg-gray-700 border-gray-600"
@@ -294,8 +349,7 @@
 
 					<div class="space-y-2">
 						<Label for="type">Type</Label>
-						<select name="type" required class="bg-gray-700 border-gray-600 rounded px-3 py-2 text-white">
-							<option value="">Select debt type</option>
+						<select bind:value={formType} required class="bg-gray-700 border-gray-600 rounded px-3 py-2 text-white w-full">
 							<option value="bank">Bank</option>
 							<option value="personal">Personal</option>
 						</select>
@@ -305,7 +359,7 @@
 						<Label for="amount">Amount</Label>
 						<Input
 							id="amount"
-							name="amount"
+							bind:value={formAmount}
 							type="number"
 							step="0.01"
 							placeholder="0.00"
@@ -318,7 +372,7 @@
 						<Label for="interestRate">Interest Rate (%)</Label>
 						<Input
 							id="interestRate"
-							name="interestRate"
+							bind:value={formInterestRate}
 							type="number"
 							step="0.01"
 							placeholder="0.00"
@@ -331,7 +385,7 @@
 						<Label for="takenFrom">Taken From</Label>
 						<Input
 							id="takenFrom"
-							name="takenFrom"
+							bind:value={formTakenFrom}
 							placeholder="e.g., Chase Bank, John Doe"
 							required
 							class="bg-gray-700 border-gray-600"
@@ -342,7 +396,7 @@
 						<Label for="startDate">Start Date</Label>
 						<Input 
 							id="startDate" 
-							name="startDate" 
+							bind:value={formStartDate}
 							type="date" 
 							required 
 							class="bg-gray-700 border-gray-600" 
@@ -353,7 +407,7 @@
 						<Label for="expirationDate">Expiration Date</Label>
 						<Input
 							id="expirationDate"
-							name="expirationDate"
+							bind:value={formExpirationDate}
 							type="date"
 							required
 							class="bg-gray-700 border-gray-600"
@@ -362,14 +416,122 @@
 
 					<Button
 						type="submit"
+						disabled={isSaving}
 						class="w-full bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600"
 					>
-						Add Debt
+						{isSaving ? 'Adding...' : 'Add Debt'}
 					</Button>
 				</form>
 			</DialogContent>
 		</Dialog>
 	</div>
+
+	<!-- Edit Debt Dialog -->
+	<Dialog bind:open={isEditDialogOpen}>
+		<DialogContent class="sm:max-w-[425px] bg-gray-800 border-gray-700 text-white">
+			<DialogHeader>
+				<DialogTitle>Edit Debt</DialogTitle>
+				<DialogDescription class="text-gray-400">Update your debt information</DialogDescription>
+			</DialogHeader>
+			<form onsubmit={handleUpdateDebt} class="space-y-4">
+				<div class="space-y-2">
+					<Label for="editDescription">Description</Label>
+					<Input
+						id="editDescription"
+						bind:value={editFormDescription}
+						placeholder="e.g., Credit Card, Student Loan"
+						required
+						class="bg-gray-700 border-gray-600"
+					/>
+				</div>
+
+				<div class="space-y-2">
+					<Label for="editType">Type</Label>
+					<select bind:value={editFormType} required class="bg-gray-700 border-gray-600 rounded px-3 py-2 text-white w-full">
+						<option value="bank">Bank</option>
+						<option value="personal">Personal</option>
+					</select>
+				</div>
+
+				<div class="space-y-2">
+					<Label for="editAmount">Amount</Label>
+					<Input
+						id="editAmount"
+						bind:value={editFormAmount}
+						type="number"
+						step="0.01"
+						placeholder="0.00"
+						required
+						class="bg-gray-700 border-gray-600"
+					/>
+				</div>
+
+				<div class="space-y-2">
+					<Label for="editInterestRate">Interest Rate (%)</Label>
+					<Input
+						id="editInterestRate"
+						bind:value={editFormInterestRate}
+						type="number"
+						step="0.01"
+						placeholder="0.00"
+						required
+						class="bg-gray-700 border-gray-600"
+					/>
+				</div>
+
+				<div class="space-y-2">
+					<Label for="editTakenFrom">Taken From</Label>
+					<Input
+						id="editTakenFrom"
+						bind:value={editFormTakenFrom}
+						placeholder="e.g., Chase Bank, John Doe"
+						required
+						class="bg-gray-700 border-gray-600"
+					/>
+				</div>
+
+				<div class="space-y-2">
+					<Label for="editStartDate">Start Date</Label>
+					<Input 
+						id="editStartDate" 
+						bind:value={editFormStartDate}
+						type="date" 
+						required 
+						class="bg-gray-700 border-gray-600" 
+					/>
+				</div>
+
+				<div class="space-y-2">
+					<Label for="editExpirationDate">Expiration Date</Label>
+					<Input
+						id="editExpirationDate"
+						bind:value={editFormExpirationDate}
+						type="date"
+						required
+						class="bg-gray-700 border-gray-600"
+					/>
+				</div>
+
+				<div class="flex gap-2">
+					<Button
+						type="button"
+						variant="outline"
+						onclick={() => isEditDialogOpen = false}
+						class="flex-1 border-gray-600 text-gray-300 hover:bg-gray-700"
+					>
+						Cancel
+					</Button>
+					<Button
+						type="submit"
+						disabled={isSaving}
+						class="flex-1 bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600"
+					>
+						{isSaving ? 'Updating...' : 'Update Debt'}
+					</Button>
+				</div>
+			</form>
+		</DialogContent>
+	</Dialog>
 
 	<!-- Debt Overview -->
 	<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -390,7 +552,7 @@
 				<DollarSign class="h-4 w-4 text-gray-400" />
 			</CardHeader>
 			<CardContent>
-				<div class="text-2xl font-bold text-white">${totalMinimumPayment}</div>
+				<div class="text-2xl font-bold text-white">${totalMinimumPayment.toFixed(0)}</div>
 				<p class="text-xs text-gray-400">Minimum required</p>
 			</CardContent>
 		</Card>
@@ -401,8 +563,8 @@
 				<TrendingDown class="h-4 w-4 text-gray-400" />
 			</CardHeader>
 			<CardContent>
-				<div class="text-2xl font-bold text-white">{highestInterestRate}%</div>
-				<p class="text-xs text-gray-400">{highestInterestDebt?.name || 'N/A'}</p>
+				<div class="text-2xl font-bold text-white">{highestInterestRate.toFixed(1)}%</div>
+				<p class="text-xs text-gray-400">{highestInterestDebt?.description || 'N/A'}</p>
 			</CardContent>
 		</Card>
 
@@ -434,113 +596,67 @@
 		<CardContent>
 			<div class="space-y-6">
 				{#each paginatedData.debts as debt (debt.id)}
-					{@const payoffPercentage = ((debt.originalAmount - debt.balance) / debt.originalAmount) * 100}
+					{@const minimumPayment = debt.amount * 0.02}
+					{@const debtStatus = getDebtStatus(debt.amount, debt.amount)}
 					
 					<div class="border border-gray-700 rounded-lg p-4 space-y-4 bg-gray-800">
 						<div class="flex items-center justify-between">
 							<div>
 								<div class="flex items-center gap-2">
-									<h3 class="font-semibold text-white">{debt.name}</h3>
+									<h3 class="font-semibold text-white">{debt.description}</h3>
 									<Badge variant={debt.type === "bank" ? "default" : "secondary"}>{debt.type}</Badge>
+									<Badge class="{debtStatus.bgColor} {debtStatus.color} border-0">
+										{debtStatus.status}
+									</Badge>
 								</div>
 								<p class="text-sm text-gray-400">
-									{debt.interestRate}% APR • Due: {debt.dueDate}
+									{debt.interest_rate}% APR • Due: {new Date(debt.expiration_date).toLocaleDateString()}
 								</p>
-								<p class="text-xs text-gray-500">From: {debt.takenFrom}</p>
+								<p class="text-xs text-gray-500">From: {debt.taken_from}</p>
 							</div>
 							<div class="text-right">
-								<p class="text-lg font-bold text-white">${debt.balance.toLocaleString()}</p>
-								<Badge variant="secondary">Min: ${debt.minimumPayment}</Badge>
+								<p class="text-lg font-bold text-white">${debt.amount.toLocaleString()}</p>
+								<Badge variant="secondary">Min: ${minimumPayment.toFixed(0)}</Badge>
+								<div class="mt-2 flex gap-2">
+									<Button 
+										variant="outline" 
+										size="sm" 
+										onclick={() => {
+											selectedDebt = debt;
+											isPaymentOpen = true;
+										}}
+										class="bg-gray-900 border-2 border-blue-500 text-blue-400 hover:bg-blue-500/20 hover:text-blue-300 font-semibold shadow-lg flex-1"
+									>
+										Make Payment
+									</Button>
+									<Button 
+										variant="outline" 
+										size="sm" 
+										onclick={() => handleEditDebt(debt)}
+										class="bg-gray-900 border-2 border-green-500 text-green-400 hover:bg-green-500/20 hover:text-green-300 font-semibold shadow-lg flex-1"
+									>
+										<Edit class="h-4 w-4 mr-1" />
+										Edit
+									</Button>
+									<Button 
+										variant="outline" 
+										size="sm" 
+										onclick={() => handleDeleteDebt(debt)}
+										disabled={isDeleting}
+										class="bg-gray-900 border-2 border-red-500 text-red-400 hover:bg-red-500/20 hover:text-red-300 font-semibold shadow-lg flex-1 disabled:opacity-50"
+									>
+										<Trash2 class="h-4 w-4 mr-1" />
+										{isDeleting ? 'Deleting...' : 'Delete'}
+									</Button>
+								</div>
 							</div>
 						</div>
 
 						<div class="space-y-2">
 							<div class="flex justify-between text-sm text-gray-300">
-								<span>Progress</span>
-								<span>{payoffPercentage.toFixed(1)}% paid off</span>
+								<span>Remaining Balance</span>
+								<span>${debt.amount.toLocaleString()}</span>
 							</div>
-							<Progress value={payoffPercentage} class="h-2" />
-						</div>
-
-						<div class="flex gap-2">
-							<Dialog 
-								bind:open={isPaymentOpen} 
-								onOpenChange={(open) => {
-									if (!open) selectedDebt = null;
-								}}
-							>
-								<DialogTrigger asChild>
-									<Button 
-										variant="outline" 
-										size="sm" 
-										onclick={() => {
-											selectedDebt = debt.id;
-											isPaymentOpen = true;
-										}}
-										class="border-gray-600 text-gray-300 hover:bg-gray-700 hover:text-white"
-									>
-										Make Payment
-									</Button>
-								</DialogTrigger>
-								{#if selectedDebt === debt.id}
-									<DialogContent class="bg-gray-800 border-gray-700 text-white">
-										<DialogHeader>
-											<DialogTitle>Make Payment - {debt.name}</DialogTitle>
-											<DialogDescription class="text-gray-400">
-												Current balance: ${debt.balance.toLocaleString()}
-											</DialogDescription>
-										</DialogHeader>
-										<form onsubmit={handlePayment} class="space-y-4">
-											<div class="space-y-2">
-												<Label for="amount">Payment Amount</Label>
-												<Input
-													id="amount"
-													name="amount"
-													type="number"
-													step="0.01"
-													placeholder={debt.minimumPayment.toString()}
-													min={0}
-													max={debt.balance}
-													required
-													class="bg-gray-700 border-gray-600"
-												/>
-											</div>
-											<div class="flex gap-2">
-												<Button
-													type="button"
-													variant="outline"
-													onclick={() => setMinimumPayment(debt.id)}
-													class="border-gray-600 text-gray-300 hover:bg-gray-700"
-												>
-													Minimum (${debt.minimumPayment})
-												</Button>
-												<Button
-													type="button"
-													variant="outline"
-													onclick={() => setPayoffAmount(debt.id)}
-													class="border-gray-600 text-gray-300 hover:bg-gray-700"
-												>
-													Pay Off (${debt.balance})
-												</Button>
-											</div>
-											<Button 
-												type="submit" 
-												class="w-full bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600"
-											>
-												Record Payment
-											</Button>
-										</form>
-									</DialogContent>
-								{/if}
-							</Dialog>
-
-							<Button 
-								variant="ghost" 
-								size="sm"
-								class="text-gray-400 hover:text-white hover:bg-gray-700"
-							>
-								View Details
-							</Button>
 						</div>
 					</div>
 				{/each}
@@ -607,6 +723,76 @@
 		</CardContent>
 	</Card>
 
+	<!-- Make Payment Dialog -->
+	<Dialog bind:open={isPaymentOpen}>
+		<DialogContent class="bg-gray-800 border-gray-700 text-white">
+			<DialogHeader>
+				<DialogTitle>Make Payment - {selectedDebt?.description}</DialogTitle>
+				<DialogDescription class="text-gray-400">
+					{#if selectedDebt}
+						Current balance: ${selectedDebt.amount.toLocaleString()}
+					{/if}
+				</DialogDescription>
+			</DialogHeader>
+			<form onsubmit={handlePayment} class="space-y-4">
+				<div class="space-y-2">
+					<Label for="amount">Payment Amount</Label>
+					<Input
+						id="amount"
+						name="amount"
+						type="number"
+						step="0.01"
+						placeholder={selectedDebt ? (selectedDebt.amount * 0.02).toFixed(2) : "0.00"}
+						min={0}
+						max={selectedDebt?.amount}
+						required
+						class="bg-gray-700 border-gray-600"
+					/>
+				</div>
+				<div class="flex gap-2">
+					{#if selectedDebt}
+						<Button
+							type="button"
+							variant="outline"
+							onclick={() => setMinimumPayment(selectedDebt)}
+							class="border-gray-600 text-gray-300 hover:bg-gray-700"
+						>
+							Minimum (${(selectedDebt.amount * 0.02).toFixed(0)})
+						</Button>
+						<Button
+							type="button"
+							variant="outline"
+							onclick={() => setPayoffAmount(selectedDebt)}
+							class="border-gray-600 text-gray-300 hover:bg-gray-700"
+						>
+							Pay Off (${selectedDebt.amount.toLocaleString()})
+						</Button>
+					{/if}
+				</div>
+				<div class="flex gap-2">
+					<Button
+						type="button"
+						variant="outline"
+						onclick={() => {
+							isPaymentOpen = false;
+							selectedDebt = null;
+						}}
+						class="flex-1 border-gray-600 text-gray-300 hover:bg-gray-700"
+					>
+						Cancel
+					</Button>
+					<Button 
+						type="submit" 
+						disabled={isSaving}
+						class="flex-1 bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600"
+					>
+						{isSaving ? 'Recording...' : 'Record Payment'}
+					</Button>
+				</div>
+			</form>
+		</DialogContent>
+	</Dialog>
+
 	<!-- Debt Payoff Strategy -->
 	<Card class="bg-gray-900 border-gray-800">
 		<CardHeader>
@@ -618,37 +804,34 @@
 				<div class="p-4 bg-blue-900/20 border border-blue-800 rounded-lg">
 					<h4 class="font-semibold text-blue-300">Debt Avalanche Method Recommended</h4>
 					<p class="text-sm text-blue-400 mt-1">
-						Focus on paying off your Payday Loan first (35.0% interest) to save the most money on interest.
+						{#if highestInterestDebt}
+							Focus on paying off your {highestInterestDebt.description} first ({highestInterestRate.toFixed(1)}% interest) to save the most money on interest.
+						{:else}
+							Create some debts to see personalized recommendations.
+						{/if}
 					</p>
 				</div>
 
-				<div class="space-y-3">
-					<h4 class="font-medium text-white">Suggested Payment Order:</h4>
-					<div class="space-y-2">
-						<div class="flex items-center justify-between p-3 border border-gray-700 rounded bg-gray-800">
-							<div>
-								<span class="font-medium text-white">1. Payday Loan</span>
-								<p class="text-sm text-gray-400">35.0% APR - Pay extra here first</p>
-							</div>
-							<Badge variant="destructive">High Priority</Badge>
-						</div>
-						<div class="flex items-center justify-between p-3 border border-gray-700 rounded bg-gray-800">
-							<div>
-								<span class="font-medium text-white">2. Store Credit Card</span>
-								<p class="text-sm text-gray-400">24.99% APR - Pay minimum for now</p>
-							</div>
-							<Badge variant="destructive">High Priority</Badge>
-						</div>
-						<div class="flex items-center justify-between p-3 border border-gray-700 rounded bg-gray-800">
-							<div>
-								<span class="font-medium text-white">3. Credit Card</span>
-								<p class="text-sm text-gray-400">18.99% APR - Pay minimum for now</p>
-							</div>
-							<Badge variant="secondary">Medium Priority</Badge>
+				{#if debts.length > 0}
+					<div class="space-y-3">
+						<h4 class="font-medium text-white">Suggested Payment Order:</h4>
+						<div class="space-y-2">
+							{#each debts.sort((a, b) => b.interest_rate - a.interest_rate).slice(0, 3) as debt, index}
+								<div class="flex items-center justify-between p-3 border border-gray-700 rounded bg-gray-800">
+									<div>
+										<span class="font-medium text-white">{index + 1}. {debt.description}</span>
+										<p class="text-sm text-gray-400">{debt.interest_rate}% APR - {index === 0 ? 'Pay extra here first' : 'Pay minimum for now'}</p>
+									</div>
+									<Badge variant={index === 0 ? "destructive" : index === 1 ? "destructive" : "secondary"}>
+										{index === 0 ? 'High Priority' : index === 1 ? 'High Priority' : 'Medium Priority'}
+									</Badge>
+								</div>
+							{/each}
 						</div>
 					</div>
-				</div>
+				{/if}
 			</div>
 		</CardContent>
 	</Card>
+	{/if}
 </div> 
