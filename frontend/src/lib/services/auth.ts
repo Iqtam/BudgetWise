@@ -14,8 +14,8 @@ import {PUBLIC_BACKEND_API_URL} from '$env/static/public';
 const API_URL = PUBLIC_BACKEND_API_URL ||  "http://localhost/api";
 // const API_URL="http://localhost:5000/api";
 // const API_URL = PUBLIC_BACKEND_API_URL;
-
-
+// console.log("PUBLIC_BACKEND_API_URL");
+// console.log(PUBLIC_BACKEND_API_URL);
 // Helper function to get Firebase token
 const getAuthToken = async (): Promise<string | null> => {
     const user = auth.currentUser;

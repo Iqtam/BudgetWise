@@ -4,6 +4,7 @@ FROM node:20-alpine as development
 WORKDIR /app
 
 COPY package*.json ./
+COPY .env .env
 
 # Changed from 'npm ci' to 'npm install' to generate/update package-lock.json if needed
 RUN npm install
@@ -23,6 +24,7 @@ WORKDIR /app
 
 # Copy package files first
 COPY package*.json ./
+COPY .env .env
 
 # Changed from 'npm ci' to 'npm install' to ensure dependencies are properly installed
 RUN npm install
@@ -38,6 +40,7 @@ FROM node:20-alpine as build
 WORKDIR /app
 
 COPY package*.json ./
+COPY .env .env
 
 RUN npm install
 
@@ -52,6 +55,7 @@ FROM node:20-alpine as production
 WORKDIR /app
 
 COPY package*.json ./
+COPY .env .env
 
 # Install only production dependencies
 RUN npm install --omit=dev

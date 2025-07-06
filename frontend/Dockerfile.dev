@@ -6,6 +6,7 @@ WORKDIR /app
 
 # Install development dependencies
 COPY package*.json ./
+COPY .env .env
 RUN npm install
 
 # Set environment variables
