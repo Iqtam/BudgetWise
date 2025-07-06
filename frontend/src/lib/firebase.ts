@@ -12,12 +12,12 @@ import {
 
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBjy6keS5hggLEKg56V0cN0DF9B-hzBbzs",
-  authDomain: "budget-wise-c6fd9.firebaseapp.com",
-  projectId: "budget-wise-c6fd9",
-  storageBucket: "budget-wise-c6fd9.firebasestorage.app",
-  messagingSenderId: "425952682306",
-  appId: "1:425952682306:web:b64b24d380b1318006e8db"
+  apiKey:"AIzaSyBjy6keS5hggLEKg56V0cN0DF9B-hzBbzs",
+  authDomain:"budget-wise-c6fd9.firebaseapp.com",
+  projectId:"budget-wise-c6fd9",
+  storageBucket:"budget-wise-c6fd9.firebasestorage.app",
+  messagingSenderId:"425952682306",
+  appId:"1:425952682306:web:b64b24d380b1318006e8db"
 };
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
