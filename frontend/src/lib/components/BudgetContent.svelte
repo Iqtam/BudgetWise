@@ -51,6 +51,9 @@
 		isLoading = true;
 		error = null;
 				try {
+			// First sync budget spending to ensure we have up-to-date data
+			await budgetService.syncBudgetSpending();
+			
 			const [budgetData, categoryData] = await Promise.all([
 				budgetService.getAllBudgets(),
 				categoryService.getExpenseCategories() // Only get expense categories for budgets
@@ -157,7 +160,8 @@
 				goal_amount: parseFloat(formBudgetAmount),
 			});
 
-			// Reload data to get the new budget
+			// Sync budget spending and reload data to get the new budget with current spending
+			await budgetService.syncBudgetSpending();
 			await loadData();
 			
 			isBudgetDialogOpen = false;
@@ -214,7 +218,8 @@
 				goal_amount: parseFloat(editFormBudgetAmount),
 			});
 
-			// Reload data to get the updated budget
+			// Sync budget spending and reload data to get the updated budget with current spending
+			await budgetService.syncBudgetSpending();
 			await loadData();
 			
 			isEditDialogOpen = false;
@@ -273,7 +278,7 @@
 			await loadData();
 			
 			// Show success message
-			successMessage = 'Budget spending synced successfully';
+			successMessage = 'Budget data refreshed successfully';
 
 			// Auto-hide success message after 3 seconds
 			setTimeout(() => {
@@ -322,14 +327,15 @@
 			<p class="text-gray-400">Track and manage your spending budgets</p>
 		</div>
 		<div class="flex items-center gap-3">
-			<!-- Sync Button -->
+			<!-- Manual Refresh Button (spending syncs automatically) -->
 			<Button
 				variant="outline"
 				onclick={handleSyncBudgets}
 				disabled={isSaving}
-				class="border-gray-600 bg-gray-800 text-gray-300 hover:bg-gray-700"
+				class="border-gray-600 bg-gray-800 text-gray-300 hover:bg-gray-700 text-xs"
+				title="Manually refresh spending data (spending syncs automatically)"
 			>
-				{isSaving ? 'Syncing...' : 'Sync Spending'}
+				{isSaving ? 'Refreshing...' : 'Refresh'}
 			</Button>
 			<Dialog bind:open={isBudgetDialogOpen}>
 			<DialogTrigger>
