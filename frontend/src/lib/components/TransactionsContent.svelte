@@ -138,6 +138,17 @@
 		return categories.filter((category) => category.type === type);
 	}
 
+	// Function to refresh categories (useful when dialog is opened)
+	async function refreshCategories() {
+		try {
+			const categoriesData = await categoryService.getCategories();
+			categories = categoriesData;
+		} catch (err) {
+			console.error('Error refreshing categories:', err);
+			// Don't show error for refresh, just log it
+		}
+	}
+
 	// Reset current page when filters change
 	$effect(() => {
 		currentPage = 1;
@@ -149,6 +160,13 @@
 			resetForm();
 			resetOCRState();
 			temporaryCategories = [];
+		}
+	});
+
+	// Refresh categories when dialog is opened to get any new categories created elsewhere
+	$effect(() => {
+		if (isDialogOpen && !$authLoading && $firebaseUser) {
+			refreshCategories();
 		}
 	});
 

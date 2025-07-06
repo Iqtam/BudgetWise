@@ -53,7 +53,7 @@
 				try {
 			const [budgetData, categoryData] = await Promise.all([
 				budgetService.getAllBudgets(),
-				categoryService.getAllCategories()
+				categoryService.getExpenseCategories() // Only get expense categories for budgets
 			]);
 			
 			budgets = budgetData;

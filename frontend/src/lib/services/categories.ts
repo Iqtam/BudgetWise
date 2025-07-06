@@ -59,9 +59,10 @@ export class CategoryService {
 		return response.json();
 	}
 
-	async getCategories(): Promise<Category[]> {
+	async getCategories(type?: 'income' | 'expense'): Promise<Category[]> {
 		try {
-			return await this.apiCall('/categories');
+			const endpoint = type ? `/categories?type=${type}` : '/categories';
+			return await this.apiCall(endpoint);
 		} catch (error) {
 			console.error('Error fetching categories:', error);
 			throw error;
@@ -71,6 +72,16 @@ export class CategoryService {
 	// Alias for backwards compatibility
 	async getAllCategories(): Promise<Category[]> {
 		return this.getCategories();
+	}
+
+	// Get only expense categories (for budgets)
+	async getExpenseCategories(): Promise<Category[]> {
+		return this.getCategories('expense');
+	}
+
+	// Get only income categories
+	async getIncomeCategories(): Promise<Category[]> {
+		return this.getCategories('income');
 	}
 
 	async createCategory(categoryData: { name: string; type: 'income' | 'expense'; icon_url?: string; parent_id?: string }): Promise<Category> {

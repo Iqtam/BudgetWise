@@ -13,8 +13,16 @@ exports.getCategories = async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
+    // Build where clause
+    const whereClause = { user_id: user.id };
+    
+    // Add type filter if provided
+    if (req.query.type) {
+      whereClause.type = req.query.type;
+    }
+
     const categories = await Category.findAll({
-      where: { user_id: user.id },
+      where: whereClause,
       order: [['name', 'ASC']],
       include: [{ model: Category, as: 'parent', attributes: ['id', 'name'] }]
     });
