@@ -34,12 +34,14 @@
 	} from 'lucide-svelte';
 	import { transactionService, type Transaction } from '$lib/services/transactions';
 	import { categoryService, type Category } from '$lib/services/categories';
+	import { balanceService, type Balance } from '$lib/services/balance';
 	import { firebaseUser, loading as authLoading } from '$lib/stores/auth';
 	import { onMount } from 'svelte';
 	import { ocrService, type OCRResult } from '$lib/services/ocr';
 	// State variables
 	let transactions = $state<Transaction[]>([]);
 	let categories = $state<Category[]>([]);
+	let balance = $state<Balance | null>(null);
 	let isLoading = $state(true);
 	let error = $state<string | null>(null);
 	let successMessage = $state<string | null>(null);
@@ -105,14 +107,16 @@
 		error = null;
 
 		try {
-			// Load categories and transactions in parallel
-			const [categoriesData, transactionsData] = await Promise.all([
+			// Load categories, transactions, and balance in parallel
+			const [categoriesData, transactionsData, balanceData] = await Promise.all([
 				categoryService.getCategories(),
-				transactionService.getAllTransactions()
+				transactionService.getAllTransactions(),
+				balanceService.getBalance()
 			]);
 
 			categories = categoriesData;
 			transactions = transactionsData;
+			balance = balanceData;
 		} catch (err) {
 			console.error('Error loading data:', err);
 			error = err instanceof Error ? err.message : 'Failed to load data';
@@ -701,7 +705,20 @@
 				<h2 class="text-2xl font-bold text-white">Transaction History</h2>
 				<p class="text-gray-400">Manage all your financial transactions</p>
 			</div>
-			<Dialog bind:open={isDialogOpen}>
+			<div class="flex items-center gap-4">
+				<!-- Balance Button -->
+				{#if balance && balance.balance !== null && balance.balance !== undefined}
+					{@const balanceValue = parseFloat(balance.balance)}
+					<Button
+						variant="outline"
+						class="border-gray-600 bg-gray-800 text-white hover:bg-gray-700"
+					>
+						Balance: <span class="ml-1 font-semibold {balanceValue >= 0 ? 'text-green-400' : 'text-red-400'}">
+							${balanceValue.toFixed(2)}
+						</span>
+					</Button>
+				{/if}
+				<Dialog bind:open={isDialogOpen}>
 				<DialogTrigger>
 					<div
 						class="ring-offset-background focus-visible:ring-ring inline-flex h-10 cursor-pointer items-center justify-center whitespace-nowrap rounded-md bg-gradient-to-r from-blue-500 to-green-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:from-blue-600 hover:to-green-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
@@ -1016,6 +1033,7 @@
 					</Tabs>
 				</DialogContent>
 			</Dialog>
+			</div>
 		</div>
 
 		<!-- New Category Dialog -->

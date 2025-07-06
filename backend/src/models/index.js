@@ -1,6 +1,7 @@
 const { sequelize } = require('../config/database');
 const User = require('./User');
 const UserProfile = require('./UserProfile');
+const Balance = require('./Balance');
 const Category = require('./Category');
 const Transaction = require('./Transaction');
 const Event = require('./Event');
@@ -48,6 +49,9 @@ Upload.belongsTo(User, { foreignKey: 'user_id' });
 User.hasMany(Category, { foreignKey: 'user_id' });
 Category.belongsTo(User, { foreignKey: 'user_id' });
 
+User.hasOne(Balance, { foreignKey: 'user_id' });
+Balance.belongsTo(User, { foreignKey: 'user_id' });
+
 // New associations for authentication and security
 User.hasMany(UserSession, { foreignKey: 'user_id' });
 UserSession.belongsTo(User, { foreignKey: 'user_id' });
@@ -94,6 +98,7 @@ module.exports = {
   sequelize,
   User,
   UserProfile,
+  Balance,
   Category,
   Transaction,
   Event,
