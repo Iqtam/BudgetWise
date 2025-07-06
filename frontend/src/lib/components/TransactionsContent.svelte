@@ -36,7 +36,7 @@
 	import { categoryService, type Category } from '$lib/services/categories';
 	import { firebaseUser, loading as authLoading } from '$lib/stores/auth';
 	import { onMount } from 'svelte';
-	import { ocrService, type OCRResult } from '$lib/services/ocr';
+	import { ocrService, type OCRResult, type ChatResult } from '$lib/services/ocr';
 	// State variables
 	let transactions = $state<Transaction[]>([]);
 	let categories = $state<Category[]>([]);
@@ -68,6 +68,12 @@
 	let fileInputRef = $state<HTMLInputElement>();
 	let temporaryCategories = $state<Category[]>([]); // For storing temp categories from OCR
 	let activeTabValue = $state('manual'); // Track active tab
+
+	// Chat state
+	let chatMessage = $state('');
+	let isProcessingChat = $state(false);
+	let chatResult = $state<ChatResult | null>(null);
+	let chatError = $state<string | null>(null);
 	// Form fields
 	let formDescription = $state('');
 	let formAmount = $state('');
@@ -159,6 +165,7 @@
 		if (!isDialogOpen) {
 			resetForm();
 			resetOCRState();
+			resetChatState();
 			temporaryCategories = [];
 		}
 	});
@@ -646,6 +653,119 @@
 		ocrError = null;
 		isProcessingOCR = false;
 	}
+
+	// Chat processing functions
+	async function handleChatSubmit() {
+		if (!chatMessage.trim()) return;
+
+		isProcessingChat = true;
+		chatError = null;
+
+		try {
+			const result = await ocrService.processChatMessage(chatMessage.trim());
+
+			// Handle missing or invalid date
+			if (!result.date || result.date === '') {
+				result.date = new Date().toISOString();
+			}
+
+			// Create temporary category if it doesn't exist
+			await handleTemporaryCategory(result.category, result.type);
+
+			chatResult = result;
+		} catch (err) {
+			chatError = err instanceof Error ? err.message : 'Failed to process chat message';
+		} finally {
+			isProcessingChat = false;
+		}
+	}
+
+	async function handleChatConfirm() {
+		if (!chatResult) return;
+
+		// Pre-fill the manual form with chat data
+		formDescription = chatResult.description;
+		formAmount = chatResult.amount.toString();
+		formType = chatResult.type;
+		formDate = chatResult.date
+			? chatResult.date.split('T')[0]
+			: new Date().toISOString().split('T')[0];
+
+		// Find matching category (including temporary ones)
+		const allCategories = getAllCategories();
+		const matchingCategory = allCategories.find(
+			(cat) =>
+				cat.name.toLowerCase() === chatResult!.category.toLowerCase() &&
+				cat.type === chatResult!.type
+		);
+		if (matchingCategory) {
+			formCategory = matchingCategory.id.toString();
+		}
+
+		// Add vendor to description if it's different
+		if (
+			chatResult.vendor &&
+			!chatResult.description.toLowerCase().includes(chatResult.vendor.toLowerCase())
+		) {
+			formDescription = `${chatResult.description} (${chatResult.vendor})`;
+		}
+
+		// Create category in backend if it's temporary, then submit
+		try {
+			if (formCategory) {
+				formCategory = await createCategoryIfNeeded(formCategory);
+			}
+
+			// Automatically submit the transaction
+			setTimeout(() => {
+				handleAddTransaction(new Event('submit'));
+			}, 100);
+		} catch (error) {
+			console.error('Error creating category:', error);
+			chatError = 'Failed to create category. Please try again.';
+		}
+	}
+
+	function handleChatEdit() {
+		if (!chatResult) return;
+
+		// Pre-fill the manual form with chat data for editing
+		formDescription = chatResult.description;
+		formAmount = chatResult.amount.toString();
+		formType = chatResult.type;
+		formDate = chatResult.date
+			? chatResult.date.split('T')[0]
+			: new Date().toISOString().split('T')[0];
+
+		// Find matching category (including temporary ones)
+		const allCategories = getAllCategories();
+		const matchingCategory = allCategories.find(
+			(cat) =>
+				cat.name.toLowerCase() === chatResult!.category.toLowerCase() &&
+				cat.type === chatResult!.type
+		);
+		if (matchingCategory) {
+			formCategory = matchingCategory.id.toString();
+		}
+
+		// Add vendor to description if it's different
+		if (
+			chatResult.vendor &&
+			!chatResult.description.toLowerCase().includes(chatResult.vendor.toLowerCase())
+		) {
+			formDescription = `${chatResult.description} (${chatResult.vendor})`;
+		}
+
+		// Switch to manual tab (keep chat data for potential return)
+		activeTabValue = 'manual';
+	}
+
+	function resetChatState() {
+		chatMessage = '';
+		chatResult = null;
+		chatError = null;
+		isProcessingChat = false;
+	}
 </script>
 
 <div class="flex-1 space-y-6 bg-gray-950 p-6">
@@ -871,16 +991,123 @@
 
 						<TabsContent value="chat">
 							<div class="space-y-4">
-								<div
-									class="flex items-center justify-center rounded-lg border-2 border-dashed border-gray-600 p-8"
-								>
-									<div class="text-center">
-										<MessageSquare class="mx-auto mb-4 h-12 w-12 text-gray-400" />
-										<h3 class="mb-2 text-lg font-medium text-white">Chat Input</h3>
-										<p class="mb-4 text-gray-400">Describe your transaction in natural language</p>
-										<p class="text-sm text-gray-500">Feature coming soon...</p>
+								{#if !chatResult}
+									<!-- Chat Input Section -->
+									<div class="space-y-4">
+										<!-- Chat Input Area -->
+										<div class="space-y-4">
+											<div class="text-center">
+												<MessageSquare class="mx-auto mb-4 h-12 w-12 text-gray-400" />
+												<h3 class="mb-2 text-lg font-medium text-white">Chat Input</h3>
+												<p class="mb-4 text-gray-400">
+													Describe your transaction in natural language
+												</p>
+											</div>
+
+											<div class="space-y-3">
+												<Label for="chatMessage">Describe your transaction</Label>
+												<textarea
+													id="chatMessage"
+													bind:value={chatMessage}
+													placeholder="E.g., 'I spent $25 at Starbucks yesterday for coffee' or 'Received $1000 salary from company today'"
+													disabled={isProcessingChat}
+													class="w-full min-h-[100px] rounded-lg border border-gray-600 bg-gray-700 px-3 py-2 text-white placeholder-gray-400 disabled:opacity-50"
+												></textarea>
+
+												<Button
+													onclick={handleChatSubmit}
+													disabled={isProcessingChat || !chatMessage.trim()}
+													class="w-full bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600 disabled:opacity-50"
+												>
+													{#if isProcessingChat}
+														<div
+															class="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-white"
+														></div>
+														Processing...
+													{:else}
+														<MessageSquare class="mr-2 h-4 w-4" />
+														Process Transaction
+													{/if}
+												</Button>
+											</div>
+										</div>
+
+										{#if chatError}
+											<div class="rounded-lg border border-red-500 bg-red-900/50 p-3">
+												<p class="text-sm text-red-300">{chatError}</p>
+											</div>
+										{/if}
 									</div>
-								</div>
+								{:else}
+									<!-- Chat Results Preview -->
+									<div class="space-y-4">
+										<div class="text-center">
+											<div
+												class="mx-auto mb-2 flex h-8 w-8 items-center justify-center rounded-full bg-green-500"
+											>
+												<MessageSquare class="h-4 w-4 text-white" />
+											</div>
+											<h3 class="font-semibold text-green-400">Transaction Processed!</h3>
+										</div>
+
+										<div class="space-y-2 rounded-lg bg-gray-700 p-4">
+											<h4 class="mb-3 font-mono text-sm font-semibold text-white">
+												💬 Chat Preview:
+											</h4>
+											<div class="space-y-1 text-sm">
+												<div class="flex justify-between">
+													<span class="text-gray-400">Description:</span>
+													<span class="font-medium text-white">{chatResult.description}</span>
+												</div>
+												<div class="flex justify-between">
+													<span class="text-gray-400">Amount:</span>
+													<span class="font-medium text-white">৳{chatResult.amount.toFixed(2)}</span
+													>
+												</div>
+												<div class="flex justify-between">
+													<span class="text-gray-400">Type:</span>
+													<Badge
+														variant={chatResult.type === 'expense' ? 'destructive' : 'default'}
+													>
+														{chatResult.type}
+													</Badge>
+												</div>
+												<div class="flex justify-between">
+													<span class="text-gray-400">Category:</span>
+													<span class="font-medium text-white">{chatResult.category}</span>
+												</div>
+												<div class="flex justify-between">
+													<span class="text-gray-400">Vendor:</span>
+													<span class="font-medium text-white">{chatResult.vendor}</span>
+												</div>
+												<div class="flex justify-between">
+													<span class="text-gray-400">Date:</span>
+													<span class="font-medium text-white"
+														>{new Date(chatResult.date).toLocaleDateString()}</span
+													>
+												</div>
+											</div>
+										</div>
+
+										<div class="flex gap-2">
+											<Button
+												variant="outline"
+												class="flex-1 border-gray-600 bg-gray-700 text-gray-300 hover:bg-gray-600"
+												onclick={handleChatEdit}
+											>
+												<Edit class="mr-2 h-4 w-4" />
+												Edit
+											</Button>
+											<Button
+												class="flex-1 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
+												onclick={handleChatConfirm}
+											>
+												<MessageSquare class="mr-2 h-4 w-4" />
+												Confirm & Add
+											</Button>
+										</div>
+									</div>
+								{/if}
 							</div>
 						</TabsContent>
 

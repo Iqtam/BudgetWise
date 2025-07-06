@@ -42,6 +42,12 @@ const upload = multer({
   fileFilter: fileFilter,
 });
 
+// Get today's date for chat processing
+const getTodayString = () => {
+  const today = new Date();
+  return today.toISOString().split("T")[0]; // YYYY-MM-DD format
+};
+
 // OCR extraction function
 const extractReceiptData = async (imagePath) => {
   try {
@@ -75,6 +81,67 @@ If a value is missing on the receipt, make a reasonable guess, but always includ
         },
       },
     ]);
+
+    const response = await result.response;
+    const text = response.text();
+
+    // Parse the JSON response
+    let extractedData;
+    try {
+      // Clean the response text (remove any markdown formatting)
+      const cleanedText = text
+        .replace(/```json\n?/g, "")
+        .replace(/```\n?/g, "")
+        .trim();
+      extractedData = JSON.parse(cleanedText);
+    } catch (parseError) {
+      console.error("Failed to parse Gemini response:", text);
+      throw new Error("Failed to parse AI response");
+    }
+
+    return extractedData;
+  } catch (error) {
+    console.error("Gemini API error:", error);
+    throw error;
+  }
+};
+
+// Chat-based transaction extraction function
+const extractChatTransactionData = async (userMessage) => {
+  try {
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+    const TODAY_STRING = getTodayString();
+
+    const prompt = `You are a financial assistant for a budget tracking app.
+
+Today's date is ${TODAY_STRING}.
+
+Given a user message in plain English that describes a financial transaction, extract the following transaction details and return only a valid JSON object in this exact format:
+
+{
+  "type": "expense",
+  "amount": 1980.0,
+  "date": "2024-11-05T17:03:05",
+  "vendor": "DESCO",
+  "description": "electricity card recharge",
+  "category": "Utilities"
+}
+
+Always include all 6 keys: type, amount, date, vendor, description, and category.
+The "type" field should be either "income" or "expense".
+The "amount" field should be a float representing the total amount paid or received, without currency symbols.
+The "date" field should be in ISO 8601 format (YYYY-MM-DDTHH:MM:SS), using 12:00 PM as the time if not specified.
+The "vendor" field should be the name of the vendor or service provider.
+The "description" field should be a short one-line summary of the transaction.
+The "category" field should be a suggested category for the transaction, based on common financial categories (e.g., Food, Utilities, Travel, etc.).
+
+Choose the best fit based on context.
+If any value is not explicitly provided, make a reasonable guess based on context. For relative dates like "yesterday", "today", or "last week", resolve them to exact ISO 8601 timestamps based on today's date.
+
+Return the JSON only. No explanation.`;
+
+    const result = await model.generateContent([prompt, userMessage]);
 
     const response = await result.response;
     const text = response.text();
@@ -241,5 +308,73 @@ exports.getOCRHistory = async (req, res) => {
   } catch (error) {
     console.error("Get OCR history error:", error);
     res.status(500).json({ message: "Failed to retrieve OCR history" });
+  }
+};
+
+// Chat-based transaction processing endpoint
+exports.processChatTransaction = async (req, res) => {
+  try {
+    const { message } = req.body;
+    console.log("message", message);
+    console.log("typeof message", typeof message);
+    // console.log("message.trim().length", message.trim().length);
+    if (
+      !message ||
+      typeof message !== "string" ||
+      message.trim().length === 0
+    ) {
+      return res.status(400).json({
+        message: "Message is required and must be a non-empty string",
+      });
+    }
+
+    const firebaseUid = req.user?.uid; // From Firebase auth middleware
+    if (!firebaseUid) {
+      return res.status(401).json({ message: "User not authenticated" });
+    }
+
+    try {
+      // Find user by Firebase UID
+      const user = await User.findOne({
+        where: { firebase_uid: firebaseUid },
+      });
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Process the message with Gemini
+      const extractedData = await extractChatTransactionData(message.trim());
+
+      // Save AI extraction record
+      const aiExtraction = await AIExtraction.create({
+        user_id: user.id,
+        upload_id: null, // No upload for chat-based processing
+        source: `Chat: "${message.trim()}"`,
+        interpreted_type: extractedData.type,
+        category_suggestion: extractedData.category,
+        amount: extractedData.amount,
+        extraction_method: "chat",
+        confidence_score: 0.8, // Default confidence for chat processing
+      });
+
+      // Return the extracted data
+      res.status(200).json({
+        message: "Transaction processed successfully",
+        data: {
+          ...extractedData,
+          extraction_id: aiExtraction.id,
+        },
+      });
+    } catch (extractionError) {
+      console.error("Chat processing error:", extractionError);
+
+      res.status(500).json({
+        message: "Failed to process transaction",
+        error: extractionError.message,
+      });
+    }
+  } catch (error) {
+    console.error("Chat endpoint error:", error);
+    res.status(500).json({ message: "Internal server error" });
   }
 };

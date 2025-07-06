@@ -13,6 +13,9 @@ export interface OCRResult {
 	extraction_id?: number;
 }
 
+// Chat result has the same structure as OCR result
+export interface ChatResult extends OCRResult {}
+
 class OCRService {
 	private async getAuthHeaders() {
 		const auth = getAuth();
@@ -47,6 +50,32 @@ class OCRService {
 			return result.data;
 		} catch (error) {
 			console.error('OCR processing error:', error);
+			throw error;
+		}
+	}
+
+	async processChatMessage(message: string): Promise<ChatResult> {
+		try {
+			const headers = await this.getAuthHeaders();
+
+			const response = await fetch(`${API_URL}/ocr/chat`, {
+				method: 'POST',
+				headers: {
+					...headers,
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({ message }),
+			});
+
+			if (!response.ok) {
+				const errorData = await response.json();
+				throw new Error(errorData.message || 'Failed to process chat message');
+			}
+
+			const result = await response.json();
+			return result.data;
+		} catch (error) {
+			console.error('Chat processing error:', error);
 			throw error;
 		}
 	}

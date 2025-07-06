@@ -9,6 +9,9 @@ router.use(firebaseAuth);
 // OCR Receipt Processing
 router.post("/receipt", ocrController.processReceipt);
 
+// Chat-based Transaction Processing
+router.post("/chat", ocrController.processChatTransaction);
+
 // Get OCR History
 router.get("/history", ocrController.getOCRHistory);
 
