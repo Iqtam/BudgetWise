@@ -377,22 +377,36 @@
 			}
 		}
 		
-		// Check for good progress items
+		// Check for good progress items (time-aware)
 		for (const budget of budgets) {
 			const spent = getSpentAmount(budget);
 			const goalAmount = parseFloat(String(budget.goal_amount || '0'));
-			const percentage = goalAmount > 0 ? (spent / goalAmount) * 100 : 0;
+			const spentPercentage = goalAmount > 0 ? (spent / goalAmount) * 100 : 0;
 			
 			const now = new Date();
+			const startDate = new Date(budget.start_date);
 			const endDate = new Date(budget.end_date);
 			const hasTimeRemaining = now < endDate;
 			
-			if (percentage < 70 && hasTimeRemaining && goalAmount > 0) {
-				progressItems.push({
-					type: 'good_progress',
-					budget: budget,
-					percentage: percentage
-				});
+			if (goalAmount > 0 && hasTimeRemaining && now >= startDate) {
+				// Calculate time elapsed percentage
+				const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+				const daysPassed = Math.max(1, Math.ceil((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
+				const timeElapsedPercentage = (daysPassed / totalDays) * 100;
+				
+				// Good progress: spending percentage is significantly lower than time elapsed percentage
+				// For example: 30% spent but 50% of time passed = good progress
+				const progressMargin = timeElapsedPercentage - spentPercentage;
+				
+				if (progressMargin > 10) { // At least 10% better than expected pace
+					progressItems.push({
+						type: 'good_progress',
+						budget: budget,
+						spentPercentage: spentPercentage,
+						timeElapsedPercentage: timeElapsedPercentage,
+						progressMargin: progressMargin
+					});
+				}
 			}
 		}
 		
@@ -427,7 +441,7 @@
 		
 		// Sort and pick the most significant for each category
 		alerts.sort((a, b) => b.severity - a.severity);
-		progressItems.sort((a, b) => a.percentage - b.percentage); // Lower percentage = better progress
+		progressItems.sort((a, b) => b.progressMargin - a.progressMargin); // Higher margin = better progress
 		
 		return {
 			alert: alerts.length > 0 ? alerts[0] : null,
@@ -1039,23 +1053,14 @@
 					</div>
 				{/if}
 
-				<!-- Progress Box (Green) -->
+				<!-- Progress Box (Green) - Only show if there's good/great progress -->
 				{#if budgetInsights.progress}
 					<div class="p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
-						<h4 class="font-semibold text-green-400">Great Progress</h4>
+						<h4 class="font-semibold text-green-400">
+							{budgetInsights.progress.progressMargin > 25 ? 'Great Progress' : 'Good Progress'}
+						</h4>
 						<p class="text-sm text-gray-300 mt-1">
-							You're doing well with your {getCategoryName(budgetInsights.progress.budget.category_id)} budget - only {budgetInsights.progress.percentage.toFixed(0)}% used with time remaining.
-						</p>
-					</div>
-				{:else}
-					<div class="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-						<h4 class="font-semibold text-blue-400">Budget Status</h4>
-						<p class="text-sm text-gray-300 mt-1">
-							{#if budgets.length === 0}
-								Create your first budget to start tracking your spending patterns.
-							{:else}
-								Most of your budgets are being actively used. Keep monitoring your progress!
-							{/if}
+							Excellent pacing on your {getCategoryName(budgetInsights.progress.budget.category_id)} budget! You've used {budgetInsights.progress.spentPercentage.toFixed(0)}% of your budget while {budgetInsights.progress.timeElapsedPercentage.toFixed(0)}% of the time period has passed.
 						</p>
 					</div>
 				{/if}
