@@ -11,6 +11,7 @@ export interface Budget {
 	start_date: string;
 	end_date: string;
 	goal_amount: number;
+	spent: number; // Actual spending tracked in database
 	expired: boolean;
 	amount_exceeded: boolean;
 	icon_url?: string;
@@ -20,7 +21,6 @@ export interface Budget {
 		name: string;
 		type: string;
 	};
-	spent?: number; // This would be calculated from transactions
 }
 
 export class BudgetService {
@@ -121,6 +121,17 @@ export class BudgetService {
 			});
 		} catch (error) {
 			console.error('Error deleting budget:', error);
+			throw error;
+		}
+	}
+
+	async syncBudgetSpending(): Promise<void> {
+		try {
+			await this.apiCall('/budgets/sync', {
+				method: 'POST',
+			});
+		} catch (error) {
+			console.error('Error syncing budget spending:', error);
 			throw error;
 		}
 	}

@@ -14,6 +14,7 @@ DROP TABLE IF EXISTS debt CASCADE;
 DROP TABLE IF EXISTS transaction CASCADE;
 DROP TABLE IF EXISTS event CASCADE;
 DROP TABLE IF EXISTS category CASCADE;
+DROP TABLE IF EXISTS balance CASCADE;
 DROP TABLE IF EXISTS user_profiles CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
 
@@ -39,6 +40,13 @@ CREATE TABLE user_profiles (
   gender VARCHAR(20),
   country VARCHAR(100),
   occupation VARCHAR(100)
+);
+
+-- Balance
+CREATE TABLE balance (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  balance NUMERIC(12, 2) DEFAULT 0.00 NOT NULL
 );
 
 -- No password reset or email verification tokens needed with Firebase
@@ -110,6 +118,7 @@ CREATE TABLE budget (
   start_date DATE DEFAULT CURRENT_DATE,
   end_date DATE NOT NULL,
   goal_amount NUMERIC(12, 2) NOT NULL,
+  spent NUMERIC(12, 2) DEFAULT 0.00,
   expired BOOLEAN DEFAULT FALSE,
   amount_exceeded BOOLEAN DEFAULT FALSE,
   icon_url TEXT

@@ -9,6 +9,7 @@ const categoryRoutes = require("./routes/categoryRoutes");
 const budgetRoutes = require("./routes/budgetRoutes");
 const debtRoutes = require("./routes/debtRoutes");
 const savingRoutes = require("./routes/savingRoutes");
+const balanceRoutes = require("./routes/balanceRoutes");
 const authRoutes = require("./routes/auth");
 const adminRoutes = require("./routes/admin");
 const ocrRoutes = require("./routes/ocrRoutes");
@@ -32,6 +33,7 @@ app.use("/api/categories", categoryRoutes);
 app.use("/api/budgets", budgetRoutes);
 app.use("/api/debts", debtRoutes);
 app.use("/api/savings", savingRoutes);
+app.use("/api/balance", balanceRoutes);
 app.use("/api/ocr", ocrRoutes);
 
 // Basic route

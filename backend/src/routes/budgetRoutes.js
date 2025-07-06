@@ -11,5 +11,6 @@ router.get('/', budgetController.getAllBudgets);
 router.get('/:id', budgetController.getBudgetById);
 router.put('/:id', budgetController.updateBudget);
 router.delete('/:id', budgetController.deleteBudget);
+router.post('/sync', budgetController.syncBudgetSpendingAPI);
 
 module.exports = router;

@@ -34,12 +34,14 @@
 	} from 'lucide-svelte';
 	import { transactionService, type Transaction } from '$lib/services/transactions';
 	import { categoryService, type Category } from '$lib/services/categories';
+	import { balanceService, type Balance } from '$lib/services/balance';
 	import { firebaseUser, loading as authLoading } from '$lib/stores/auth';
 	import { onMount } from 'svelte';
 	import { ocrService, type OCRResult, type ChatResult } from '$lib/services/ocr';
 	// State variables
 	let transactions = $state<Transaction[]>([]);
 	let categories = $state<Category[]>([]);
+	let balance = $state<Balance | null>(null);
 	let isLoading = $state(true);
 	let error = $state<string | null>(null);
 	let successMessage = $state<string | null>(null);
@@ -59,6 +61,8 @@
 	let isNewCategoryOpen = $state(false);
 	let newCategoryName = $state('');
 	let newCategoryType = $state<'income' | 'expense'>('expense');
+	let editBalanceValue = $state('');
+	let isBalanceDialogOpen = $state(false);
 
 	// OCR Receipt state
 	let selectedFile = $state<File | null>(null);
@@ -111,14 +115,16 @@
 		error = null;
 
 		try {
-			// Load categories and transactions in parallel
-			const [categoriesData, transactionsData] = await Promise.all([
+			// Load categories, transactions, and balance in parallel
+			const [categoriesData, transactionsData, balanceData] = await Promise.all([
 				categoryService.getCategories(),
-				transactionService.getAllTransactions()
+				transactionService.getAllTransactions(),
+				balanceService.getBalance()
 			]);
 
 			categories = categoriesData;
 			transactions = transactionsData;
+			balance = balanceData;
 		} catch (err) {
 			console.error('Error loading data:', err);
 			error = err instanceof Error ? err.message : 'Failed to load data';
@@ -256,6 +262,36 @@
 				throw new Error('Invalid transaction response from server');
 			}
 
+			// Update balance based on the transaction
+			if (balance && balance.balance !== null && balance.balance !== undefined) {
+				const currentBalance = parseFloat(balance.balance);
+				const transactionAmount = parseFloat(formAmount);
+				
+				let newBalanceValue;
+				if (formType === 'income') {
+					newBalanceValue = currentBalance + transactionAmount;
+				} else if (formType === 'expense') {
+					newBalanceValue = currentBalance - transactionAmount;
+				} else {
+					newBalanceValue = currentBalance;
+				}
+
+				try {
+					// Update balance in backend
+					await balanceService.updateBalance(newBalanceValue);
+					
+					// Update local balance state immediately
+					balance = {
+						...balance,
+						balance: newBalanceValue.toString()
+					};
+				} catch (balanceErr) {
+					console.error('Error updating balance:', balanceErr);
+					// Don't throw error here - transaction was successful, balance update failed
+					// Just show a warning in console, but don't break the flow
+				}
+			}
+
 			// Show success message
 			successMessage = `Transaction "${formDescription}" added successfully!`;
 
@@ -351,6 +387,37 @@
 			// Remove the transaction from the local state
 			transactions = transactions.filter((t) => t.id !== transaction.id);
 
+			// Update balance by reversing the deleted transaction's effect
+			if (balance && balance.balance !== null && balance.balance !== undefined) {
+				const currentBalance = parseFloat(balance.balance);
+				const transactionAmount = transaction.amount;
+				
+				let newBalanceValue;
+				if (transaction.type === 'income') {
+					// Remove income (subtract from balance)
+					newBalanceValue = currentBalance - transactionAmount;
+				} else if (transaction.type === 'expense') {
+					// Remove expense (add back to balance since expense was negative)
+					newBalanceValue = currentBalance + Math.abs(transactionAmount);
+				} else {
+					newBalanceValue = currentBalance;
+				}
+
+				try {
+					// Update balance in backend
+					await balanceService.updateBalance(newBalanceValue);
+					
+					// Update local balance state immediately
+					balance = {
+						...balance,
+						balance: newBalanceValue.toString()
+					};
+				} catch (balanceErr) {
+					console.error('Error updating balance:', balanceErr);
+					// Don't throw error here - transaction deletion was successful, balance update failed
+				}
+			}
+
 			// Show success message
 			successMessage = 'Transaction deleted successfully';
 			error = null;
@@ -392,9 +459,12 @@
 
 		isSaving = true;
 		try {
+			// Calculate the correctly signed amount for the backend
+			const signedAmount = editType === 'expense' ? -Math.abs(parseFloat(editAmount)) : Math.abs(parseFloat(editAmount));
+			
 			const updatedTransaction = await transactionService.updateTransaction(editingTransaction.id, {
 				description: editDescription,
-				amount: parseFloat(editAmount),
+				amount: signedAmount,
 				type: editType as 'income' | 'expense',
 				category_id: editCategory || undefined,
 				event: editEvent || undefined,
@@ -409,7 +479,7 @@
 			const updatedTransactionData = {
 				...editingTransaction,
 				description: editDescription,
-				amount: parseFloat(editAmount),
+				amount: signedAmount,
 				type: editType as 'income' | 'expense',
 				category_id: editCategory || undefined,
 				event: editEvent || undefined,
@@ -425,6 +495,36 @@
 			);
 
 			console.log('Updated transactions array:', transactions);
+
+			// Update balance based on the transaction change
+			if (balance && balance.balance !== null && balance.balance !== undefined) {
+				const currentBalance = parseFloat(balance.balance);
+				
+				// Calculate the difference between old and new transaction
+				const oldAmount = editingTransaction.amount; // e.g., -15 for expense, +100 for income
+				const newAmountSigned = signedAmount; // e.g., -35 for expense, +150 for income
+				
+				// Calculate the net change: newAmountSigned - oldAmount
+				// Example: (-35) - (-15) = -20 (expense increased, balance decreases by 20)
+				// Example: (-5) - (-15) = +10 (expense decreased, balance increases by 10)
+				const balanceDelta = newAmountSigned - oldAmount;
+				
+				const newBalanceValue = currentBalance + balanceDelta;
+
+				try {
+					// Update balance in backend
+					await balanceService.updateBalance(newBalanceValue);
+					
+					// Update local balance state immediately
+					balance = {
+						...balance,
+						balance: newBalanceValue.toString()
+					};
+				} catch (balanceErr) {
+					console.error('Error updating balance:', balanceErr);
+					// Don't throw error here - transaction update was successful, balance update failed
+				}
+			}
 
 			// If the transaction type changed, switch to the appropriate tab
 			if (editType !== editingTransaction.type) {
@@ -766,6 +866,53 @@
 		chatError = null;
 		isProcessingChat = false;
 	}
+
+	// Balance editing functions
+	function handleEditBalance() {
+		if (balance && balance.balance !== null && balance.balance !== undefined) {
+			editBalanceValue = parseFloat(balance.balance).toString();
+			isBalanceDialogOpen = true;
+		}
+	}
+
+	function handleCancelBalanceEdit() {
+		isBalanceDialogOpen = false;
+		editBalanceValue = '';
+	}
+
+	async function handleSaveBalance() {
+		if (!editBalanceValue || isNaN(parseFloat(editBalanceValue))) {
+			error = 'Please enter a valid balance amount';
+			return;
+		}
+
+		isSaving = true;
+		try {
+			const newBalanceValue = parseFloat(editBalanceValue);
+			const updatedBalance = await balanceService.updateBalance(newBalanceValue);
+			
+			// Immediately update local balance state
+			balance = {
+				...balance,
+				balance: newBalanceValue.toString()
+			};
+			
+			console.log('Balance updated successfully:', balance);
+			
+			isBalanceDialogOpen = false;
+			editBalanceValue = '';
+			
+			successMessage = 'Balance updated successfully';
+			setTimeout(() => {
+				successMessage = null;
+			}, 3000);
+		} catch (err) {
+			console.error('Error updating balance:', err);
+			error = err instanceof Error ? err.message : 'Failed to update balance';
+		} finally {
+			isSaving = false;
+		}
+	}
 </script>
 
 <div class="flex-1 space-y-6 bg-gray-950 p-6">
@@ -821,7 +968,30 @@
 				<h2 class="text-2xl font-bold text-white">Transaction History</h2>
 				<p class="text-gray-400">Manage all your financial transactions</p>
 			</div>
-			<Dialog bind:open={isDialogOpen}>
+			<div class="flex items-center gap-4">
+				<!-- Enhanced Balance Display Section -->
+				{#if balance && balance.balance !== null && balance.balance !== undefined}
+					{@const balanceValue = parseFloat(balance.balance)}
+					<!-- Balance Display Mode -->
+					<div class="flex items-center justify-between bg-gray-800 border border-gray-600 rounded-md px-4 py-2 h-10 min-w-[220px]">
+						<div class="flex items-center gap-2">
+							<span class="text-sm font-medium text-gray-300">Balance:</span>
+							<span class="text-xl font-bold {balanceValue >= 0 ? 'text-green-400' : 'text-red-400'}">
+								${balanceValue.toFixed(2)}
+							</span>
+						</div>
+						<Button
+							variant="outline"
+							size="sm"
+							onclick={handleEditBalance}
+							class="border-2 border-green-500 bg-gray-900 font-semibold text-green-400 shadow-lg hover:bg-green-500/20 hover:text-green-300 h-6 ml-4"
+						>
+							<Edit class="mr-1 h-3 w-3" />
+							Edit
+						</Button>
+					</div>
+				{/if}
+				<Dialog bind:open={isDialogOpen}>
 				<DialogTrigger>
 					<div
 						class="ring-offset-background focus-visible:ring-ring inline-flex h-10 cursor-pointer items-center justify-center whitespace-nowrap rounded-md bg-gradient-to-r from-blue-500 to-green-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:from-blue-600 hover:to-green-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
@@ -1243,6 +1413,7 @@
 					</Tabs>
 				</DialogContent>
 			</Dialog>
+			</div>
 		</div>
 
 		<!-- New Category Dialog -->
@@ -1485,7 +1656,7 @@
 											<span class="px-2 text-gray-400">...</span>
 											<Button
 												variant="outline"
-												size="sm"
+											size="sm"
 												onclick={() => (currentPage = paginatedData.totalPages)}
 												class={currentPage === paginatedData.totalPages
 													? 'border-blue-500 bg-blue-600 text-white hover:bg-blue-700'
@@ -1894,4 +2065,50 @@
 			</DialogContent>
 		</Dialog>
 	{/if}
+
+	<!-- Edit Balance Dialog -->
+	<Dialog bind:open={isBalanceDialogOpen}>
+		<DialogContent class="mx-auto max-w-md border-gray-800 bg-gray-900 text-white">
+			<DialogHeader>
+				<DialogTitle class="text-white">Edit Balance</DialogTitle>
+				<DialogDescription class="text-gray-400">
+					Update your account balance
+				</DialogDescription>
+			</DialogHeader>
+
+			<div class="space-y-4">
+				<!-- Balance Amount -->
+				<div>
+					<Label for="edit-balance" class="text-white">Balance Amount</Label>
+					<Input
+						id="edit-balance"
+						type="number"
+						step="0.01"
+						bind:value={editBalanceValue}
+						placeholder="0.00"
+						class="border-gray-700 bg-gray-800 text-white"
+					/>
+				</div>
+
+				<!-- Action Buttons -->
+				<div class="flex gap-2 pt-4">
+					<Button
+						variant="outline"
+						onclick={handleCancelBalanceEdit}
+						class="flex-1 bg-black border-2 border-red-500 text-red-500 font-semibold rounded-md hover:bg-red-500/20 hover:text-red-400"
+						disabled={isSaving}
+					>
+						Cancel
+					</Button>
+					<Button
+						onclick={handleSaveBalance}
+						class="flex-1 bg-gradient-to-r from-green-500 to-green-600 font-semibold text-white shadow-lg hover:from-green-600 hover:to-green-700"
+						disabled={isSaving}
+					>
+						{isSaving ? 'Saving...' : 'Save'}
+					</Button>
+				</div>
+			</div>
+		</DialogContent>
+	</Dialog>
 </div>

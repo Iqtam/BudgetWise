@@ -23,11 +23,14 @@
 		DialogTrigger
 	} from '$lib/components/ui/dialog';
 	import { savingService, type SavingGoal } from '$lib/services/savings';
+	import { transactionService } from '$lib/services/transactions';
+	import { balanceService, type Balance } from '$lib/services/balance';
 	import { firebaseUser, loading as authLoading } from '$lib/stores/auth';
 	import { onMount } from 'svelte';
 
 	// State variables
 	let goals = $state<SavingGoal[]>([]);
+	let balance = $state<Balance | null>(null);
 	let isLoading = $state(true);
 	let error = $state<string | null>(null);
 	let successMessage = $state<string | null>(null);
@@ -68,8 +71,22 @@
 		isLoading = true;
 		error = null;
 		try {
-			const savingData = await savingService.getAllSavings();
+			// Load savings goals and balance data in parallel
+			const [savingData, balanceData] = await Promise.all([
+				savingService.getAllSavings(),
+				balanceService.getBalance()
+			]);
+			
+			console.log('Raw savings data from API:', savingData);
+			if (savingData && savingData.length > 0) {
+				console.log('First goal data structure:', savingData[0]);
+				console.log('Target amount type:', typeof savingData[0].target_amount, 'Value:', savingData[0].target_amount);
+				console.log('Start amount type:', typeof savingData[0].start_amount, 'Value:', savingData[0].start_amount);
+			}
 			goals = savingData;
+			balance = balanceData;
+			console.log('Goals state updated:', goals);
+			console.log('Balance state updated:', balance);
 		} catch (err) {
 			console.error('Error loading data:', err);
 			error = err instanceof Error ? err.message : 'Failed to load data';
@@ -97,10 +114,28 @@
 	};
 
 	const paginatedData = $derived(getPaginatedGoals());
-	const totalTargets = $derived(goals.reduce((sum, goal) => sum + goal.target_amount, 0));
-	const totalSaved = $derived(goals.reduce((sum, goal) => sum + goal.start_amount, 0));
+	const totalTargets = $derived(goals.reduce((sum, goal) => sum + safeParseFloat(goal.target_amount), 0));
+	const totalSaved = $derived(goals.reduce((sum, goal) => sum + safeParseFloat(goal.start_amount), 0));
 	const overallProgress = $derived(totalTargets > 0 ? (totalSaved / totalTargets) * 100 : 0);
-	const completedGoals = $derived(goals.filter((goal) => goal.completed || goal.start_amount >= goal.target_amount).length);
+	const completedGoals = $derived(goals.filter((goal) => {
+		const startAmount = safeParseFloat(goal.start_amount);
+		const targetAmount = safeParseFloat(goal.target_amount);
+		return goal.completed || startAmount >= targetAmount;
+	}).length);
+
+	// Debug logging for calculated values
+	$effect(() => {
+		if (!isLoading && goals.length > 0) {
+			console.log('=== Calculated Values Debug ===');
+			console.log('Goals array:', goals);
+			console.log('Total Targets (raw):', totalTargets);
+			console.log('Total Saved (raw):', totalSaved);
+			console.log('Total Targets (formatted):', formatCurrency(totalTargets));
+			console.log('Total Saved (formatted):', formatCurrency(totalSaved));
+			console.log('Overall Progress:', overallProgress);
+			console.log('Completed Goals:', completedGoals);
+		}
+	});
 
 	async function handleAddGoal(event: Event) {
 		event.preventDefault();
@@ -146,7 +181,7 @@
 		}
 	}
 
-	async function handleAddMoney(event: Event) {
+	async function handleTransfer(event: Event) {
 		event.preventDefault();
 		
 		if (!selectedGoal) return;
@@ -154,7 +189,7 @@
 		const formData = new FormData(event.target as HTMLFormElement);
 		const amount = Number.parseFloat(formData.get("amount") as string);
 
-		if (isNaN(amount) || amount <= 0) {
+		if (isNaN(amount) || amount === 0) {
 			error = 'Please enter a valid amount';
 			return;
 		}
@@ -162,13 +197,47 @@
 		isSaving = true;
 		error = null;
 		try {
-			const newAmount = Math.min(selectedGoal.start_amount + amount, selectedGoal.target_amount);
-			const isCompleted = newAmount >= selectedGoal.target_amount;
+			const currentSavedAmount = safeParseFloat(selectedGoal.start_amount);
+			const targetAmount = safeParseFloat(selectedGoal.target_amount);
 			
+			// Calculate new saved amount (can be positive or negative change)
+			let newSavedAmount = currentSavedAmount + amount;
+			
+			// Ensure the saved amount doesn't go below 0 or above target
+			if (newSavedAmount < 0) {
+				error = `Cannot withdraw more than saved amount ($${currentSavedAmount.toFixed(2)})`;
+				return;
+			}
+			
+			if (newSavedAmount > targetAmount) {
+				newSavedAmount = targetAmount;
+			}
+			
+			const actualAmountTransferred = newSavedAmount - currentSavedAmount;
+			const isCompleted = newSavedAmount >= targetAmount;
+			
+			// Update saving goal
 			await savingService.updateSaving(selectedGoal.id, {
-				start_amount: newAmount,
+				start_amount: newSavedAmount,
 				completed: isCompleted
 			});
+
+			// Update user balance (opposite of the transfer amount)
+			if (balance && balance.balance !== null && balance.balance !== undefined) {
+				const currentBalance = parseFloat(balance.balance);
+				const newBalanceValue = currentBalance - actualAmountTransferred; // Subtract because money goes TO savings
+				
+				try {
+					await balanceService.updateBalance(newBalanceValue);
+					balance = {
+						...balance,
+						balance: newBalanceValue.toString()
+					};
+				} catch (balanceErr) {
+					console.error('Error updating balance:', balanceErr);
+					// Continue with savings update even if balance update fails
+				}
+			}
 
 			// Reload data to get updated amounts
 			await loadData();
@@ -176,13 +245,14 @@
 			isDepositDialogOpen = false;
 			selectedGoal = null;
 			
-			successMessage = `$${amount.toLocaleString()} added successfully`;
+			const actionText = actualAmountTransferred > 0 ? 'transferred to' : 'withdrawn from';
+			successMessage = `$${Math.abs(actualAmountTransferred).toFixed(2)} ${actionText} savings goal successfully`;
 			setTimeout(() => {
 				successMessage = null;
 			}, 3000);
 		} catch (err) {
-			console.error('Error adding money:', err);
-			error = err instanceof Error ? err.message : 'Failed to add money';
+			console.error('Error processing transfer:', err);
+			error = err instanceof Error ? err.message : 'Failed to process transfer';
 		} finally {
 			isSaving = false;
 		}
@@ -279,23 +349,51 @@
 	}
 
 	function setQuickAmount(amount: string) {
-		const input = document.getElementById("amount") as HTMLInputElement;
-		if (input) input.value = amount;
+		const amountInput = document.getElementById('amount') as HTMLInputElement;
+		if (amountInput) {
+			amountInput.value = amount;
+		}
 	}
 
 	function setCompleteAmount(goal: SavingGoal) {
-		const remaining = goal.target_amount - goal.start_amount;
-		const input = document.getElementById("amount") as HTMLInputElement;
-		if (input) input.value = remaining.toString();
+		const amountInput = document.getElementById('amount') as HTMLInputElement;
+		if (amountInput && goal) {
+			const remainingAmount = goal.target_amount - goal.start_amount;
+			amountInput.value = remainingAmount.toString();
+		}
 	}
 
+	// Quick amount functions for deposit modal
 	function getTodayDate() {
 		return new Date().toISOString().split("T")[0];
 	}
 
+	// Helper function to safely parse numbers from API data
+	function safeParseFloat(value: any): number {
+		if (typeof value === 'number') return isNaN(value) ? 0 : value;
+		if (typeof value === 'string') {
+			const parsed = parseFloat(value);
+			return isNaN(parsed) ? 0 : parsed;
+		}
+		return 0;
+	}
+
+	// Helper function to format currency consistently
+	function formatCurrency(amount: number | string): string {
+		const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+		return isNaN(numAmount) ? '0.00' : numAmount.toLocaleString('en-US', {
+			minimumFractionDigits: 2,
+			maximumFractionDigits: 2
+		});
+	}
+
 	function getGoalStatus(current: number, target: number) {
-		if (target <= 0) return { status: "No Target", color: "text-gray-400", bgColor: "bg-gray-500/20" };
-		const percentage = (current / target) * 100;
+		const safeTarget = target || 0;
+		const safeCurrent = current || 0;
+		
+		if (safeTarget <= 0) return { status: "No Target", color: "text-gray-400", bgColor: "bg-gray-500/20" };
+		
+		const percentage = (safeCurrent / safeTarget) * 100;
 		if (percentage >= 100) return { status: "Completed", color: "text-green-400", bgColor: "bg-green-500/20" };
 		if (percentage >= 75) return { status: "Almost There", color: "text-yellow-400", bgColor: "bg-yellow-500/20" };
 		if (percentage >= 25) return { status: "In Progress", color: "text-blue-400", bgColor: "bg-blue-500/20" };
@@ -498,7 +596,13 @@
 				<Target class="h-4 w-4 text-gray-400" />
 			</CardHeader>
 			<CardContent>
-				<div class="text-2xl font-bold text-white">${totalTargets.toLocaleString()}</div>
+				<div class="text-2xl font-bold text-white">
+					{#if isLoading}
+						Loading...
+					{:else}
+						${formatCurrency(totalTargets)}
+					{/if}
+				</div>
 				<p class="text-xs text-gray-400">{goals.length} active goals</p>
 			</CardContent>
 		</Card>
@@ -509,7 +613,13 @@
 				<DollarSign class="h-4 w-4 text-gray-400" />
 			</CardHeader>
 			<CardContent>
-				<div class="text-2xl font-bold text-green-400">${totalSaved.toLocaleString()}</div>
+				<div class="text-2xl font-bold text-green-400">
+					{#if isLoading}
+						Loading...
+					{:else}
+						${formatCurrency(totalSaved)}
+					{/if}
+				</div>
 				<p class="text-xs text-gray-400">{totalTargets > 0 ? overallProgress.toFixed(1) : '0.0'}% of total goals</p>
 			</CardContent>
 		</Card>
@@ -553,10 +663,12 @@
 		<CardContent>
 			<div class="space-y-6">
 				{#each paginatedData.goals as goal (goal.id)}
-					{@const percentage = goal.target_amount > 0 ? (goal.start_amount / goal.target_amount) * 100 : 0}
-					{@const remaining = goal.target_amount - goal.start_amount}
-					{@const isCompleted = goal.completed || goal.start_amount >= goal.target_amount}
-					{@const goalStatus = getGoalStatus(goal.start_amount, goal.target_amount)}
+					{@const startAmount = safeParseFloat(goal.start_amount)}
+					{@const targetAmount = safeParseFloat(goal.target_amount)}
+					{@const percentage = targetAmount > 0 ? (startAmount / targetAmount) * 100 : 0}
+					{@const remaining = Math.max(0, targetAmount - startAmount)}
+					{@const isCompleted = goal.completed || startAmount >= targetAmount}
+					{@const goalStatus = getGoalStatus(startAmount, targetAmount)}
 					
 					<div class="border border-gray-800 rounded-lg p-4 space-y-4 bg-gray-800">
 						<div class="flex items-center justify-between">
@@ -573,8 +685,8 @@
 								<p class="text-sm text-gray-400">Target: {new Date(goal.end_date).toLocaleDateString()}</p>
 							</div>
 							<div class="text-right">
-								<p class="text-lg font-bold text-white">${goal.start_amount.toLocaleString()}</p>
-								<p class="text-sm text-gray-400">of ${goal.target_amount.toLocaleString()}</p>
+								<p class="text-lg font-bold text-white">${formatCurrency(startAmount)}</p>
+								<p class="text-sm text-gray-400">of ${formatCurrency(targetAmount)}</p>
 								<div class="mt-2 flex gap-2">
 									{#if !isCompleted}
 										<Button
@@ -586,7 +698,7 @@
 											}}
 											class="bg-gray-900 border-2 border-blue-500 text-blue-400 hover:bg-blue-500/20 hover:text-blue-300 font-semibold shadow-lg flex-1"
 										>
-											Add Money
+											Add Transfer
 										</Button>
 									{/if}
 									<Button 
@@ -620,7 +732,7 @@
 							<Progress value={Math.min(percentage, 100)} class="h-2" />
 							<p class="text-xs text-gray-400">
 								{#if remaining > 0}
-									${remaining.toLocaleString()} remaining
+									${formatCurrency(remaining)} remaining
 								{:else}
 									Goal achieved!
 								{/if}
@@ -691,59 +803,108 @@
 		</CardContent>
 	</Card>
 
-	<!-- Add Money Dialog -->
+	<!-- Add Transfer Dialog -->
 	<Dialog bind:open={isDepositDialogOpen}>
 		<DialogContent class="sm:max-w-[425px] bg-gray-800 border-gray-700 text-white">
 			<DialogHeader>
-				<DialogTitle>Add Money - {selectedGoal?.description}</DialogTitle>
+				<DialogTitle>Transfer Money - {selectedGoal?.description}</DialogTitle>
 				<DialogDescription class="text-gray-400">
 					{#if selectedGoal}
-						Current: ${selectedGoal.start_amount.toLocaleString()} / ${selectedGoal.target_amount.toLocaleString()}
+						Current: ${formatCurrency(safeParseFloat(selectedGoal.start_amount))} / ${formatCurrency(safeParseFloat(selectedGoal.target_amount))}
+						<br />Add positive amount to transfer TO savings, negative to withdraw FROM savings
 					{/if}
 				</DialogDescription>
 			</DialogHeader>
-			<form onsubmit={handleAddMoney} class="space-y-4">
+			<form onsubmit={handleTransfer} class="space-y-4">
 				<div class="space-y-2">
-					<Label for="amount">Amount to Add</Label>
+					<Label for="amount">Transfer Amount</Label>
 					<Input
 						id="amount"
 						name="amount"
 						type="number"
 						step="0.01"
-						placeholder="0.00"
-						min={0}
-						max={selectedGoal ? selectedGoal.target_amount - selectedGoal.start_amount : undefined}
+						placeholder="100.00 (positive to add, negative to withdraw)"
 						required
 						class="bg-gray-700 border-gray-600"
 					/>
 				</div>
-				<div class="flex gap-2">
-					<Button
-						type="button"
-						variant="outline"
-						onclick={() => setQuickAmount("100")}
-						class="border-gray-600 text-gray-300 hover:bg-gray-700"
-					>
-						$100
-					</Button>
-					<Button
-						type="button"
-						variant="outline"
-						onclick={() => setQuickAmount("500")}
-						class="border-gray-600 text-gray-300 hover:bg-gray-700"
-					>
-						$500
-					</Button>
-					{#if selectedGoal}
+				<div class="space-y-2">
+					<Label class="text-sm text-gray-400">Quick Add to Savings:</Label>
+					<div class="flex gap-2">
 						<Button
 							type="button"
 							variant="outline"
-							onclick={() => setCompleteAmount(selectedGoal)}
-							class="border-gray-600 text-gray-300 hover:bg-gray-700"
+							onclick={() => setQuickAmount("10")}
+							class="bg-transparent text-gray-300 border-gray-400 hover:bg-white hover:text-gray-600 hover:border-gray-300 rounded-md transition-all duration-200"
 						>
-							Complete Goal
+							+$10
 						</Button>
-					{/if}
+						<Button
+							type="button"
+							variant="outline"
+							onclick={() => setQuickAmount("20")}
+							class="bg-transparent text-gray-300 border-gray-400 hover:bg-white hover:text-gray-600 hover:border-gray-300 rounded-md transition-all duration-200"
+						>
+							+$20
+						</Button>
+						<Button
+							type="button"
+							variant="outline"
+							onclick={() => setQuickAmount("50")}
+							class="bg-transparent text-gray-300 border-gray-400 hover:bg-white hover:text-gray-600 hover:border-gray-300 rounded-md transition-all duration-200"
+						>
+							+$50
+						</Button>
+						{#if selectedGoal}
+							<Button
+								type="button"
+								variant="outline"
+								onclick={() => setCompleteAmount(selectedGoal)}
+								class="bg-transparent text-gray-300 border-gray-400 hover:bg-white hover:text-gray-600 hover:border-gray-300 rounded-md transition-all duration-200"
+							>
+								Complete
+							</Button>
+						{/if}
+					</div>
+				</div>
+				<div class="space-y-2">
+					<Label class="text-sm text-gray-400">Quick Withdraw from Savings:</Label>
+					<div class="flex gap-2">
+						<Button
+							type="button"
+							variant="outline"
+							onclick={() => setQuickAmount("-10")}
+							class="bg-transparent text-red-300 border-red-400 hover:bg-red-950 hover:text-red-200 hover:border-red-300 rounded-md transition-all duration-200"
+						>
+							-$10
+						</Button>
+						<Button
+							type="button"
+							variant="outline"
+							onclick={() => setQuickAmount("-20")}
+							class="bg-transparent text-red-300 border-red-400 hover:bg-red-950 hover:text-red-200 hover:border-red-300 rounded-md transition-all duration-200"
+						>
+							-$20
+						</Button>
+						<Button
+							type="button"
+							variant="outline"
+							onclick={() => setQuickAmount("-50")}
+							class="bg-transparent text-red-300 border-red-400 hover:bg-red-950 hover:text-red-200 hover:border-red-300 rounded-md transition-all duration-200"
+						>
+							-$50
+						</Button>
+						{#if selectedGoal}
+							<Button
+								type="button"
+								variant="outline"
+								onclick={() => setQuickAmount(`-${safeParseFloat(selectedGoal.start_amount)}`)}
+								class="bg-transparent text-red-300 border-red-400 hover:bg-red-950 hover:text-red-200 hover:border-red-300 rounded-md transition-all duration-200"
+							>
+								Withdraw All
+							</Button>
+						{/if}
+					</div>
 				</div>
 				<div class="flex gap-2">
 					<Button
@@ -753,7 +914,7 @@
 							isDepositDialogOpen = false;
 							selectedGoal = null;
 						}}
-						class="flex-1 border-gray-600 text-gray-300 hover:bg-gray-700"
+						class="flex-1 bg-black text-red-500 border-red-500 hover:bg-red-950 hover:text-red-400 rounded-md"
 					>
 						Cancel
 					</Button>
@@ -762,7 +923,7 @@
 						disabled={isSaving}
 						class="flex-1 bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600"
 					>
-						{isSaving ? 'Adding...' : 'Add Money'}
+						{isSaving ? 'Processing...' : 'Transfer'}
 					</Button>
 				</div>
 			</form>
@@ -801,4 +962,4 @@
 		</CardContent>
 	</Card>
 	{/if}
-</div> 
+</div>
