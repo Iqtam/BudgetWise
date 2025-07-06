@@ -1,6 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const transactionController = require('../controllers/transactionController');
+const verifyFirebaseToken = require('../middlewares/firebaseAuth');
+
+// Apply authentication middleware to all transaction routes
+router.use(verifyFirebaseToken);
 
 router.post('/', transactionController.createTransaction);
 router.get('/', transactionController.getAllTransactions);

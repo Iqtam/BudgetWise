@@ -1,9 +1,9 @@
 const Budget = require('../models/Budget');
+const User = require('../models/User');
 
 exports.createBudget = async (req, res) => {
   try {
     const {
-      user_id,
       category_id,
       start_date,
       end_date,
@@ -13,8 +13,17 @@ exports.createBudget = async (req, res) => {
       amount_exceeded
     } = req.body;
 
+    // Get user ID from Firebase token
+    const firebaseUid = req.user.uid;
+    
+    // Find user by Firebase UID
+    const user = await User.findOne({ where: { firebase_uid: firebaseUid } });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
     const budget = await Budget.create({
-      user_id,
+      user_id: user.id,
       category_id,
       start_date: start_date || new Date(), // optional default
       end_date,
@@ -37,9 +46,18 @@ exports.createBudget = async (req, res) => {
 
 exports.getAllBudgets = async (req, res) => {
   try {
-    const { user_id } = req.query;
-    const where = user_id ? { user_id } : {};
-    const budgets = await Budget.findAll({ where });
+    // Get user ID from Firebase token
+    const firebaseUid = req.user.uid;
+    
+    // Find user by Firebase UID
+    const user = await User.findOne({ where: { firebase_uid: firebaseUid } });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const budgets = await Budget.findAll({ 
+      where: { user_id: user.id } 
+    });
     res.json(budgets);
   } catch (error) {
     console.error('Fetch Budget Error:', error);
@@ -49,7 +67,21 @@ exports.getAllBudgets = async (req, res) => {
 
 exports.getBudgetById = async (req, res) => {
   try {
-    const budget = await Budget.findByPk(req.params.id);
+    // Get user ID from Firebase token
+    const firebaseUid = req.user.uid;
+    
+    // Find user by Firebase UID
+    const user = await User.findOne({ where: { firebase_uid: firebaseUid } });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const budget = await Budget.findOne({
+      where: { 
+        id: req.params.id,
+        user_id: user.id 
+      }
+    });
     if (!budget) return res.status(404).json({ message: 'Budget not found' });
     res.json(budget);
   } catch (error) {
@@ -60,7 +92,21 @@ exports.getBudgetById = async (req, res) => {
 
 exports.updateBudget = async (req, res) => {
   try {
-    const budget = await Budget.findByPk(req.params.id);
+    // Get user ID from Firebase token
+    const firebaseUid = req.user.uid;
+    
+    // Find user by Firebase UID
+    const user = await User.findOne({ where: { firebase_uid: firebaseUid } });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const budget = await Budget.findOne({
+      where: { 
+        id: req.params.id,
+        user_id: user.id 
+      }
+    });
     if (!budget) return res.status(404).json({ message: 'Budget not found' });
 
     await budget.update(req.body);
@@ -76,7 +122,21 @@ exports.updateBudget = async (req, res) => {
 
 exports.deleteBudget = async (req, res) => {
   try {
-    const deletedCount = await Budget.destroy({ where: { id: req.params.id } });
+    // Get user ID from Firebase token
+    const firebaseUid = req.user.uid;
+    
+    // Find user by Firebase UID
+    const user = await User.findOne({ where: { firebase_uid: firebaseUid } });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const deletedCount = await Budget.destroy({ 
+      where: { 
+        id: req.params.id,
+        user_id: user.id 
+      } 
+    });
 
     if (deletedCount === 0) {
       return res.status(404).json({ message: 'Budget not found' });

@@ -46,6 +46,7 @@ CREATE TABLE user_profiles (
 -- Categories
 CREATE TABLE category (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
   name VARCHAR(100) NOT NULL,
   icon_url TEXT,
   type VARCHAR(50) NOT NULL,

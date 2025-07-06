@@ -81,15 +81,8 @@ export class BudgetService {
 
 	async getAllBudgets(): Promise<Budget[]> {
 		try {
-			// First get the current user to get their UUID
-			const user = await this.getCurrentUser();
-			
-			if (!user?.id) {
-				throw new Error('User ID not found');
-			}
-
-			// Then fetch budgets using the user's UUID
-			return await this.apiCall(`/budgets?user_id=${user.id}`);
+			// The backend now handles user filtering through authentication middleware
+			return await this.apiCall('/budgets');
 		} catch (error) {
 			console.error('Error fetching budgets:', error);
 			throw error;
@@ -98,19 +91,10 @@ export class BudgetService {
 
 	async createBudget(budgetData: Omit<Budget, 'id' | 'user_id' | 'expired' | 'amount_exceeded' | 'created_at' | 'updated_at'>): Promise<any> {
 		try {
-			// Get current user to get their UUID
-			const user = await this.getCurrentUser();
-			
-			if (!user?.id) {
-				throw new Error('User ID not found');
-			}
-
+			// The backend now handles user association through authentication middleware
 			return await this.apiCall('/budgets', {
 				method: 'POST',
-				body: JSON.stringify({
-					...budgetData,
-					user_id: user.id
-				}),
+				body: JSON.stringify(budgetData),
 			});
 		} catch (error) {
 			console.error('Error creating budget:', error);

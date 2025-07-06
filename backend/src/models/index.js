@@ -45,6 +45,9 @@ ChatInteraction.belongsTo(User, { foreignKey: 'user_id' });
 User.hasMany(Upload, { foreignKey: 'user_id' });
 Upload.belongsTo(User, { foreignKey: 'user_id' });
 
+User.hasMany(Category, { foreignKey: 'user_id' });
+Category.belongsTo(User, { foreignKey: 'user_id' });
+
 // New associations for authentication and security
 User.hasMany(UserSession, { foreignKey: 'user_id' });
 UserSession.belongsTo(User, { foreignKey: 'user_id' });

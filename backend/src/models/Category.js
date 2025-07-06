@@ -7,6 +7,15 @@ const Category = sequelize.define('Category', {
     defaultValue: DataTypes.UUIDV4,
     primaryKey: true
   },
+  user_id: {
+    type: DataTypes.UUID,
+    allowNull: false,
+    references: {
+      model: 'users',
+      key: 'id'
+    },
+    onDelete: 'CASCADE'
+  },
   name: {
     type: DataTypes.STRING(100),
     allowNull: false
