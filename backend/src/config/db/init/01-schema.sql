@@ -118,6 +118,7 @@ CREATE TABLE budget (
   start_date DATE DEFAULT CURRENT_DATE,
   end_date DATE NOT NULL,
   goal_amount NUMERIC(12, 2) NOT NULL,
+  spent NUMERIC(12, 2) DEFAULT 0.00,
   expired BOOLEAN DEFAULT FALSE,
   amount_exceeded BOOLEAN DEFAULT FALSE,
   icon_url TEXT

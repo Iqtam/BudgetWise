@@ -1,5 +1,7 @@
 const Budget = require('../models/Budget');
 const User = require('../models/User');
+const Transaction = require('../models/Transaction');
+const { Op } = require('sequelize');
 
 exports.createBudget = async (req, res) => {
   try {
@@ -145,6 +147,66 @@ exports.deleteBudget = async (req, res) => {
     res.json({ message: 'Budget deleted successfully' });
   } catch (error) {
     console.error('Delete Budget Error:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Helper function to sync budget spending with actual transactions
+exports.syncBudgetSpending = async (userId, categoryId = null) => {
+  try {
+    // If categoryId is provided, sync only that budget, otherwise sync all user budgets
+    const budgetQuery = { user_id: userId };
+    if (categoryId) {
+      budgetQuery.category_id = categoryId;
+    }
+
+    const budgets = await Budget.findAll({ where: budgetQuery });
+
+    for (const budget of budgets) {
+      if (!budget.category_id) continue; // Skip budgets without categories
+
+      // Calculate total spent for this budget's category within the budget period
+      const totalSpent = await Transaction.sum('amount', {
+        where: {
+          user_id: userId,
+          category_id: budget.category_id,
+          type: 'expense',
+          date: {
+            [Op.between]: [budget.start_date, budget.end_date]
+          }
+        }
+      });
+
+      // Update the budget's spent amount
+      const spentAmount = totalSpent ? Math.abs(totalSpent) : 0;
+      await budget.update({ 
+        spent: spentAmount,
+        amount_exceeded: spentAmount > budget.goal_amount
+      });
+    }
+  } catch (error) {
+    console.error('Error syncing budget spending:', error);
+    throw error;
+  }
+};
+
+// API endpoint to manually sync budget spending
+exports.syncBudgetSpendingAPI = async (req, res) => {
+  try {
+    // Get user ID from Firebase token
+    const firebaseUid = req.user.uid;
+    
+    // Find user by Firebase UID
+    const user = await User.findOne({ where: { firebase_uid: firebaseUid } });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    await exports.syncBudgetSpending(user.id);
+
+    res.json({ message: 'Budget spending synced successfully' });
+  } catch (error) {
+    console.error('Sync Budget Spending API Error:', error);
     res.status(500).json({ message: error.message });
   }
 };

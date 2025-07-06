@@ -1,5 +1,7 @@
 const { Op } = require('sequelize');
 const Transaction = require('../models/Transaction');
+const User = require('../models/User');
+const { syncBudgetSpending } = require('./budgetController');
 
 
 exports.createTransaction = async (req, res) => {
@@ -28,6 +30,16 @@ exports.createTransaction = async (req, res) => {
       recurrence: recurrence || false,
       confirmed: confirmed !== undefined ? confirmed : true
     });
+
+    // Sync budget spending if this is an expense transaction with a category
+    if (type === 'expense' && category_id) {
+      try {
+        await syncBudgetSpending(user_id, category_id);
+      } catch (budgetError) {
+        console.error('Error syncing budget spending:', budgetError);
+        // Don't fail the transaction creation if budget sync fails
+      }
+    }
 
     res.status(201).json({
       message: 'Transaction created successfully',
@@ -124,8 +136,23 @@ exports.deleteTransaction = async (req, res) => {
       return res.status(404).json({ message: 'Transaction not found' });
     }
 
+    // Store transaction details for budget sync before deletion
+    const transactionUserId = transaction.user_id;
+    const transactionCategoryId = transaction.category_id;
+    const transactionType = transaction.type;
+
     // Delete the transaction
     await transaction.destroy();
+
+    // Sync budget spending if this was an expense transaction with a category
+    if (transactionType === 'expense' && transactionCategoryId) {
+      try {
+        await syncBudgetSpending(transactionUserId, transactionCategoryId);
+      } catch (budgetError) {
+        console.error('Error syncing budget spending:', budgetError);
+        // Don't fail the transaction deletion if budget sync fails
+      }
+    }
 
     res.json({ message: 'Transaction deleted successfully' });
   } catch (error) {
@@ -155,6 +182,11 @@ exports.updateTransaction = async (req, res) => {
       return res.status(404).json({ message: 'Transaction not found' });
     }
 
+    // Store old values for budget sync
+    const oldCategoryId = transaction.category_id;
+    const oldType = transaction.type;
+    const userId = transaction.user_id;
+
     // Update the transaction
     await transaction.update({
       amount: amount !== undefined ? amount : transaction.amount,
@@ -166,6 +198,25 @@ exports.updateTransaction = async (req, res) => {
       recurrence: recurrence !== undefined ? recurrence : transaction.recurrence,
       confirmed: confirmed !== undefined ? confirmed : transaction.confirmed
     });
+
+    // Sync budget spending if expense transaction with category changed
+    const newCategoryId = transaction.category_id;
+    const newType = transaction.type;
+
+    if (newType === 'expense' || oldType === 'expense') {
+      try {
+        // Sync both old and new categories if they exist and are different
+        if (oldCategoryId && (oldType === 'expense')) {
+          await syncBudgetSpending(userId, oldCategoryId);
+        }
+        if (newCategoryId && (newType === 'expense') && newCategoryId !== oldCategoryId) {
+          await syncBudgetSpending(userId, newCategoryId);
+        }
+      } catch (budgetError) {
+        console.error('Error syncing budget spending:', budgetError);
+        // Don't fail the transaction update if budget sync fails
+      }
+    }
 
     res.json({
       message: 'Transaction updated successfully',

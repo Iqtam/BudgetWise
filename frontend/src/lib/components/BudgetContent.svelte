@@ -77,37 +77,15 @@
 		if (!categoryId) return 'No Category';
 		const category = categories.find(c => c.id === categoryId);
 		return category ? category.name : 'Unknown Category';
-	}	// Helper function to calculate or mock spent amount
-	// TODO: This should eventually fetch from transactions API
+	}	// Helper function to get actual spent amount from budget data
 	function getSpentAmount(budget: Budget): number {
-		// Ensure we have a valid budget with goal_amount
-		if (!budget || !budget.goal_amount) return 0;
+		// Use the actual spent field from the database if available
+		if (budget.spent !== null && budget.spent !== undefined) {
+			return parseFloat(String(budget.spent));
+		}
 		
-		const goalAmount = parseFloat(String(budget.goal_amount));
-		if (isNaN(goalAmount) || goalAmount <= 0) return 0;
-		
-		// For now, return a more realistic mock spent amount based on the budget
-		// In a real app, this would be calculated from actual transactions
-		
-		// Use budget ID as a seed to get consistent mock data
-		const seed = parseInt(budget.id.slice(-2), 16) || 1;
-		const random = (seed * 9301 + 49297) % 233280 / 233280; // Simple seeded random
-		
-		// Mock spent percentage between 0% and 120% based on budget duration
-		const startDate = new Date(budget.start_date);
-		const endDate = new Date(budget.end_date);
-		const today = new Date();
-		
-		// Calculate how far through the budget period we are
-		const totalDays = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
-		const daysPassed = Math.min(totalDays, (today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-		const progressRatio = Math.max(0, daysPassed / totalDays);
-		
-		// Base spending on time progress with some randomness
-		const baseSpentRatio = progressRatio * (0.5 + random * 0.7); // 50-120% of expected progress
-		const mockSpentPercentage = Math.max(0, baseSpentRatio);
-		
-		return Math.round(goalAmount * mockSpentPercentage * 100) / 100;
+		// Fallback to 0 if no spent data is available
+		return 0;
 	}	async function handleAddCategory(event: Event) {
 		event.preventDefault();
 		
@@ -284,6 +262,30 @@
 			isDeleting = false;
 		}
 	}
+
+	async function handleSyncBudgets() {
+		isSaving = true;
+		error = null;
+		try {
+			await budgetService.syncBudgetSpending();
+			
+			// Reload data to get updated spending amounts
+			await loadData();
+			
+			// Show success message
+			successMessage = 'Budget spending synced successfully';
+
+			// Auto-hide success message after 3 seconds
+			setTimeout(() => {
+				successMessage = null;
+			}, 3000);
+		} catch (err) {
+			console.error('Error syncing budgets:', err);
+			error = err instanceof Error ? err.message : 'Failed to sync budget spending';
+		} finally {
+			isSaving = false;
+		}
+	}
 	function getBudgetStatus(spent: number, budgetAmount: number) {
 		if (budgetAmount <= 0) return { status: "No Budget", color: "text-gray-400", bgColor: "bg-gray-500/20" };
 		const percentage = (spent / budgetAmount) * 100;
@@ -319,7 +321,17 @@
 			<h2 class="text-2xl font-bold text-white">Budget Management</h2>
 			<p class="text-gray-400">Track and manage your spending budgets</p>
 		</div>
-		<Dialog bind:open={isBudgetDialogOpen}>
+		<div class="flex items-center gap-3">
+			<!-- Sync Button -->
+			<Button
+				variant="outline"
+				onclick={handleSyncBudgets}
+				disabled={isSaving}
+				class="border-gray-600 bg-gray-800 text-gray-300 hover:bg-gray-700"
+			>
+				{isSaving ? 'Syncing...' : 'Sync Spending'}
+			</Button>
+			<Dialog bind:open={isBudgetDialogOpen}>
 			<DialogTrigger>
 				<Button class="bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600">
 					<Plus class="h-4 w-4 mr-2" />
@@ -446,6 +458,7 @@
 					</Button>
 				</form>
 			</DialogContent>		</Dialog>
+		</div>
 	</div>
 
 	<!-- Edit Budget Dialog -->

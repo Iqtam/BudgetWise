@@ -37,6 +37,10 @@ const Budget = sequelize.define('Budget', {
     type: DataTypes.DECIMAL(12, 2),
     allowNull: false
   },
+  spent: {
+    type: DataTypes.DECIMAL(12, 2),
+    defaultValue: 0.00
+  },
   expired: {
     type: DataTypes.BOOLEAN,
     defaultValue: false
