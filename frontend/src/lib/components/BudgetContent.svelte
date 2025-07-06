@@ -298,6 +298,146 @@
 		if (percentage >= 80) return { status: "Near Limit", color: "text-yellow-400", bgColor: "bg-yellow-500/20" };
 		return { status: "On Track", color: "text-green-400", bgColor: "bg-green-500/20" };
 	}
+
+	// Calculate overspending forecast for a budget
+	function calculateOverspendingForecast(budget: Budget) {
+		const now = new Date();
+		const startDate = new Date(budget.start_date);
+		const endDate = new Date(budget.end_date);
+		const goalAmount = parseFloat(String(budget.goal_amount || '0'));
+		const spentAmount = getSpentAmount(budget);
+		
+		// Only forecast for active budgets
+		if (now < startDate || now > endDate || goalAmount <= 0) {
+			return null;
+		}
+		
+		// Calculate days passed and total days in budget period
+		const daysPassed = Math.max(1, Math.ceil((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
+		const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+		
+		// Calculate daily spend rate
+		const dailySpendRate = spentAmount / daysPassed;
+		
+		// Project full period spend
+		const projectedSpend = dailySpendRate * totalDays;
+		
+		// Calculate overspend percentage
+		const overspendPercentage = ((projectedSpend - goalAmount) / goalAmount) * 100;
+		
+		return {
+			budget,
+			projectedSpend,
+			overspendPercentage,
+			dailySpendRate,
+			daysPassed,
+			totalDays,
+			daysRemaining: totalDays - daysPassed
+		};
+	}
+
+	// Get budget insights for the 3-box layout
+	function getBudgetInsights() {
+		if (budgets.length === 0) return { alert: null, progress: null, tip: null };
+		
+		const alerts = [];
+		const progressItems = [];
+		const tips = [];
+		
+		// Check for overspending forecasts and over-budget situations
+		for (const budget of budgets) {
+			const forecast = calculateOverspendingForecast(budget);
+			if (forecast && forecast.overspendPercentage > 0) {
+				alerts.push({
+					type: 'overspending_forecast',
+					severity: forecast.overspendPercentage,
+					budget: forecast.budget,
+					forecast: forecast
+				});
+			}
+			
+			const spent = getSpentAmount(budget);
+			const goalAmount = parseFloat(String(budget.goal_amount || '0'));
+			const percentage = goalAmount > 0 ? (spent / goalAmount) * 100 : 0;
+			
+			if (percentage >= 100) {
+				alerts.push({
+					type: 'over_budget',
+					severity: percentage,
+					budget: budget,
+					overAmount: spent - goalAmount
+				});
+			} else if (percentage >= 80) {
+				alerts.push({
+					type: 'near_limit',
+					severity: percentage,
+					budget: budget,
+					percentage: percentage
+				});
+			}
+		}
+		
+		// Check for good progress items
+		for (const budget of budgets) {
+			const spent = getSpentAmount(budget);
+			const goalAmount = parseFloat(String(budget.goal_amount || '0'));
+			const percentage = goalAmount > 0 ? (spent / goalAmount) * 100 : 0;
+			
+			const now = new Date();
+			const endDate = new Date(budget.end_date);
+			const hasTimeRemaining = now < endDate;
+			
+			if (percentage < 70 && hasTimeRemaining && goalAmount > 0) {
+				progressItems.push({
+					type: 'good_progress',
+					budget: budget,
+					percentage: percentage
+				});
+			}
+		}
+		
+		// Generate optimization tips
+		const underutilizedBudgets = budgets.filter(budget => {
+			const spent = getSpentAmount(budget);
+			const goalAmount = parseFloat(String(budget.goal_amount || '0'));
+			const percentage = goalAmount > 0 ? (spent / goalAmount) * 100 : 0;
+			return percentage < 30 && goalAmount > 0;
+		});
+		
+		const overutilizedBudgets = budgets.filter(budget => {
+			const spent = getSpentAmount(budget);
+			const goalAmount = parseFloat(String(budget.goal_amount || '0'));
+			const percentage = goalAmount > 0 ? (spent / goalAmount) * 100 : 0;
+			return percentage > 80;
+		});
+		
+		if (underutilizedBudgets.length > 0 && overutilizedBudgets.length > 0) {
+			tips.push({
+				type: 'reallocation',
+				underutilized: underutilizedBudgets[0],
+				overutilized: overutilizedBudgets[0]
+			});
+		} else if (budgets.length > 0) {
+			// General tip about budget monitoring
+			tips.push({
+				type: 'monitoring',
+				budgetCount: budgets.length
+			});
+		}
+		
+		// Sort and pick the most significant for each category
+		alerts.sort((a, b) => b.severity - a.severity);
+		progressItems.sort((a, b) => a.percentage - b.percentage); // Lower percentage = better progress
+		
+		return {
+			alert: alerts.length > 0 ? alerts[0] : null,
+			progress: progressItems.length > 0 ? progressItems[0] : null,
+			tip: tips.length > 0 ? tips[0] : null
+		};
+	}
+
+	// Get the budget insights as a derived value
+	let budgetInsights = $derived(getBudgetInsights());
 </script>
 
 <div class="flex-1 space-y-6 p-6 bg-gray-950">
@@ -863,26 +1003,89 @@
 		</CardHeader>
 		<CardContent>
 			<div class="space-y-4">
-				<div class="p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
-					<h4 class="font-semibold text-red-400">Budget Alert</h4>
-					<p class="text-sm text-gray-300 mt-1">
-						Your Utilities budget is at 98% capacity. Consider reducing usage or adjusting your budget.
-					</p>
-				</div>
+				<!-- Alert Box (Red/Yellow) -->
+				{#if budgetInsights.alert}
+					{#if budgetInsights.alert.type === 'overspending_forecast'}
+						<div class="p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
+							<h4 class="font-semibold text-red-400">Overspending Forecast</h4>
+							<p class="text-sm text-gray-300 mt-1">
+								At your current pace, you're likely to exceed your {getCategoryName(budgetInsights.alert.budget.category_id)} budget by {budgetInsights.alert.forecast.overspendPercentage.toFixed(0)}% this period.
+								You're spending ${budgetInsights.alert.forecast.dailySpendRate.toFixed(2)} per day with {budgetInsights.alert.forecast.daysRemaining} days remaining.
+							</p>
+						</div>
+					{:else if budgetInsights.alert.type === 'over_budget'}
+						<div class="p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
+							<h4 class="font-semibold text-red-400">Budget Exceeded</h4>
+							<p class="text-sm text-gray-300 mt-1">
+								Your {getCategoryName(budgetInsights.alert.budget.category_id)} budget has been exceeded by ${budgetInsights.alert.overAmount.toFixed(2)}. 
+								Consider adjusting your spending or increasing the budget limit.
+							</p>
+						</div>
+					{:else if budgetInsights.alert.type === 'near_limit'}
+						<div class="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+							<h4 class="font-semibold text-yellow-400">Budget Alert</h4>
+							<p class="text-sm text-gray-300 mt-1">
+								Your {getCategoryName(budgetInsights.alert.budget.category_id)} budget is at {budgetInsights.alert.percentage.toFixed(0)}% capacity. 
+								Consider reducing usage or adjusting your budget.
+							</p>
+						</div>
+					{/if}
+				{:else}
+					<div class="p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
+						<h4 class="font-semibold text-green-400">All Clear!</h4>
+						<p class="text-sm text-gray-300 mt-1">
+							No budget alerts at this time. Your spending is under control!
+						</p>
+					</div>
+				{/if}
 
-				<div class="p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
-					<h4 class="font-semibold text-green-400">Great Progress</h4>
-					<p class="text-sm text-gray-300 mt-1">
-						You're doing well with your Health & Fitness budget - only 57% used with plenty of time remaining.
-					</p>
-				</div>
+				<!-- Progress Box (Green) -->
+				{#if budgetInsights.progress}
+					<div class="p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
+						<h4 class="font-semibold text-green-400">Great Progress</h4>
+						<p class="text-sm text-gray-300 mt-1">
+							You're doing well with your {getCategoryName(budgetInsights.progress.budget.category_id)} budget - only {budgetInsights.progress.percentage.toFixed(0)}% used with time remaining.
+						</p>
+					</div>
+				{:else}
+					<div class="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+						<h4 class="font-semibold text-blue-400">Budget Status</h4>
+						<p class="text-sm text-gray-300 mt-1">
+							{#if budgets.length === 0}
+								Create your first budget to start tracking your spending patterns.
+							{:else}
+								Most of your budgets are being actively used. Keep monitoring your progress!
+							{/if}
+						</p>
+					</div>
+				{/if}
 
-				<div class="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-					<h4 class="font-semibold text-blue-400">Optimization Tip</h4>
-					<p class="text-sm text-gray-300 mt-1">
-						Consider reallocating unused Travel budget to categories where you're approaching limits.
-					</p>
-				</div>			</div>
+				<!-- Tip Box (Blue) -->
+				{#if budgetInsights.tip}
+					{#if budgetInsights.tip.type === 'reallocation'}
+						<div class="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+							<h4 class="font-semibold text-blue-400">Optimization Tip</h4>
+							<p class="text-sm text-gray-300 mt-1">
+								Consider reallocating unused funds from your {getCategoryName(budgetInsights.tip.underutilized.category_id)} budget to categories where you're approaching limits like {getCategoryName(budgetInsights.tip.overutilized.category_id)}.
+							</p>
+						</div>
+					{:else if budgetInsights.tip.type === 'monitoring'}
+						<div class="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+							<h4 class="font-semibold text-blue-400">Budget Monitoring</h4>
+							<p class="text-sm text-gray-300 mt-1">
+								You have {budgetInsights.tip.budgetCount} active budget{budgetInsights.tip.budgetCount > 1 ? 's' : ''}. Regular monitoring helps maintain healthy spending habits.
+							</p>
+						</div>
+					{/if}
+				{:else}
+					<div class="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+						<h4 class="font-semibold text-blue-400">Budget Tip</h4>
+						<p class="text-sm text-gray-300 mt-1">
+							Set up budgets for different expense categories to better track and control your spending patterns.
+						</p>
+					</div>
+				{/if}
+			</div>
 		</CardContent>
 	</Card>
 	{/if}
