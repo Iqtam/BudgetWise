@@ -452,9 +452,12 @@
 
 		isSaving = true;
 		try {
+			// Calculate the correctly signed amount for the backend
+			const signedAmount = editType === 'expense' ? -Math.abs(parseFloat(editAmount)) : Math.abs(parseFloat(editAmount));
+			
 			const updatedTransaction = await transactionService.updateTransaction(editingTransaction.id, {
 				description: editDescription,
-				amount: parseFloat(editAmount),
+				amount: signedAmount,
 				type: editType as 'income' | 'expense',
 				category_id: editCategory || undefined,
 				event: editEvent || undefined,
@@ -469,7 +472,7 @@
 			const updatedTransactionData = {
 				...editingTransaction,
 				description: editDescription,
-				amount: parseFloat(editAmount),
+				amount: signedAmount,
 				type: editType as 'income' | 'expense',
 				category_id: editCategory || undefined,
 				event: editEvent || undefined,
@@ -491,25 +494,13 @@
 				const currentBalance = parseFloat(balance.balance);
 				
 				// Calculate the difference between old and new transaction
-				const oldAmount = editingTransaction.amount;
-				const newAmount = parseFloat(editAmount);
-				const oldType = editingTransaction.type;
-				const newType = editType as 'income' | 'expense';
+				const oldAmount = editingTransaction.amount; // e.g., -15 for expense, +100 for income
+				const newAmountSigned = signedAmount; // e.g., -35 for expense, +150 for income
 				
-				// Reverse the old transaction's effect on balance
-				let balanceDelta = 0;
-				if (oldType === 'income') {
-					balanceDelta -= oldAmount; // Remove old income
-				} else if (oldType === 'expense') {
-					balanceDelta += Math.abs(oldAmount); // Remove old expense (add back)
-				}
-				
-				// Apply the new transaction's effect on balance
-				if (newType === 'income') {
-					balanceDelta += newAmount; // Add new income
-				} else if (newType === 'expense') {
-					balanceDelta -= newAmount; // Subtract new expense
-				}
+				// Calculate the net change: newAmountSigned - oldAmount
+				// Example: (-35) - (-15) = -20 (expense increased, balance decreases by 20)
+				// Example: (-5) - (-15) = +10 (expense decreased, balance increases by 10)
+				const balanceDelta = newAmountSigned - oldAmount;
 				
 				const newBalanceValue = currentBalance + balanceDelta;
 
