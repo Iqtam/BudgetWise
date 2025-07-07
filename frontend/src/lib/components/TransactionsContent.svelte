@@ -64,6 +64,12 @@
 	let editBalanceValue = $state('');
 	let isBalanceDialogOpen = $state(false);
 
+	// Separate error states for dialogs
+	let dialogError = $state<string | null>(null);
+	let newCategoryError = $state<string | null>(null);
+	let editTransactionError = $state<string | null>(null);
+	let balanceError = $state<string | null>(null);
+
 	// OCR Receipt state
 	let selectedFile = $state<File | null>(null);
 	let isProcessingOCR = $state(false);
@@ -236,8 +242,44 @@
 		// Prevent double submission
 		if (isSaving) return;
 
+		// Validate recurring transaction dates
+		if (formIsRecurrent) {
+			// Check if weekday is required for weekly recurrence
+			if (formRecurrenceType === 'weekly' && !formWeekday) {
+				dialogError = 'Please select a day of the week for weekly recurring transactions';
+				return;
+			}
+
+			// Check if both end date and duration are provided (user should choose only one)
+			if (formEndDate && formDuration) {
+				dialogError = 'Please choose either an end date OR duration count, not both';
+				return;
+			}
+
+			// Validate start date vs end date
+			if (formEndDate) {
+				const startDate = new Date(formStartDate);
+				const endDate = new Date(formEndDate);
+				
+				if (endDate <= startDate) {
+					dialogError = 'End date must be after the start date';
+					return;
+				}
+			}
+
+			// Validate start date is not in the past (optional - you can remove this if you want to allow past dates)
+			const startDate = new Date(formStartDate);
+			const today = new Date();
+			today.setHours(0, 0, 0, 0); // Reset time to beginning of day for fair comparison
+			
+			if (startDate < today) {
+				dialogError = 'Start date cannot be in the past';
+				return;
+			}
+		}
+
 		isSaving = true;
-		error = null;
+		dialogError = null;
 		successMessage = null;
 
 		try {
@@ -313,7 +355,7 @@
 			}, 3000);
 		} catch (err) {
 			console.error('Error creating transaction:', err);
-			error = err instanceof Error ? err.message : 'Failed to create transaction';
+			dialogError = err instanceof Error ? err.message : 'Failed to create transaction';
 			// Don't close dialog on error, let user try again
 		} finally {
 			isSaving = false;
@@ -336,6 +378,9 @@
 		formDurationType = 'month';
 		formRecurrenceType = 'monthly';
 		formWeekday = '';
+		
+		// Reset dialog error
+		dialogError = null;
 		
 		activeTabValue = 'manual';
 	} // Function to handle creating a new category
@@ -369,14 +414,14 @@
 			}, 3000);
 		} catch (err) {
 			console.error('Error creating category:', err);
-			error = err instanceof Error ? err.message : 'Failed to create category';
+			newCategoryError = err instanceof Error ? err.message : 'Failed to create category';
 		}
 	}
 
 	// Function to handle opening new category dialog
 	function handleNewCategoryClick() {
 		if (!formType) {
-			error = 'Please select a transaction type first';
+			dialogError = 'Please select a transaction type first';
 			return;
 		}
 
@@ -1049,6 +1094,13 @@
 						</TabsList>
 
 						<TabsContent value="manual">
+							<!-- Error Message for Dialog -->
+							{#if dialogError}
+								<div class="mb-4 rounded-lg border border-red-500 bg-red-900/50 p-3">
+									<p class="text-sm text-red-300">{dialogError}</p>
+								</div>
+							{/if}
+							
 							<form onsubmit={handleAddTransaction} class="space-y-4">
 								<div class="space-y-2">
 									<Label for="description">Description</Label>
@@ -1571,6 +1623,14 @@
 						Add a new category for your transactions
 					</DialogDescription>
 				</DialogHeader>
+				
+				<!-- Error Message for New Category Dialog -->
+				{#if newCategoryError}
+					<div class="mb-4 rounded-lg border border-red-500 bg-red-900/50 p-3">
+						<p class="text-sm text-red-300">{newCategoryError}</p>
+					</div>
+				{/if}
+				
 				<form onsubmit={handleCreateCategory} class="space-y-4">
 					<div class="space-y-2">
 						<Label for="categoryName" class="text-white">Category Name</Label>

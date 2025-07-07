@@ -28,6 +28,11 @@
 	let editingBudget = $state<Budget | null>(null);
 	let isDeleting = $state(false);
 
+	// Separate error states for dialogs
+	let createBudgetError = $state<string | null>(null);
+	let editBudgetError = $state<string | null>(null);
+	let newCategoryError = $state<string | null>(null);
+
 	// Form fields
 	let formCategory = $state("");
 	let formBudgetAmount = $state("");
@@ -150,8 +155,23 @@
 			return;
 		}
 
+		// Validate start date vs end date
+		const startDate = new Date(formStartDate);
+		const endDate = new Date(formEndDate);
+		
+		if (endDate <= startDate) {
+			createBudgetError = 'End date must be after the start date';
+			return;
+		}
+
+		// Validate budget amount is positive
+		if (parseFloat(formBudgetAmount) <= 0) {
+			createBudgetError = 'Budget amount must be greater than 0';
+			return;
+		}
+
 		isSaving = true;
-		error = null;
+		createBudgetError = null;
 		try {
 			await budgetService.createBudget({
 				category_id: formCategory || undefined,
@@ -181,7 +201,7 @@
 			}, 3000);
 		} catch (err) {
 			console.error('Error creating budget:', err);
-			error = err instanceof Error ? err.message : 'Failed to create budget';
+			createBudgetError = err instanceof Error ? err.message : 'Failed to create budget';
 		} finally {
 			isSaving = false;
 		}
@@ -208,8 +228,23 @@
 			return;
 		}
 
+		// Validate start date vs end date
+		const startDate = new Date(editFormStartDate);
+		const endDate = new Date(editFormEndDate);
+		
+		if (endDate <= startDate) {
+			editBudgetError = 'End date must be after the start date';
+			return;
+		}
+
+		// Validate budget amount is positive
+		if (parseFloat(editFormBudgetAmount) <= 0) {
+			editBudgetError = 'Budget amount must be greater than 0';
+			return;
+		}
+
 		isSaving = true;
-		error = null;
+		editBudgetError = null;
 		try {
 			await budgetService.updateBudget(editingBudget.id, {
 				category_id: editFormCategory || undefined,
@@ -234,7 +269,7 @@
 			}, 3000);
 		} catch (err) {
 			console.error('Error updating budget:', err);
-			error = err instanceof Error ? err.message : 'Failed to update budget';
+			editBudgetError = err instanceof Error ? err.message : 'Failed to update budget';
 		} finally {
 			isSaving = false;
 		}
@@ -505,6 +540,14 @@
 						Set up a new spending budget for a category
 					</DialogDescription>
 				</DialogHeader>
+				
+				<!-- Error Message for Create Budget Dialog -->
+				{#if createBudgetError}
+					<div class="mb-4 rounded-lg border border-red-500 bg-red-900/50 p-3">
+						<p class="text-sm text-red-300">{createBudgetError}</p>
+					</div>
+				{/if}
+				
 				<form onsubmit={handleCreateBudget} class="space-y-4">					<div class="space-y-2">
 						<Label for="category">Category (Optional)</Label>
 						<div class="flex gap-2">
@@ -630,6 +673,14 @@
 					Update your budget settings
 				</DialogDescription>
 			</DialogHeader>
+			
+			<!-- Error Message for Edit Budget Dialog -->
+			{#if editBudgetError}
+				<div class="mb-4 rounded-lg border border-red-500 bg-red-900/50 p-3">
+					<p class="text-sm text-red-300">{editBudgetError}</p>
+				</div>
+			{/if}
+			
 			<form onsubmit={handleUpdateBudget} class="space-y-4">
 				<div class="space-y-2">
 					<Label for="editCategory">Category (Optional)</Label>

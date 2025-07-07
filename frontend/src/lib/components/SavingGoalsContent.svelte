@@ -45,6 +45,10 @@
 	let isDeleting = $state(false);
 	const itemsPerPage = 10;
 
+	// Separate error states for dialogs
+	let createGoalError = $state<string | null>(null);
+	let editGoalError = $state<string | null>(null);
+
 	// Form fields
 	let formName = $state("");
 	let formTarget = $state("");
@@ -145,8 +149,34 @@
 			return;
 		}
 
+		// Validate start date vs end date
+		const startDate = new Date(formStartDate);
+		const endDate = new Date(formEndDate);
+		
+		if (endDate <= startDate) {
+			createGoalError = 'End date must be after the start date';
+			return;
+		}
+
+		// Validate target amount is positive
+		if (parseFloat(formTarget) <= 0) {
+			createGoalError = 'Target amount must be greater than 0';
+			return;
+		}
+
+		// Validate starting amount is not negative and not greater than target
+		if (formStartAmount && parseFloat(formStartAmount) < 0) {
+			createGoalError = 'Starting amount cannot be negative';
+			return;
+		}
+		
+		if (formStartAmount && parseFloat(formStartAmount) > parseFloat(formTarget)) {
+			createGoalError = 'Starting amount cannot be greater than the target amount';
+			return;
+		}
+
 		isSaving = true;
-		error = null;
+		createGoalError = null;
 		try {
 			await savingService.createSaving({
 				description: formName,
@@ -175,7 +205,7 @@
 			}, 3000);
 		} catch (err) {
 			console.error('Error creating saving goal:', err);
-			error = err instanceof Error ? err.message : 'Failed to create saving goal';
+			createGoalError = err instanceof Error ? err.message : 'Failed to create saving goal';
 		} finally {
 			isSaving = false;
 		}
@@ -276,8 +306,34 @@
 			return;
 		}
 
+		// Validate start date vs end date
+		const startDate = new Date(editFormStartDate);
+		const endDate = new Date(editFormEndDate);
+		
+		if (endDate <= startDate) {
+			editGoalError = 'End date must be after the start date';
+			return;
+		}
+
+		// Validate target amount is positive
+		if (parseFloat(editFormTarget) <= 0) {
+			editGoalError = 'Target amount must be greater than 0';
+			return;
+		}
+
+		// Validate starting amount is not negative and not greater than target
+		if (editFormStartAmount && parseFloat(editFormStartAmount) < 0) {
+			editGoalError = 'Starting amount cannot be negative';
+			return;
+		}
+		
+		if (editFormStartAmount && parseFloat(editFormStartAmount) > parseFloat(editFormTarget)) {
+			editGoalError = 'Starting amount cannot be greater than the target amount';
+			return;
+		}
+
 		isSaving = true;
-		error = null;
+		editGoalError = null;
 		try {
 			const targetAmount = parseFloat(editFormTarget);
 			const startAmount = parseFloat(editFormStartAmount);
@@ -304,7 +360,7 @@
 			}, 3000);
 		} catch (err) {
 			console.error('Error updating saving goal:', err);
-			error = err instanceof Error ? err.message : 'Failed to update saving goal';
+			editGoalError = err instanceof Error ? err.message : 'Failed to update saving goal';
 		} finally {
 			isSaving = false;
 		}
@@ -440,6 +496,14 @@
 					<DialogTitle>Create New Savings Goal</DialogTitle>
 					<DialogDescription class="text-gray-400">Set a new financial goal to work towards</DialogDescription>
 				</DialogHeader>
+				
+				<!-- Error Message for Create Goal Dialog -->
+				{#if createGoalError}
+					<div class="mb-4 rounded-lg border border-red-500 bg-red-900/50 p-3">
+						<p class="text-sm text-red-300">{createGoalError}</p>
+					</div>
+				{/if}
+				
 				<form onsubmit={handleAddGoal} class="space-y-4">
 					<div class="space-y-2">
 						<Label for="name">Goal Name</Label>
@@ -513,6 +577,14 @@
 				<DialogTitle>Edit Savings Goal</DialogTitle>
 				<DialogDescription class="text-gray-400">Update your savings goal settings</DialogDescription>
 			</DialogHeader>
+			
+			<!-- Error Message for Edit Goal Dialog -->
+			{#if editGoalError}
+				<div class="mb-4 rounded-lg border border-red-500 bg-red-900/50 p-3">
+					<p class="text-sm text-red-300">{editGoalError}</p>
+				</div>
+			{/if}
+			
 			<form onsubmit={handleUpdateGoal} class="space-y-4">
 				<div class="space-y-2">
 					<Label for="editName">Goal Name</Label>
