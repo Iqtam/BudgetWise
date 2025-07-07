@@ -87,6 +87,15 @@
 	let formDate = $state(new Date().toISOString().split('T')[0]);
 	let formIsRecurrent = $state(false);
 
+	// Recurring transaction fields
+	let formStartDate = $state(new Date().toISOString().split('T')[0]);
+	let formPeriod = $state('1');
+	let formEndDate = $state('');
+	let formDuration = $state('');
+	let formDurationType = $state('month');
+	let formRecurrenceType = $state('monthly');
+	let formWeekday = $state('');
+
 	// Edit form fields
 	let editDescription = $state('');
 	let editAmount = $state('');
@@ -318,6 +327,16 @@
 		formEvent = '';
 		formDate = new Date().toISOString().split('T')[0];
 		formIsRecurrent = false;
+		
+		// Reset recurring transaction fields
+		formStartDate = new Date().toISOString().split('T')[0];
+		formPeriod = '1';
+		formEndDate = '';
+		formDuration = '';
+		formDurationType = 'month';
+		formRecurrenceType = 'monthly';
+		formWeekday = '';
+		
 		activeTabValue = 'manual';
 	} // Function to handle creating a new category
 	async function handleCreateCategory(event: Event) {
@@ -1000,7 +1019,7 @@
 						Add Transaction
 					</div>
 				</DialogTrigger>
-				<DialogContent class="border-gray-700 bg-gray-800 text-white sm:max-w-[425px]">
+				<DialogContent class="border-gray-700 bg-gray-800 text-white sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
 					<DialogHeader>
 						<DialogTitle>Add New Transaction</DialogTitle>
 						<DialogDescription class="text-gray-400">
@@ -1149,6 +1168,133 @@
 										Recurring Transaction (Optional)
 									</Label>
 								</div>
+
+								<!-- Recurring Transaction Details (Conditional) -->
+								{#if formIsRecurrent}
+									<div class="space-y-4 rounded-lg border border-blue-500/30 bg-blue-900/20 p-4">
+										<h4 class="flex items-center gap-2 text-sm font-semibold text-blue-300">
+											<Repeat class="h-4 w-4" />
+											Recurring Transaction Settings
+										</h4>
+										
+										<!-- Recurrence Type -->
+										<div class="space-y-2">
+											<Label for="recurrenceType" class="text-white">Recurrence Type</Label>
+											<select
+												id="recurrenceType"
+												bind:value={formRecurrenceType}
+												class="w-full rounded-md border border-gray-600 bg-gray-700 px-3 py-2 text-white"
+											>
+												<option value="daily">Daily</option>
+												<option value="weekly">Weekly</option>
+												<option value="monthly">Monthly</option>
+												<option value="yearly">Yearly</option>
+											</select>
+										</div>
+
+										<!-- Period and Weekday Row -->
+										<div class="grid grid-cols-2 gap-4">
+											<div class="space-y-2">
+												<Label for="period" class="text-white">
+													Every 
+													{#if formRecurrenceType === 'daily'}day(s){/if}
+													{#if formRecurrenceType === 'weekly'}week(s){/if}
+													{#if formRecurrenceType === 'monthly'}month(s){/if}
+													{#if formRecurrenceType === 'yearly'}year(s){/if}
+												</Label>
+												<Input
+													id="period"
+													bind:value={formPeriod}
+													type="number"
+													min="1"
+													placeholder="1"
+													class="border-gray-600 bg-gray-700"
+												/>
+											</div>
+											
+											<!-- Weekday selector (only for weekly) -->
+											{#if formRecurrenceType === 'weekly'}
+												<div class="space-y-2">
+													<Label for="weekday" class="text-white">Day of Week</Label>
+													<select
+														id="weekday"
+														bind:value={formWeekday}
+														class="w-full rounded-md border border-gray-600 bg-gray-700 px-3 py-2 text-white"
+													>
+														<option value="">Select day</option>
+														<option value="Sunday">Sunday</option>
+														<option value="Monday">Monday</option>
+														<option value="Tuesday">Tuesday</option>
+														<option value="Wednesday">Wednesday</option>
+														<option value="Thursday">Thursday</option>
+														<option value="Friday">Friday</option>
+														<option value="Saturday">Saturday</option>
+													</select>
+												</div>
+											{/if}
+										</div>
+
+										<!-- Start Date -->
+										<div class="space-y-2">
+											<Label for="startDate" class="text-white">Start Date</Label>
+											<Input
+												id="startDate"
+												bind:value={formStartDate}
+												type="date"
+												class="border-gray-600 bg-gray-700"
+											/>
+										</div>
+
+										<!-- Duration Options -->
+										<div class="space-y-3">
+											<Label class="text-white">Duration (Choose one option)</Label>
+											
+											<!-- Option 1: End Date -->
+											<div class="space-y-2">
+												<Label for="endDate" class="text-sm text-gray-300">Option 1: Set End Date</Label>
+												<Input
+													id="endDate"
+													bind:value={formEndDate}
+													type="date"
+													class="border-gray-600 bg-gray-700"
+													placeholder="Leave empty for no end date"
+												/>
+											</div>
+
+											<!-- Option 2: Duration Count -->
+											<div class="grid grid-cols-2 gap-4">
+												<div class="space-y-2">
+													<Label for="duration" class="text-sm text-gray-300">Option 2: Duration Count</Label>
+													<Input
+														id="duration"
+														bind:value={formDuration}
+														type="number"
+														min="1"
+														placeholder="e.g., 12"
+														class="border-gray-600 bg-gray-700"
+													/>
+												</div>
+												<div class="space-y-2">
+													<Label for="durationType" class="text-sm text-gray-300">Duration Type</Label>
+													<select
+														id="durationType"
+														bind:value={formDurationType}
+														class="w-full rounded-md border border-gray-600 bg-gray-700 px-3 py-2 text-white"
+													>
+														<option value="day">Days</option>
+														<option value="week">Weeks</option>
+														<option value="month">Months</option>
+														<option value="year">Years</option>
+													</select>
+												</div>
+											</div>
+
+											<p class="text-xs text-gray-400">
+												💡 Leave both empty for unlimited recurring transactions
+											</p>
+										</div>
+									</div>
+								{/if}
 								<Button
 									type="submit"
 									disabled={isSaving}
