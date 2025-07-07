@@ -3,12 +3,24 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
-	plugins: [sveltekit(), devtoolsJson()],
-	server: {
-		watch: {
-			usePolling: true
-		},
-		host: '0.0.0.0', // Allow external connections
-		port: 3000 // Use port 3000 instead of 5173
-	}
+  plugins: [sveltekit(), devtoolsJson()],
+  server: {
+    watch: {
+      usePolling: true
+    },
+    host: '0.0.0.0',
+    port: 3000
+  },
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: ['src/setupTests.ts'],
+    include: ['src/**/*.{test,spec}.{js,ts}'],
+    exclude: ['node_modules', 'dist', '.svelte-kit', 'build']
+  },
+  resolve: {
+    alias: {
+      '$lib': new URL('./src/lib', import.meta.url).pathname
+    }
+  }
 });
