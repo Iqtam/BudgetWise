@@ -10,7 +10,7 @@
 		Calendar
 	} from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
-	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
+	import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
@@ -30,11 +30,13 @@
 		SelectTrigger
 	} from '$lib/components/ui/select';
 	import { debtService, type Debt } from '$lib/services/debts';
+	import { balanceService, type Balance } from '$lib/services/balance';
 	import { firebaseUser, loading as authLoading } from '$lib/stores/auth';
 	import { onMount } from 'svelte';
 
 	// State variables
 	let debts = $state<Debt[]>([]);
+	let balance = $state<Balance | null>(null);
 	let isLoading = $state(true);
 	let error = $state<string | null>(null);
 	let successMessage = $state<string | null>(null);
@@ -45,7 +47,7 @@
 	let editingDebt = $state<Debt | null>(null);
 	let currentPage = $state(1);
 	let isSaving = $state(false);
-	let isDeleting = $state(false);
+	let deletingDebtId = $state<string | null>(null);
 	const itemsPerPage = 10;
 
 	// Form fields
@@ -78,8 +80,12 @@
 		isLoading = true;
 		error = null;
 		try {
-			const debtData = await debtService.getAllDebts();
+			const [debtData, balanceData] = await Promise.all([
+				debtService.getAllDebts(),
+				balanceService.getBalance()
+			]);
 			debts = debtData;
+			balance = balanceData;
 		} catch (err) {
 			console.error('Error loading data:', err);
 			error = err instanceof Error ? err.message : 'Failed to load data';
@@ -88,8 +94,11 @@
 		}
 	}
 
+	// Reset current page when debts change
 	$effect(() => {
-		currentPage = 1;
+		if (debts.length > 0) {
+			currentPage = 1;
+		}
 	});
 
 	const getPaginatedDebts = () => {
@@ -107,11 +116,18 @@
 	};
 
 	const paginatedData = $derived(getPaginatedDebts());
-	const totalDebtWithInterest = $derived(debts.reduce((sum, debt) => sum + (debt.amount * (1 + debt.interest_rate / 100)), 0));
+	const totalDebtWithInterest = $derived(debts.filter(debt => !debt.is_fully_paid).reduce((sum, debt) => sum + (parseFloat(debt.amount) || 0), 0));
 	const earliestDeadline = $derived(
 		debts.length === 0 ? 'No debts' : 
 		(() => {
-			const sortedDebts = debts
+			// Filter out fully paid debts
+			const activeDebts = debts.filter(debt => !debt.is_fully_paid);
+			
+			if (activeDebts.length === 0) {
+				return 'All debts paid';
+			}
+			
+			const sortedDebts = [...activeDebts]
 				.sort((a, b) => new Date(a.expiration_date).getTime() - new Date(b.expiration_date).getTime());
 			
 			const earliestDebt = sortedDebts[0];
@@ -123,6 +139,134 @@
 		})()
 	);
 
+	// Get debt insights for alerts and recommendations
+	function getDebtInsights() {
+		if (debts.length === 0) return { alert: null, progress: null, tip: null };
+		
+		const alerts = [];
+		const progressItems = [];
+		const tips = [];
+		
+		const currentBalance = balance && balance.balance !== null && balance.balance !== undefined ? 
+			parseFloat(balance.balance.toString()) : 0;
+		
+		// Check active debts only
+		const activeDebts = debts.filter(debt => !debt.is_fully_paid);
+		
+		for (const debt of activeDebts) {
+			const currentAmount = parseFloat(debt.amount) || 0;
+			const originalAmount = debt.original_amount ? parseFloat(debt.original_amount.toString()) : currentAmount;
+			const paidAmount = originalAmount - currentAmount;
+			const paymentProgress = originalAmount > 0 ? (paidAmount / originalAmount) * 100 : 0;
+			
+			const now = new Date();
+			const startDate = new Date(debt.start_date);
+			const deadlineDate = new Date(debt.expiration_date);
+			
+			// Calculate time progression
+			const totalDays = Math.ceil((deadlineDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+			const daysPassed = Math.max(0, Math.ceil((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
+			const daysRemaining = Math.max(0, Math.ceil((deadlineDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+			const timeElapsed = totalDays > 0 ? (daysPassed / totalDays) * 100 : 0;
+			const timeRemaining = totalDays > 0 ? (daysRemaining / totalDays) * 100 : 0;
+			
+			// Alert 1: Payment progress lagging behind time (half time gone but not half paid)
+			if (timeElapsed >= 50 && paymentProgress < 50) {
+				const progressGap = timeElapsed - paymentProgress;
+				alerts.push({
+					type: 'payment_behind_schedule',
+					severity: progressGap,
+					debt: debt,
+					timeElapsed: timeElapsed,
+					paymentProgress: paymentProgress,
+					progressGap: progressGap
+				});
+			}
+			
+			// Alert 2: Deadline approaching (less than 10% time remaining)
+			if (timeRemaining <= 10 && timeRemaining > 0) {
+				alerts.push({
+					type: 'deadline_approaching',
+					severity: 100 - timeRemaining, // Higher severity as deadline gets closer
+					debt: debt,
+					daysRemaining: daysRemaining,
+					timeRemaining: timeRemaining,
+					currentAmount: currentAmount
+				});
+			}
+			
+			// Alert 3: Debt amount much larger than balance (debt > 5x balance)
+			if (currentBalance > 0 && currentAmount > (currentBalance * 5)) {
+				const debtToBalanceRatio = currentAmount / currentBalance;
+				alerts.push({
+					type: 'debt_exceeds_balance',
+					severity: debtToBalanceRatio,
+					debt: debt,
+					currentAmount: currentAmount,
+					currentBalance: currentBalance,
+					ratio: debtToBalanceRatio
+				});
+			}
+			
+			// Progress: Good payment pace (payment progress ahead of time)
+			if (paymentProgress > timeElapsed + 10 && timeElapsed > 10) {
+				const progressAdvantage = paymentProgress - timeElapsed;
+				progressItems.push({
+					type: 'ahead_of_schedule',
+					debt: debt,
+					paymentProgress: paymentProgress,
+					timeElapsed: timeElapsed,
+					progressAdvantage: progressAdvantage
+				});
+			}
+		}
+		
+		// Generate tips
+		if (activeDebts.length > 0) {
+			// Find the debt with highest interest rate
+			const highestInterestDebt = [...activeDebts].sort((a, b) => 
+				parseFloat(b.interest_rate.toString()) - parseFloat(a.interest_rate.toString())
+			)[0];
+			
+			// Find debts that can be fully paid with current balance
+			const payableDebts = activeDebts.filter(debt => 
+				parseFloat(debt.amount) <= currentBalance
+			).sort((a, b) => parseFloat(a.amount) - parseFloat(b.amount)); // Sort by amount, smallest first
+			
+			if (payableDebts.length > 0) {
+				tips.push({
+					type: 'payoff_opportunity',
+					debt: payableDebts[0], // Suggest paying off the smallest debt first
+					currentBalance: currentBalance
+				});
+			} else if (currentBalance > 0) {
+				tips.push({
+					type: 'prioritize_high_interest',
+					debt: highestInterestDebt,
+					interestRate: parseFloat(highestInterestDebt.interest_rate.toString())
+				});
+			} else {
+				tips.push({
+					type: 'increase_balance',
+					debtCount: activeDebts.length
+				});
+			}
+		}
+		
+		// Sort alerts by severity (highest first)
+		alerts.sort((a, b) => b.severity - a.severity);
+		progressItems.sort((a, b) => b.progressAdvantage - a.progressAdvantage);
+		
+		return {
+			alert: alerts.length > 0 ? alerts[0] : null,
+			progress: progressItems.length > 0 ? progressItems[0] : null,
+			tip: tips.length > 0 ? tips[0] : null
+		};
+	}
+
+	// Get the debt insights as a derived value
+	let debtInsights = $derived(getDebtInsights());
+	
 	async function handleAddDebt(event: Event) {
 		event.preventDefault();
 		
@@ -184,14 +328,33 @@
 			return;
 		}
 
+		if (paymentAmount > parseFloat(selectedDebt.amount)) {
+			error = 'Payment amount cannot exceed total due amount';
+			return;
+		}
+
+		// Check if user has sufficient balance (frontend validation)
+		if (balance && balance.balance !== null && balance.balance !== undefined) {
+			const currentBalance = parseFloat(balance.balance.toString());
+			if (currentBalance < paymentAmount) {
+				error = `Insufficient balance. Current balance: $${currentBalance.toFixed(2)}, Payment amount: $${paymentAmount.toFixed(2)}`;
+				return;
+			}
+		}
+
 		isSaving = true;
 		error = null;
 		try {
-			const newAmount = Math.max(0, selectedDebt.amount - paymentAmount);
+			// Use the new dedicated payment endpoint that handles both debt and balance
+			const paymentResult = await debtService.makePayment(selectedDebt.id, paymentAmount);
 			
-			await debtService.updateDebt(selectedDebt.id, {
-				amount: newAmount
-			});
+			// Update local state with the returned data
+			if (paymentResult.data) {
+				// Update balance from the response
+				if (paymentResult.data.balance) {
+					balance = paymentResult.data.balance;
+				}
+			}
 
 			// Reload data to get updated amounts
 			await loadData();
@@ -199,7 +362,7 @@
 			isPaymentOpen = false;
 			selectedDebt = null;
 			
-			successMessage = `Payment of $${paymentAmount.toLocaleString()} recorded successfully`;
+			successMessage = `Payment of $${paymentAmount.toFixed(2)} recorded successfully`;
 			setTimeout(() => {
 				successMessage = null;
 			}, 3000);
@@ -267,7 +430,7 @@
 			return;
 		}
 
-		isDeleting = true;
+		deletingDebtId = debt.id;
 		error = null;
 		try {
 			await debtService.deleteDebt(debt.id);
@@ -283,19 +446,8 @@
 			console.error('Error deleting debt:', err);
 			error = err instanceof Error ? err.message : 'Failed to delete debt';
 		} finally {
-			isDeleting = false;
+			deletingDebtId = null;
 		}
-	}
-
-	function setMinimumPayment(debt: Debt) {
-		const minimumPayment = debt.amount * 0.02; // 2% minimum payment estimate
-		const input = document.getElementById("amount") as HTMLInputElement;
-		if (input) input.value = minimumPayment.toFixed(2);
-	}
-
-	function setPayoffAmount(debt: Debt) {
-		const input = document.getElementById("amount") as HTMLInputElement;
-		if (input) input.value = debt.amount.toString();
 	}
 
 	function getDebtStatus(amount: number, originalAmount: number) {
@@ -308,13 +460,19 @@
 	}
 
 	// Helper function to calculate remaining time until debt expiration
-	function getRemainingTime(expirationDate: string) {
+	function getRemainingTime(debt: Debt) {
+		// If debt is fully paid, show "Fully paid" with the date
+		if (debt.is_fully_paid && debt.fully_paid_date) {
+			const paidDate = new Date(debt.fully_paid_date).toLocaleDateString();
+			return { formatted: `Fully paid (${paidDate})`, isOverdue: false, isFullyPaid: true };
+		}
+
 		const now = new Date();
-		const expiry = new Date(expirationDate);
+		const expiry = new Date(debt.expiration_date);
 		const timeDiff = expiry.getTime() - now.getTime();
 		
 		if (timeDiff <= 0) {
-			return { formatted: "Overdue", isOverdue: true };
+			return { formatted: "Overdue", isOverdue: true, isFullyPaid: false };
 		}
 		
 		const totalDays = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
@@ -327,7 +485,7 @@
 		if (months > 0) parts.push(`${months}m`);
 		if (days > 0 || parts.length === 0) parts.push(`${days}d`);
 		
-		return { formatted: parts.join(' '), isOverdue: false };
+		return { formatted: parts.join(' '), isOverdue: false, isFullyPaid: false };
 	}
 </script>
 
@@ -569,15 +727,34 @@
 	</Dialog>
 
 	<!-- Debt Overview -->
-	<div class="grid gap-4 md:grid-cols-2">
+	<div class="grid gap-4 md:grid-cols-3">
 		<Card class="bg-gray-900 border-gray-800">
 			<CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
-				<CardTitle class="text-sm font-medium text-white">Total Debt</CardTitle>
+				<CardTitle class="text-sm font-medium text-white">Account Balance</CardTitle>
 				<Wallet class="h-4 w-4 text-gray-400" />
 			</CardHeader>
 			<CardContent>
-				<div class="text-2xl font-bold text-red-600">${totalDebtWithInterest.toLocaleString()}</div>
-				<p class="text-xs text-gray-400">{debts.length} active debts (including interest)</p>
+				{#if balance && balance.balance !== null && balance.balance !== undefined}
+					{@const balanceValue = parseFloat(balance.balance.toString())}
+					<div class="text-2xl font-bold {balanceValue >= 0 ? 'text-green-400' : 'text-red-400'}">
+						${balanceValue.toFixed(2)}
+					</div>
+					<p class="text-xs text-gray-400">Available for payments</p>
+				{:else}
+					<div class="text-2xl font-bold text-gray-400">N/A</div>
+					<p class="text-xs text-gray-400">Balance not available</p>
+				{/if}
+			</CardContent>
+		</Card>
+
+		<Card class="bg-gray-900 border-gray-800">
+			<CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
+				<CardTitle class="text-sm font-medium text-white">Total Debt</CardTitle>
+				<CreditCard class="h-4 w-4 text-gray-400" />
+			</CardHeader>
+			<CardContent>
+				<div class="text-2xl font-bold text-red-600">${(totalDebtWithInterest || 0).toFixed(2)}</div>
+				<p class="text-xs text-gray-400">{debts.filter(debt => !debt.is_fully_paid).length} active of {debts.length} total debts</p>
 			</CardContent>
 		</Card>
 
@@ -613,32 +790,41 @@
 		<CardContent>
 			<div class="space-y-6">
 				{#each paginatedData.debts as debt (debt.id)}
-					{@const debtStatus = getDebtStatus(debt.amount, debt.amount)}
-					{@const timeRemaining = getRemainingTime(debt.expiration_date)}
-					{@const remainingAmountWithInterest = debt.amount * (1 + debt.interest_rate / 100)}
+					{@const originalDebtAmount = debt.original_amount ? parseFloat(debt.original_amount.toString()) : parseFloat(debt.amount) || 0}
+					{@const currentAmount = parseFloat(debt.amount) || 0}
+					{@const paidAmount = originalDebtAmount - currentAmount}
+					{@const debtStatus = getDebtStatus(parseFloat(debt.amount) || 0, originalDebtAmount)}
+					{@const timeRemaining = getRemainingTime(debt)}
 					
 					<div class="border border-gray-700 rounded-lg p-4 bg-gray-800 relative">
 						<!-- Remaining Balance - Top Right Corner -->
 						<div class="absolute top-2 right-2 text-right">
 							<div class="flex items-baseline gap-1">
-								<span class="text-sm text-gray-400">Total Due:</span>
-								<span class="text-lg font-bold text-white">${remainingAmountWithInterest.toLocaleString()}</span>
+								{#if debt.is_fully_paid}
+									<span class="text-sm text-gray-400">Status:</span>
+									<span class="text-lg font-bold text-green-400">Paid</span>
+								{:else}
+									<span class="text-sm text-gray-400">Total Due:</span>
+									<span class="text-lg font-bold text-white">${(parseFloat(debt.amount) || 0).toFixed(2)}</span>
+								{/if}
 							</div>
 						</div>
 
 						<!-- Action Buttons - Right Side, Below Remaining Balance -->
 						<div class="absolute top-20 right-2 flex gap-2">
-							<Button 
-								variant="outline" 
-								size="sm" 
-								onclick={() => {
-									selectedDebt = debt;
-									isPaymentOpen = true;
-								}}
-								class="bg-gray-900 border-2 border-blue-500 text-blue-400 hover:bg-blue-500/20 hover:text-blue-300 font-semibold shadow-lg"
-							>
-								Pay Full Amount
-							</Button>
+							{#if !debt.is_fully_paid}
+								<Button 
+									variant="outline" 
+									size="sm" 
+									onclick={() => {
+										selectedDebt = debt;
+										isPaymentOpen = true;
+									}}
+									class="bg-gray-900 border-2 border-blue-500 text-blue-400 hover:bg-blue-500/20 hover:text-blue-300 font-semibold shadow-lg"
+								>
+									Pay Amount
+								</Button>
+							{/if}
 							<Button 
 								variant="outline" 
 								size="sm" 
@@ -652,11 +838,11 @@
 								variant="outline" 
 								size="sm" 
 								onclick={() => handleDeleteDebt(debt)}
-								disabled={isDeleting}
+								disabled={deletingDebtId === debt.id}
 								class="bg-gray-900 border-2 border-red-500 text-red-400 hover:bg-red-500/20 hover:text-red-300 font-semibold shadow-lg disabled:opacity-50"
 							>
 								<Trash2 class="h-4 w-4 mr-1" />
-								{isDeleting ? 'Deleting...' : 'Delete'}
+								{deletingDebtId === debt.id ? 'Deleting...' : 'Delete'}
 							</Button>
 						</div>
 
@@ -668,13 +854,36 @@
 									<Badge class="{debtStatus.bgColor} {debtStatus.color} border-0">
 										{debtStatus.status}
 									</Badge>
+									{#if debt.is_fully_paid}
+										<Badge class="bg-green-500/20 text-green-400 border-0">
+											Fully Paid
+										</Badge>
+									{/if}
 								</div>
 								<p class="text-sm text-gray-400">
 									{debt.interest_rate}% Interest Rate • Due: {new Date(debt.expiration_date).toLocaleDateString()}
 								</p>
 								<p class="text-xs text-gray-500">From: {debt.taken_from}</p>
+								<!-- Show original total debt amount -->
+								<p class="text-xs text-blue-300 font-medium">
+									Original debt: ${originalDebtAmount.toFixed(2)}
+								</p>
+								{#if paidAmount > 0 || debt.last_payment_date}
+									<div class="flex items-center gap-4">
+										{#if paidAmount > 0}
+											<p class="text-xs text-green-300 font-medium">
+												Paid so far: ${paidAmount.toFixed(2)}
+											</p>
+										{/if}
+										{#if debt.last_payment_date}
+											<p class="text-xs text-green-300 font-medium">
+												Last paid: {new Date(debt.last_payment_date).toLocaleDateString()}
+											</p>
+										{/if}
+									</div>
+								{/if}
 								<div class="mt-2">
-									<span class="text-base font-medium {timeRemaining.isOverdue ? 'text-red-400' : 'text-blue-400'}">
+									<span class="text-base font-medium {timeRemaining.isFullyPaid ? 'text-green-400' : timeRemaining.isOverdue ? 'text-red-400' : 'text-blue-400'}">
 										Time remaining: {timeRemaining.formatted}
 									</span>
 								</div>
@@ -745,6 +954,102 @@
 		</CardContent>
 	</Card>
 
+	<!-- Debt Insights -->
+	<Card class="bg-gray-900 border-gray-800">
+		<CardHeader>
+			<CardTitle class="text-white">Debt Insights</CardTitle>
+			<CardDescription class="text-gray-400">AI-powered recommendations for your debt management</CardDescription>
+		</CardHeader>
+		<CardContent>
+			<div class="space-y-4">
+				<!-- Alert Box (Red/Yellow) -->
+				{#if debtInsights.alert}
+					{#if debtInsights.alert.type === 'payment_behind_schedule'}
+						<div class="p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
+							<h4 class="font-semibold text-red-400">Payment Behind Schedule</h4>
+							<p class="text-sm text-gray-300 mt-1">
+								Your {debtInsights.alert.debt.description} debt is {debtInsights.alert.progressGap.toFixed(0)}% behind schedule. 
+								{debtInsights.alert.timeElapsed.toFixed(0)}% of time has passed but only {debtInsights.alert.paymentProgress.toFixed(0)}% has been paid. 
+								Consider increasing your payment amount to stay on track.
+							</p>
+						</div>
+					{:else if debtInsights.alert.type === 'deadline_approaching'}
+						<div class="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+							<h4 class="font-semibold text-yellow-400">Deadline Approaching</h4>
+							<p class="text-sm text-gray-300 mt-1">
+								Your {debtInsights.alert.debt.description} debt is due in {debtInsights.alert.daysRemaining} day{debtInsights.alert.daysRemaining !== 1 ? 's' : ''}! 
+								You still owe ${debtInsights.alert.currentAmount.toFixed(2)}. Take immediate action to avoid penalties.
+							</p>
+						</div>
+					{:else if debtInsights.alert.type === 'debt_exceeds_balance'}
+						<div class="p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
+							<h4 class="font-semibold text-red-400">Debt Significantly Exceeds Balance</h4>
+							<p class="text-sm text-gray-300 mt-1">
+								Your {debtInsights.alert.debt.description} debt (${debtInsights.alert.currentAmount.toFixed(2)}) is {debtInsights.alert.ratio.toFixed(1)}x larger than your current balance (${debtInsights.alert.currentBalance.toFixed(2)}). 
+								Consider increasing your income or creating a structured payment plan.
+							</p>
+						</div>
+					{/if}
+				{:else}
+					<div class="p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
+						<h4 class="font-semibold text-green-400">All Clear!</h4>
+						<p class="text-sm text-gray-300 mt-1">
+							{debts.filter(debt => !debt.is_fully_paid).length === 0 ? 
+								'Congratulations! All your debts are fully paid.' : 
+								'No debt alerts at this time. Your debt management is on track!'}
+						</p>
+					</div>
+				{/if}
+
+				<!-- Progress Box (Green) - Only show if there's good progress -->
+				{#if debtInsights.progress}
+					<div class="p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
+						<h4 class="font-semibold text-green-400">Excellent Progress!</h4>
+						<p class="text-sm text-gray-300 mt-1">
+							Outstanding work on your {debtInsights.progress.debt.description} debt! You're {debtInsights.progress.progressAdvantage.toFixed(0)}% ahead of schedule. 
+							You've paid {debtInsights.progress.paymentProgress.toFixed(0)}% while only {debtInsights.progress.timeElapsed.toFixed(0)}% of the time period has passed.
+						</p>
+					</div>
+				{/if}
+
+				<!-- Tip Box (Blue) -->
+				{#if debtInsights.tip}
+					{#if debtInsights.tip.type === 'payoff_opportunity'}
+						<div class="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+							<h4 class="font-semibold text-blue-400">Payoff Opportunity</h4>
+							<p class="text-sm text-gray-300 mt-1">
+								You can fully pay off your {debtInsights.tip.debt.description} debt (${parseFloat(debtInsights.tip.debt.amount).toFixed(2)}) with your current balance (${debtInsights.tip.currentBalance.toFixed(2)}). 
+								Paying off smaller debts first can provide psychological momentum and reduce your total debt count.
+							</p>
+						</div>
+					{:else if debtInsights.tip.type === 'prioritize_high_interest'}
+						<div class="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+							<h4 class="font-semibold text-blue-400">Focus on High Interest</h4>
+							<p class="text-sm text-gray-300 mt-1">
+								Consider prioritizing payments on your {debtInsights.tip.debt.description} debt with {debtInsights.tip.interestRate.toFixed(1)}% interest rate. 
+								Higher interest debts cost more over time, so paying them faster saves money in the long run.
+							</p>
+						</div>
+					{:else if debtInsights.tip.type === 'increase_balance'}
+						<div class="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+							<h4 class="font-semibold text-blue-400">Increase Available Balance</h4>
+							<p class="text-sm text-gray-300 mt-1">
+								With {debtInsights.tip.debtCount} active debt{debtInsights.tip.debtCount > 1 ? 's' : ''} and limited balance, consider increasing your income or reducing expenses to have more funds available for debt payments.
+							</p>
+						</div>
+					{/if}
+				{:else}
+					<div class="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+						<h4 class="font-semibold text-blue-400">Debt Management Tip</h4>
+						<p class="text-sm text-gray-300 mt-1">
+							Consider the debt avalanche method: pay minimums on all debts, then put extra money toward the highest interest rate debt first to minimize total interest paid.
+						</p>
+					</div>
+				{/if}
+			</div>
+		</CardContent>
+	</Card>
+
 	<!-- Make Payment Dialog -->
 	<Dialog bind:open={isPaymentOpen}>
 		<DialogContent class="bg-gray-800 border-gray-700 text-white">
@@ -752,7 +1057,13 @@
 				<DialogTitle>Make Payment - {selectedDebt?.description}</DialogTitle>
 				<DialogDescription class="text-gray-400">
 					{#if selectedDebt}
-						Current balance: ${selectedDebt.amount.toLocaleString()}
+						Current debt balance: ${(parseFloat(selectedDebt.amount) || 0).toFixed(2)}
+						<br />
+						{#if balance && balance.balance !== null && balance.balance !== undefined}
+							Your account balance: ${parseFloat(balance.balance.toString()).toFixed(2)}
+						{:else}
+							Account balance: Not available
+						{/if}
 					{/if}
 				</DialogDescription>
 			</DialogHeader>
@@ -764,42 +1075,109 @@
 						name="amount"
 						type="number"
 						step="0.01"
-						placeholder={selectedDebt ? (selectedDebt.amount * 0.02).toFixed(2) : "0.00"}
+						placeholder={selectedDebt ? (parseFloat(selectedDebt.amount) * 0.02).toFixed(2) : "0.00"}
 						min={0}
-						max={selectedDebt?.amount}
+						max={selectedDebt ? parseFloat(selectedDebt.amount) : undefined}
 						required
 						class="bg-gray-700 border-gray-600"
 					/>
-				</div>
-				<div class="flex gap-2">
-					{#if selectedDebt}
-						<Button
-							type="button"
-							variant="outline"
-							onclick={() => setMinimumPayment(selectedDebt)}
-							class="border-gray-600 text-gray-300 hover:bg-gray-700"
-						>
-							Minimum (${(selectedDebt.amount * 0.02).toFixed(0)})
-						</Button>
-						<Button
-							type="button"
-							variant="outline"
-							onclick={() => setPayoffAmount(selectedDebt)}
-							class="border-gray-600 text-gray-300 hover:bg-gray-700"
-						>
-							Pay Off (${selectedDebt.amount.toLocaleString()})
-						</Button>
+					{#if balance && balance.balance !== null && balance.balance !== undefined}
+						{@const availableBalance = parseFloat(balance.balance.toString())}
+						{#if availableBalance <= 0}
+							<p class="text-sm text-red-400">⚠️ Insufficient balance for any payment</p>
+						{:else if selectedDebt && availableBalance < parseFloat(selectedDebt.amount)}
+							<p class="text-sm text-yellow-400">⚠️ Balance lower than total due amount. Max payment: ${availableBalance.toFixed(2)}</p>
+						{/if}
 					{/if}
+				</div>
+				<div class="space-y-3">
+					<Label class="text-sm font-medium">Quick Payment Options</Label>
+					<div class="grid grid-cols-3 gap-2">
+						{#if selectedDebt}
+							{@const availableBalance = balance && balance.balance !== null && balance.balance !== undefined ? parseFloat(balance.balance.toString()) : 0}
+							{@const debtAmount = parseFloat(selectedDebt.amount)}
+							
+							<!-- $10 Button -->
+							<Button
+								type="button"
+								variant="outline"
+								onclick={() => {
+									const input = document.getElementById("amount");
+									if (input && 'value' in input) input.value = "10.00";
+								}}
+								disabled={availableBalance < 10 || debtAmount < 10}
+								class="bg-transparent border-gray-600 text-gray-300 hover:bg-gray-600 hover:text-white disabled:opacity-50 transition-all"
+							>
+								$10
+							</Button>
+							
+							<!-- $20 Button -->
+							<Button
+								type="button"
+								variant="outline"
+								onclick={() => {
+									const input = document.getElementById("amount");
+									if (input && 'value' in input) input.value = "20.00";
+								}}
+								disabled={availableBalance < 20 || debtAmount < 20}
+								class="bg-transparent border-gray-600 text-gray-300 hover:bg-gray-600 hover:text-white disabled:opacity-50 transition-all"
+							>
+								$20
+							</Button>
+							
+							<!-- $50 Button -->
+							<Button
+								type="button"
+								variant="outline"
+								onclick={() => {
+									const input = document.getElementById("amount");
+									if (input && 'value' in input) input.value = "50.00";
+								}}
+								disabled={availableBalance < 50 || debtAmount < 50}
+								class="bg-transparent border-gray-600 text-gray-300 hover:bg-gray-600 hover:text-white disabled:opacity-50 transition-all"
+							>
+								$50
+							</Button>
+							
+							<!-- $100 Button -->
+							<Button
+								type="button"
+								variant="outline"
+								onclick={() => {
+									const input = document.getElementById("amount");
+									if (input && 'value' in input) input.value = "100.00";
+								}}
+								disabled={availableBalance < 100 || debtAmount < 100}
+								class="bg-transparent border-gray-600 text-gray-300 hover:bg-gray-600 hover:text-white disabled:opacity-50 transition-all"
+							>
+								$100
+							</Button>
+							
+							<!-- Pay Off Button (remaining amount) -->
+							<Button
+								type="button"
+								variant="outline"
+								onclick={() => {
+									const input = document.getElementById("amount");
+									if (input && 'value' in input) input.value = debtAmount.toFixed(2);
+								}}
+								disabled={availableBalance < debtAmount}
+								class="bg-transparent border-green-500 text-green-300 hover:bg-green-500 hover:text-white disabled:opacity-50 col-span-2 transition-all"
+							>
+								Pay Off (${debtAmount.toFixed(2)})
+							</Button>
+						{/if}
+					</div>
 				</div>
 				<div class="flex gap-2">
 					<Button
 						type="button"
-						variant="outline"
+						variant="secondary"
 						onclick={() => {
 							isPaymentOpen = false;
 							selectedDebt = null;
 						}}
-						class="flex-1 border-gray-600 text-gray-300 hover:bg-gray-700"
+						class="flex-1 bg-gray-800 text-white hover:bg-gray-700 border-gray-600"
 					>
 						Cancel
 					</Button>

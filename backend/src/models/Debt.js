@@ -41,8 +41,24 @@ const Debt = sequelize.define('Debt', {
     type: DataTypes.DECIMAL(12, 2),
     allowNull: false
   },
+  original_amount: {
+    type: DataTypes.DECIMAL(12, 2),
+    allowNull: true
+  },
   taken_from: {
     type: DataTypes.STRING(50)
+  },
+  is_fully_paid: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
+  },
+  fully_paid_date: {
+    type: DataTypes.DATEONLY,
+    allowNull: true
+  },
+  last_payment_date: {
+    type: DataTypes.DATEONLY,
+    allowNull: true
   }
 }, {
   tableName: 'debt',
