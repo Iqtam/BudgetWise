@@ -215,7 +215,7 @@
 					totalGoals: activeGoals.length,
 					highPriorityGoal: lowProgressGoals[0]
 				};
-			}
+		}
 		}
 		
 		return { alert, progress, tip };
@@ -1107,9 +1107,9 @@
 
 				<!-- Progress Box (Green) -->
 				{#if savingsInsights.progress && savingsInsights.progress.type === 'on_track'}
-					<div class="p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
-						<h4 class="font-semibold text-green-400">On Track</h4>
-						<p class="text-sm text-gray-300 mt-1">
+				<div class="p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
+					<h4 class="font-semibold text-green-400">On Track</h4>
+					<p class="text-sm text-gray-300 mt-1">
 							{#if savingsInsights.progress.monthsEarly > 0}
 								🎯 At your current rate, you'll reach your <strong>{savingsInsights.progress.goal.description}</strong> goal 
 								{savingsInsights.progress.monthsEarly} month{savingsInsights.progress.monthsEarly > 1 ? 's' : ''} early. 
@@ -1117,8 +1117,8 @@
 							{:else}
 								💪 You're on track to reach your <strong>{savingsInsights.progress.goal.description}</strong> goal!
 							{/if}
-						</p>
-					</div>
+					</p>
+				</div>
 				{/if}
 
 				<!-- Default On Track (if no specific alerts or progress) -->
@@ -1147,19 +1147,19 @@
 				<!-- Tip Box (Blue/Yellow) -->
 				{#if savingsInsights.tip}
 					{#if savingsInsights.tip.type === 'automatic_transfer'}
-						<div class="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-							<h4 class="font-semibold text-blue-400">Optimization Tip</h4>
-							<p class="text-sm text-gray-300 mt-1">
+				<div class="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+					<h4 class="font-semibold text-blue-400">Optimization Tip</h4>
+					<p class="text-sm text-gray-300 mt-1">
 								Consider setting up automatic transfers of ${savingsInsights.tip.recommendedAmount}/month to stay on track with your <strong>{savingsInsights.tip.goal.description}</strong> goal.
-							</p>
-						</div>
+					</p>
+				</div>
 					{:else if savingsInsights.tip.type === 'reduce_low_priority'}
-						<div class="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
-							<h4 class="font-semibold text-yellow-400">Priority Adjustment</h4>
-							<p class="text-sm text-gray-300 mt-1">
+				<div class="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+					<h4 class="font-semibold text-yellow-400">Priority Adjustment</h4>
+					<p class="text-sm text-gray-300 mt-1">
 								You have {savingsInsights.tip.totalGoals} goals and your <strong>{savingsInsights.tip.highPriorityGoal.description}</strong> goal is under 30% complete. Consider reducing contributions to low-priority goals temporarily.
-							</p>
-						</div>
+					</p>
+				</div>
 					{/if}
 				{:else}
 					<div class="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">

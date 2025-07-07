@@ -1055,7 +1055,7 @@
 						</Button>
 					</div>
 				{/if}
-				<Dialog bind:open={isDialogOpen}>
+			<Dialog bind:open={isDialogOpen}>
 				<DialogTrigger>
 					<div
 						class="ring-offset-background focus-visible:ring-ring inline-flex h-10 cursor-pointer items-center justify-center whitespace-nowrap rounded-md bg-gradient-to-r from-blue-500 to-green-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:from-blue-600 hover:to-green-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
@@ -1364,13 +1364,13 @@
 									<div class="space-y-4">
 										<!-- Chat Input Area -->
 										<div class="space-y-4">
-											<div class="text-center">
-												<MessageSquare class="mx-auto mb-4 h-12 w-12 text-gray-400" />
-												<h3 class="mb-2 text-lg font-medium text-white">Chat Input</h3>
+									<div class="text-center">
+										<MessageSquare class="mx-auto mb-4 h-12 w-12 text-gray-400" />
+										<h3 class="mb-2 text-lg font-medium text-white">Chat Input</h3>
 												<p class="mb-4 text-gray-400">
 													Describe your transaction in natural language
 												</p>
-											</div>
+									</div>
 
 											<div class="space-y-3">
 												<Label for="chatMessage">Describe your transaction</Label>
@@ -1397,7 +1397,7 @@
 														Process Transaction
 													{/if}
 												</Button>
-											</div>
+								</div>
 										</div>
 
 										{#if chatError}
@@ -1862,7 +1862,7 @@
 											<span class="px-2 text-gray-400">...</span>
 											<Button
 												variant="outline"
-											size="sm"
+												size="sm"
 												onclick={() => (currentPage = paginatedData.totalPages)}
 												class={currentPage === paginatedData.totalPages
 													? 'border-blue-500 bg-blue-600 text-white hover:bg-blue-700'
