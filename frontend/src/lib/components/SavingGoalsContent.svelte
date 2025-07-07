@@ -127,19 +127,102 @@
 		return goal.completed || startAmount >= targetAmount;
 	}).length);
 
-	// Debug logging for calculated values
-	$effect(() => {
-		if (!isLoading && goals.length > 0) {
-			console.log('=== Calculated Values Debug ===');
-			console.log('Goals array:', goals);
-			console.log('Total Targets (raw):', totalTargets);
-			console.log('Total Saved (raw):', totalSaved);
-			console.log('Total Targets (formatted):', formatCurrency(totalTargets));
-			console.log('Total Saved (formatted):', formatCurrency(totalSaved));
-			console.log('Overall Progress:', overallProgress);
-			console.log('Completed Goals:', completedGoals);
+	// Calculate savings insights based on your rules
+	function getSavingsInsights() {
+		if (goals.length === 0) return { alert: null, progress: null, tip: null };
+		
+		// Find the most relevant goal to give insights about - exclude completed goals
+		const activeGoals = goals.filter(goal => {
+			const currentAmount = safeParseFloat(goal.start_amount);
+			const targetAmount = safeParseFloat(goal.target_amount);
+			const isActuallyCompleted = goal.completed || currentAmount >= targetAmount;
+			
+			return !isActuallyCompleted && 
+				targetAmount > 0 &&
+				goal.description && 
+				goal.description.trim() !== '';
+		});
+		
+		if (activeGoals.length === 0) {
+			// All goals are completed or no valid goals
+			return { alert: null, progress: null, tip: null };
 		}
-	});
+		
+		// Pick the first active goal for simplicity
+		const primaryGoal = activeGoals[0];
+		const currentAmount = safeParseFloat(primaryGoal.start_amount);
+		const targetAmount = safeParseFloat(primaryGoal.target_amount);
+		const now = new Date();
+		const endDate = new Date(primaryGoal.end_date);
+		const startDate = new Date(primaryGoal.start_date);
+		
+		// Calculate basic metrics
+		const progressPercentage = targetAmount > 0 ? (currentAmount / targetAmount) * 100 : 0;
+		const remainingAmount = Math.max(0, targetAmount - currentAmount);
+		const totalDays = Math.max(1, (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+		const elapsedDays = Math.max(0, (now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+		const remainingDays = Math.max(1, totalDays - elapsedDays);
+		const remainingMonths = remainingDays / 30.44;
+		const requiredMonthlySavings = remainingAmount / remainingMonths;
+		
+		// Time elapsed percentage
+		const timeElapsedPercentage = (elapsedDays / totalDays) * 100;
+		
+		let alert = null;
+		let progress = null;
+		let tip = null;
+		
+		// Alert: Check if falling behind
+		if (progressPercentage < 10 && timeElapsedPercentage > 25) {
+			alert = {
+				type: 'falling_behind',
+				goal: primaryGoal,
+				requiredMonthlySavings: Math.round(requiredMonthlySavings),
+				currentProgress: Math.round(progressPercentage)
+			};
+		}
+		
+		// Progress: Check if doing well
+		if (progressPercentage >= 25 && progressPercentage > timeElapsedPercentage) {
+			const monthsAhead = Math.max(0, (progressPercentage - timeElapsedPercentage) / 100 * (totalDays / 30.44));
+			progress = {
+				type: 'on_track',
+				goal: primaryGoal,
+				monthsEarly: Math.round(monthsAhead),
+				currentRate: Math.round(currentAmount / Math.max(1, elapsedDays / 30.44))
+			};
+		}
+		
+		// Tip: Always provide optimization tip for active goals
+		if (remainingAmount > 0) {
+			tip = {
+				type: 'automatic_transfer',
+				goal: primaryGoal,
+				recommendedAmount: Math.round(requiredMonthlySavings)
+			};
+		}
+		
+		// Priority adjustment for multiple goals
+		if (activeGoals.length > 3) {
+			const lowProgressGoals = activeGoals.filter(goal => {
+				const progress = (safeParseFloat(goal.start_amount) / safeParseFloat(goal.target_amount)) * 100;
+				return progress < 30;
+			});
+			
+			if (lowProgressGoals.length > 0) {
+				tip = {
+					type: 'reduce_low_priority',
+					totalGoals: activeGoals.length,
+					highPriorityGoal: lowProgressGoals[0]
+				};
+			}
+		}
+		
+		return { alert, progress, tip };
+	}
+
+	// Get the savings insights as a derived value
+	let savingsInsights = $derived(getSavingsInsights());
 
 	async function handleAddGoal(event: Event) {
 		event.preventDefault();
@@ -1010,26 +1093,82 @@
 		</CardHeader>
 		<CardContent>
 			<div class="space-y-4">
-				<div class="p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
-					<h4 class="font-semibold text-green-400">On Track</h4>
-					<p class="text-sm text-gray-300 mt-1">
-						Your Emergency Fund is progressing well! At your current savings rate, you'll reach your goal 2 months early.
-					</p>
-				</div>
+				<!-- Alert Box (Red) -->
+				{#if savingsInsights.alert && savingsInsights.alert.type === 'falling_behind'}
+					<div class="p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
+						<h4 class="font-semibold text-red-400">Alert</h4>
+						<p class="text-sm text-gray-300 mt-1">
+							You are falling behind on your <strong>{savingsInsights.alert.goal.description}</strong> goal. 
+							Your current progress is {savingsInsights.alert.currentProgress}%. You need to save 
+							${savingsInsights.alert.requiredMonthlySavings}/month to reach your target.
+						</p>
+					</div>
+				{/if}
 
-				<div class="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-					<h4 class="font-semibold text-blue-400">Optimization Tip</h4>
-					<p class="text-sm text-gray-300 mt-1">
-						Consider setting up automatic transfers of $200/month to accelerate your Vacation Fund progress.
-					</p>
-				</div>
+				<!-- Progress Box (Green) -->
+				{#if savingsInsights.progress && savingsInsights.progress.type === 'on_track'}
+					<div class="p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
+						<h4 class="font-semibold text-green-400">On Track</h4>
+						<p class="text-sm text-gray-300 mt-1">
+							{#if savingsInsights.progress.monthsEarly > 0}
+								🎯 At your current rate, you'll reach your <strong>{savingsInsights.progress.goal.description}</strong> goal 
+								{savingsInsights.progress.monthsEarly} month{savingsInsights.progress.monthsEarly > 1 ? 's' : ''} early. 
+								You're saving ${savingsInsights.progress.currentRate}/month which puts you ahead of schedule.
+							{:else}
+								💪 You're on track to reach your <strong>{savingsInsights.progress.goal.description}</strong> goal!
+							{/if}
+						</p>
+					</div>
+				{/if}
 
-				<div class="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
-					<h4 class="font-semibold text-yellow-400">Priority Adjustment</h4>
-					<p class="text-sm text-gray-300 mt-1">
-						Focus on your high-priority goals first. Consider reducing contributions to low-priority goals temporarily.
-					</p>
-				</div>
+				<!-- Default On Track (if no specific alerts or progress) -->
+				{#if !savingsInsights.alert && !savingsInsights.progress}
+					{@const completedGoalsCount = goals.filter(g => g.completed || safeParseFloat(g.start_amount) >= safeParseFloat(g.target_amount)).length}
+					{@const totalGoalsCount = goals.length}
+					
+					{#if completedGoalsCount === totalGoalsCount && totalGoalsCount > 0}
+						<div class="p-4 bg-gradient-to-r from-green-500/10 to-blue-500/10 border border-green-500/20 rounded-lg">
+							<h4 class="font-semibold text-green-400">🎉 Congratulations!</h4>
+							<p class="text-sm text-gray-300 mt-1">
+								All your savings goals are completed! You've successfully saved {formatCurrency(totalSaved)}. 
+								Consider setting new financial goals to continue building your wealth.
+							</p>
+						</div>
+					{:else}
+						<div class="p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
+							<h4 class="font-semibold text-green-400">On Track</h4>
+							<p class="text-sm text-gray-300 mt-1">
+								Your savings goals are progressing well. Keep up the great work!
+							</p>
+						</div>
+					{/if}
+				{/if}
+
+				<!-- Tip Box (Blue/Yellow) -->
+				{#if savingsInsights.tip}
+					{#if savingsInsights.tip.type === 'automatic_transfer'}
+						<div class="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+							<h4 class="font-semibold text-blue-400">Optimization Tip</h4>
+							<p class="text-sm text-gray-300 mt-1">
+								Consider setting up automatic transfers of ${savingsInsights.tip.recommendedAmount}/month to stay on track with your <strong>{savingsInsights.tip.goal.description}</strong> goal.
+							</p>
+						</div>
+					{:else if savingsInsights.tip.type === 'reduce_low_priority'}
+						<div class="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+							<h4 class="font-semibold text-yellow-400">Priority Adjustment</h4>
+							<p class="text-sm text-gray-300 mt-1">
+								You have {savingsInsights.tip.totalGoals} goals and your <strong>{savingsInsights.tip.highPriorityGoal.description}</strong> goal is under 30% complete. Consider reducing contributions to low-priority goals temporarily.
+							</p>
+						</div>
+					{/if}
+				{:else}
+					<div class="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+						<h4 class="font-semibold text-blue-400">Optimization Tip</h4>
+						<p class="text-sm text-gray-300 mt-1">
+							Set specific, measurable goals with realistic timelines to stay motivated and track your progress effectively.
+						</p>
+					</div>
+				{/if}
 			</div>
 		</CardContent>
 	</Card>
