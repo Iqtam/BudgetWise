@@ -9,7 +9,7 @@
 		Trash2
 	} from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
-	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
+	import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
@@ -215,14 +215,157 @@
 					totalGoals: activeGoals.length,
 					highPriorityGoal: lowProgressGoals[0]
 				};
+			}
 		}
+	};
+
+	// Get saving goals insights for alerts and recommendations
+	function getSavingInsights() {
+		if (goals.length === 0) return { alert: null, progress: null, tip: null };
+		
+		const alerts = [];
+		const progressItems = [];
+		const tips = [];
+		
+		const currentBalance = balance && balance.balance !== null && balance.balance !== undefined ? 
+			parseFloat(balance.balance.toString()) : 0;
+		
+		// Check active goals only (not completed)
+		const activeGoals = goals.filter(goal => !goal.completed);
+		
+		for (const goal of activeGoals) {
+			const currentAmount = safeParseFloat(goal.start_amount);
+			const targetAmount = safeParseFloat(goal.target_amount);
+			const remainingAmount = Math.max(0, targetAmount - currentAmount);
+			const progress = targetAmount > 0 ? (currentAmount / targetAmount) * 100 : 0;
+			
+			const now = new Date();
+			const startDate = new Date(goal.start_date);
+			const endDate = new Date(goal.end_date);
+			
+			// Calculate time progression
+			const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+			const daysPassed = Math.max(0, Math.ceil((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
+			const daysRemaining = Math.max(0, Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+			const timeElapsed = totalDays > 0 ? (daysPassed / totalDays) * 100 : 0;
+			const timeRemaining = totalDays > 0 ? (daysRemaining / totalDays) * 100 : 0;
+			
+			// Alert 1: Saving speed doesn't match time limit (time > progress by significant margin)
+			if (timeElapsed >= 25 && timeElapsed > progress + 15) { // At least 25% time passed and 15% gap
+				const progressGap = timeElapsed - progress;
+				alerts.push({
+					type: 'saving_behind_schedule',
+					severity: progressGap,
+					goal: goal,
+					timeElapsed: timeElapsed,
+					progress: progress,
+					progressGap: progressGap,
+					remainingAmount: remainingAmount,
+					daysRemaining: daysRemaining
+				});
+			}
+			
+			// Alert 2: Balance is insufficient for goal's remaining amount
+			if (currentBalance > 0 && remainingAmount > currentBalance * 2) { // Remaining > 2x balance
+				const balanceGap = remainingAmount / currentBalance;
+				alerts.push({
+					type: 'insufficient_balance',
+					severity: balanceGap,
+					goal: goal,
+					currentBalance: currentBalance,
+					remainingAmount: remainingAmount,
+					balanceGap: balanceGap
+				});
+			}
+			
+			// Alert 3: Goal deadline approaching with significant amount remaining
+			if (timeRemaining <= 15 && timeRemaining > 0 && progress < 80) { // <15% time left, <80% progress
+				alerts.push({
+					type: 'deadline_approaching',
+					severity: 100 - timeRemaining + (100 - progress), // Combined urgency score
+					goal: goal,
+					daysRemaining: daysRemaining,
+					timeRemaining: timeRemaining,
+					progress: progress,
+					remainingAmount: remainingAmount
+				});
+			}
+			
+			// Progress: Good saving pace (progress ahead of time)
+			if (progress > timeElapsed + 10 && timeElapsed > 10) { // At least 10% ahead
+				const progressAdvantage = progress - timeElapsed;
+				progressItems.push({
+					type: 'ahead_of_schedule',
+					goal: goal,
+					progress: progress,
+					timeElapsed: timeElapsed,
+					progressAdvantage: progressAdvantage,
+					daysRemaining: daysRemaining
+				});
+			}
 		}
 		
-		return { alert, progress, tip };
+		// Generate tips
+		if (activeGoals.length > 0) {
+			// Find goals that can be completed with current balance
+			const achievableGoals = activeGoals.filter(goal => {
+				const remainingAmount = safeParseFloat(goal.target_amount) - safeParseFloat(goal.start_amount);
+				return remainingAmount <= currentBalance;
+			}).sort((a, b) => {
+				const remainingA = safeParseFloat(a.target_amount) - safeParseFloat(a.start_amount);
+				const remainingB = safeParseFloat(b.target_amount) - safeParseFloat(b.start_amount);
+				return remainingA - remainingB; // Sort by smallest remaining amount first
+			});
+			
+			// Find goals closest to deadline
+			const urgentGoals = [...activeGoals].sort((a, b) => {
+				const daysRemainingA = Math.ceil((new Date(a.end_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+				const daysRemainingB = Math.ceil((new Date(b.end_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+				return daysRemainingA - daysRemainingB;
+			});
+			
+			if (achievableGoals.length > 0) {
+				tips.push({
+					type: 'completion_opportunity',
+					goal: achievableGoals[0],
+					currentBalance: currentBalance,
+					remainingAmount: safeParseFloat(achievableGoals[0].target_amount) - safeParseFloat(achievableGoals[0].start_amount)
+				});
+			} else if (urgentGoals.length > 0) {
+				const urgentGoal = urgentGoals[0];
+				const daysRemaining = Math.ceil((new Date(urgentGoal.end_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+				const remainingAmount = safeParseFloat(urgentGoal.target_amount) - safeParseFloat(urgentGoal.start_amount);
+				const dailyRequired = daysRemaining > 0 ? remainingAmount / daysRemaining : remainingAmount;
+				
+				tips.push({
+					type: 'prioritize_urgent',
+					goal: urgentGoal,
+					daysRemaining: daysRemaining,
+					dailyRequired: dailyRequired,
+					remainingAmount: remainingAmount
+				});
+			} else if (currentBalance > 0) {
+				tips.push({
+					type: 'allocate_balance',
+					currentBalance: currentBalance,
+					goalCount: activeGoals.length
+				});
+			}
+		}
+		
+		// Sort alerts by severity (highest first)
+		alerts.sort((a, b) => b.severity - a.severity);
+		progressItems.sort((a, b) => b.progressAdvantage - a.progressAdvantage);
+		
+		return {
+			alert: alerts.length > 0 ? alerts[0] : null,
+			progress: progressItems.length > 0 ? progressItems[0] : null,
+			tip: tips.length > 0 ? tips[0] : null
+		};
 	}
 
-	// Get the savings insights as a derived value
-	let savingsInsights = $derived(getSavingsInsights());
+	// Get the saving insights as a derived value
+	let savingInsights = $derived(getSavingInsights());
 
 	async function handleAddGoal(event: Event) {
 		event.preventDefault();
@@ -1042,7 +1185,7 @@
 							-$20
 						</Button>
 						<Button
-							type="button"
+						 type="button"
 							variant="outline"
 							onclick={() => setQuickAmount("-50")}
 							class="bg-transparent text-red-300 border-red-400 hover:bg-red-950 hover:text-red-200 hover:border-red-300 rounded-md transition-all duration-200"
@@ -1089,83 +1232,92 @@
 	<Card class="bg-gray-900 border-gray-800">
 		<CardHeader>
 			<CardTitle class="text-white">Goal Insights</CardTitle>
-			<div class="text-gray-400">AI-powered recommendations for your savings goals</div>
+			<CardDescription class="text-gray-400">AI-powered recommendations for your savings goals</CardDescription>
 		</CardHeader>
 		<CardContent>
 			<div class="space-y-4">
-				<!-- Alert Box (Red) -->
-				{#if savingsInsights.alert && savingsInsights.alert.type === 'falling_behind'}
-					<div class="p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
-						<h4 class="font-semibold text-red-400">Alert</h4>
+				<!-- Alert Box (Red/Yellow) -->
+				{#if savingInsights.alert}
+					{#if savingInsights.alert.type === 'saving_behind_schedule'}
+						<div class="p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
+							<h4 class="font-semibold text-red-400">Saving Behind Schedule</h4>
+							<p class="text-sm text-gray-300 mt-1">
+								Your {savingInsights.alert.goal.description} goal is {savingInsights.alert.progressGap.toFixed(0)}% behind schedule. 
+								{savingInsights.alert.timeElapsed.toFixed(0)}% of time has passed but only {savingInsights.alert.progress.toFixed(0)}% is saved. 
+								You need to save ${savingInsights.alert.remainingAmount.toFixed(2)} in {savingInsights.alert.daysRemaining} days.
+							</p>
+						</div>
+					{:else if savingInsights.alert.type === 'insufficient_balance'}
+						<div class="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+							<h4 class="font-semibold text-yellow-400">Balance Insufficient for Goal</h4>
+							<p class="text-sm text-gray-300 mt-1">
+								Your {savingInsights.alert.goal.description} goal requires ${savingInsights.alert.remainingAmount.toFixed(2)} more, but your current balance is only ${savingInsights.alert.currentBalance.toFixed(2)}. 
+								Consider increasing your income or adjusting the goal target.
+							</p>
+						</div>
+					{:else if savingInsights.alert.type === 'deadline_approaching'}
+						<div class="p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
+							<h4 class="font-semibold text-red-400">Deadline Approaching</h4>
+							<p class="text-sm text-gray-300 mt-1">
+								Your {savingInsights.alert.goal.description} goal deadline is in {savingInsights.alert.daysRemaining} day{savingInsights.alert.daysRemaining !== 1 ? 's' : ''} but you're only {savingInsights.alert.progress.toFixed(0)}% complete. 
+								You still need to save ${savingInsights.alert.remainingAmount.toFixed(2)} to reach your target.
+							</p>
+						</div>
+					{/if}
+				{:else}
+					<div class="p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
+						<h4 class="font-semibold text-green-400">All Clear!</h4>
 						<p class="text-sm text-gray-300 mt-1">
-							You are falling behind on your <strong>{savingsInsights.alert.goal.description}</strong> goal. 
-							Your current progress is {savingsInsights.alert.currentProgress}%. You need to save 
-							${savingsInsights.alert.requiredMonthlySavings}/month to reach your target.
+							{goals.filter(goal => !goal.completed).length === 0 ? 
+								'Congratulations! All your saving goals are completed.' : 
+								'No saving alerts at this time. Your savings are on track!'}
 						</p>
 					</div>
 				{/if}
 
-				<!-- Progress Box (Green) -->
-				{#if savingsInsights.progress && savingsInsights.progress.type === 'on_track'}
-				<div class="p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
-					<h4 class="font-semibold text-green-400">On Track</h4>
-					<p class="text-sm text-gray-300 mt-1">
-							{#if savingsInsights.progress.monthsEarly > 0}
-								🎯 At your current rate, you'll reach your <strong>{savingsInsights.progress.goal.description}</strong> goal 
-								{savingsInsights.progress.monthsEarly} month{savingsInsights.progress.monthsEarly > 1 ? 's' : ''} early. 
-								You're saving ${savingsInsights.progress.currentRate}/month which puts you ahead of schedule.
-							{:else}
-								💪 You're on track to reach your <strong>{savingsInsights.progress.goal.description}</strong> goal!
-							{/if}
-					</p>
-				</div>
+				<!-- Progress Box (Green) - Only show if there's good progress -->
+				{#if savingInsights.progress}
+					<div class="p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
+						<h4 class="font-semibold text-green-400">Excellent Progress!</h4>
+						<p class="text-sm text-gray-300 mt-1">
+							Outstanding work on your {savingInsights.progress.goal.description} goal! You're {savingInsights.progress.progressAdvantage.toFixed(0)}% ahead of schedule. 
+							You've saved {savingInsights.progress.progress.toFixed(0)}% while only {savingInsights.progress.timeElapsed.toFixed(0)}% of the time period has passed. 
+							At this pace, you'll reach your goal {savingInsights.progress.daysRemaining > 30 ? 'months' : 'days'} early!
+						</p>
+					</div>
 				{/if}
 
-				<!-- Default On Track (if no specific alerts or progress) -->
-				{#if !savingsInsights.alert && !savingsInsights.progress}
-					{@const completedGoalsCount = goals.filter(g => g.completed || safeParseFloat(g.start_amount) >= safeParseFloat(g.target_amount)).length}
-					{@const totalGoalsCount = goals.length}
-					
-					{#if completedGoalsCount === totalGoalsCount && totalGoalsCount > 0}
-						<div class="p-4 bg-gradient-to-r from-green-500/10 to-blue-500/10 border border-green-500/20 rounded-lg">
-							<h4 class="font-semibold text-green-400">🎉 Congratulations!</h4>
+				<!-- Tip Box (Blue) -->
+				{#if savingInsights.tip}
+					{#if savingInsights.tip.type === 'completion_opportunity'}
+						<div class="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+							<h4 class="font-semibold text-blue-400">Completion Opportunity</h4>
 							<p class="text-sm text-gray-300 mt-1">
-								All your savings goals are completed! You've successfully saved {formatCurrency(totalSaved)}. 
-								Consider setting new financial goals to continue building your wealth.
+								You can complete your {savingInsights.tip.goal.description} goal right now! You only need ${savingInsights.tip.remainingAmount.toFixed(2)} more and your current balance is ${savingInsights.tip.currentBalance.toFixed(2)}. 
+								Completing goals provides motivation and frees up future savings for other targets.
 							</p>
 						</div>
-					{:else}
-						<div class="p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
-							<h4 class="font-semibold text-green-400">On Track</h4>
+					{:else if savingInsights.tip.type === 'prioritize_urgent'}
+						<div class="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+							<h4 class="font-semibold text-blue-400">Focus on Urgent Goal</h4>
 							<p class="text-sm text-gray-300 mt-1">
-								Your savings goals are progressing well. Keep up the great work!
+								Your {savingInsights.tip.goal.description} goal is due in {savingInsights.tip.daysRemaining} day{savingInsights.tip.daysRemaining !== 1 ? 's' : ''}. 
+								You need to save ${savingInsights.tip.dailyRequired.toFixed(2)} per day to reach your target. Consider prioritizing this goal.
 							</p>
 						</div>
-					{/if}
-				{/if}
-
-				<!-- Tip Box (Blue/Yellow) -->
-				{#if savingsInsights.tip}
-					{#if savingsInsights.tip.type === 'automatic_transfer'}
-				<div class="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-					<h4 class="font-semibold text-blue-400">Optimization Tip</h4>
-					<p class="text-sm text-gray-300 mt-1">
-								Consider setting up automatic transfers of ${savingsInsights.tip.recommendedAmount}/month to stay on track with your <strong>{savingsInsights.tip.goal.description}</strong> goal.
-					</p>
-				</div>
-					{:else if savingsInsights.tip.type === 'reduce_low_priority'}
-				<div class="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
-					<h4 class="font-semibold text-yellow-400">Priority Adjustment</h4>
-					<p class="text-sm text-gray-300 mt-1">
-								You have {savingsInsights.tip.totalGoals} goals and your <strong>{savingsInsights.tip.highPriorityGoal.description}</strong> goal is under 30% complete. Consider reducing contributions to low-priority goals temporarily.
-					</p>
-				</div>
+					{:else if savingInsights.tip.type === 'allocate_balance'}
+						<div class="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+							<h4 class="font-semibold text-blue-400">Allocate Available Balance</h4>
+							<p class="text-sm text-gray-300 mt-1">
+								You have ${savingInsights.tip.currentBalance.toFixed(2)} available in your balance. Consider allocating some of this to your {savingInsights.tip.goalCount} active saving goal{savingInsights.tip.goalCount > 1 ? 's' : ''} to accelerate your progress.
+							</p>
+						</div>
 					{/if}
 				{:else}
 					<div class="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-						<h4 class="font-semibold text-blue-400">Optimization Tip</h4>
+						<h4 class="font-semibold text-blue-400">Saving Tip</h4>
 						<p class="text-sm text-gray-300 mt-1">
-							Set specific, measurable goals with realistic timelines to stay motivated and track your progress effectively.
+							Set up automatic transfers to your savings goals to maintain consistent progress. Even small, regular contributions compound over time.
 						</p>
 					</div>
 				{/if}
