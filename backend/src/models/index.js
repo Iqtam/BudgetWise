@@ -17,6 +17,8 @@ const EmailVerificationToken = require('./EmailVerificationToken');
 const PasswordResetToken = require('./PasswordResetToken');
 const AIExtraction = require('./AIExtraction');
 const LogTable = require('./LogTable');
+const AIBudgetPlan = require('./AIBudgetPlan');
+const UserBudgetPreferences = require('./UserBudgetPreferences');
 
 // User associations
 User.hasOne(UserProfile, { foreignKey: 'user_id' });
@@ -94,6 +96,13 @@ AIExtraction.belongsTo(Upload, { foreignKey: 'upload_id' });
 User.hasMany(LogTable, { foreignKey: 'user_id' });
 LogTable.belongsTo(User, { foreignKey: 'user_id' });
 
+// AI Assistant associations
+User.hasMany(AIBudgetPlan, { foreignKey: 'user_id' });
+AIBudgetPlan.belongsTo(User, { foreignKey: 'user_id' });
+
+User.hasOne(UserBudgetPreferences, { foreignKey: 'user_id' });
+UserBudgetPreferences.belongsTo(User, { foreignKey: 'user_id' });
+
 module.exports = {
   sequelize,
   User,
@@ -113,5 +122,7 @@ module.exports = {
   EmailVerificationToken,
   PasswordResetToken,
   AIExtraction,
-  LogTable
+  LogTable,
+  AIBudgetPlan,
+  UserBudgetPreferences
 }; 

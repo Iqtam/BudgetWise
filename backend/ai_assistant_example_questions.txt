@@ -1,0 +1,71 @@
+Here are some great example questions to test your AI assistant, organized by category:
+💰 Budget Planning Questions
+"Help me create a budget plan for a $4,000 monthly income"
+"I make $5,500 per month but can't seem to save anything. Can you help?"
+"What's the best budgeting method for someone with irregular freelance income?"
+"Create a budget that prioritizes paying off my $15,000 credit card debt"
+"I want to save $20,000 for a house down payment. How should I budget?"
+"My expenses are $3,200/month and income is $4,000. What should I do with the extra?"
+📊 Financial Analysis & Insights
+"Show me my financial insights"
+"Analyze my spending patterns from the last few months"
+"What are my biggest expense categories?"
+"How much am I spending on dining out vs groceries?"
+"Give me a financial health checkup"
+"What trends do you see in my transaction history?"
+"Am I overspending in any categories?"
+💳 Debt Management
+"Help me manage my debt"
+"I have $25,000 in student loans and $8,000 credit card debt. What's my strategy?"
+"Should I use debt avalanche or debt snowball method?"
+"How can I consolidate my debts effectively?"
+"What's the fastest way to pay off my credit cards?"
+"I have multiple debts with different interest rates. Which should I pay first?"
+🎯 Savings & Investment
+"Give me savings advice"
+"How much should I save for an emergency fund?"
+"I want to save $10,000 in 18 months. Is that realistic?"
+"What's the best way to automate my savings?"
+"Should I prioritize savings or debt payoff first?"
+"Help me save for a $5,000 vacation next year"
+"How much should I be saving for retirement at age 25?"
+🏠 Major Purchase Planning
+"I want to buy a car worth $25,000. How should I plan for it?"
+"Help me budget for a wedding that costs around $15,000"
+"Planning to move apartments - what should I budget for?"
+"Should I rent or buy a house with my current income?"
+📈 Income & Career Questions
+"I just got a $500/month raise. How should I use it?"
+"My income varies between $3,000-$6,000 per month. How do I budget?"
+"Should I take on a side hustle to increase income?"
+"How do I budget when my commission varies each month?"
+🎨 Lifestyle & Goals
+"I'm feeling overwhelmed by my finances. Where do I start?"
+"How can I stop impulse spending?"
+"I want to be financially independent by 40. Help me plan"
+"What's a reasonable entertainment budget for someone making $50k?"
+"How do I balance enjoying life now vs saving for the future?"
+🔧 Practical Scenarios
+"My car just broke down and needs $2,000 in repairs. What should I do?"
+"I'm getting married next year. How should we combine our finances?"
+"Just had a baby - how should I adjust my budget?"
+"I'm starting my first job at $45k. Help me set up my finances"
+❓ Quick Help Questions
+"What can you help me with?"
+"Explain the 50-30-20 budgeting rule"
+"What's the difference between good debt and bad debt?"
+"How do I improve my credit score?"
+"What tax-advantaged accounts should I use?"
+🔥 Test the AI's Advanced Features
+"Create a comprehensive financial plan for someone making $65k with $12k in debt"
+"I have $500 left over each month after expenses. What's the optimal allocation?"
+"Compare debt avalanche vs snowball for my situation"
+"How would increasing my income by 20% change my financial timeline?"
+Try starting with any of these questions! The AI assistant should provide:
+Detailed, personalized responses
+Budget breakdowns and frameworks
+Action items with priorities
+Financial insights and warnings
+Projections and timelines
+Rich visual cards with summaries
+Start with something like "Help me create a budget plan for a $4,000 monthly income" to see the full capabilities in action!

@@ -2,22 +2,18 @@
 	import { Button } from "$lib/components/ui/button/index.js";
 	import { Input } from "$lib/components/ui/input/index.js";
 	import { ScrollArea } from "$lib/components/ui/scroll-area/index.js";
-	import { Bot, Send, User } from "lucide-svelte";
+	import { Badge } from "$lib/components/ui/badge/index.js";
+	import { Card, CardContent, CardHeader, CardTitle } from "$lib/components/ui/card/index.js";
+	import { Bot, Send, User, AlertCircle, TrendingUp, Target, DollarSign } from "lucide-svelte";
 	import { onMount } from "svelte";
-
-	interface Message {
-		id: number;
-		type: "user" | "assistant";
-		content: string;
-		timestamp: Date;
-	}
+	import { aiAssistantService, type Message, type ActionItem, type Insight } from "$lib/services/aiAssistant";
 
 	const initialMessages: Message[] = [
 		{
 			id: 1,
 			type: "assistant",
 			content:
-				"Hello! I'm your AI financial assistant. I can help you track expenses, create budgets, analyze spending patterns, and answer financial questions. How can I help you today?",
+				"Hello! I'm your AI financial assistant powered by advanced AI. I can help you create personalized budgets, track expenses, provide savings advice, manage debt, and analyze your financial patterns. How can I help you today?",
 			timestamp: new Date(),
 		},
 	];
@@ -26,9 +22,11 @@
 	let inputValue = "";
 	let isLoading = false;
 	let scrollArea: HTMLElement;
+	let errorMessage = "";
 
-	onMount(() => {
+	onMount(async () => {
 		scrollToBottom();
+		await loadChatHistory();
 	});
 
 	function scrollToBottom() {
@@ -39,84 +37,89 @@
 		}, 100);
 	}
 
-	function generateAIResponse(userInput: string): { content: string } {
-		const input = userInput.toLowerCase();
-
-		if (input.includes("spent") || input.includes("expense") || input.includes("bought")) {
-			return {
-				content:
-					"I've recorded your expense! Based on the information provided, I've categorized this transaction and updated your budget. Your remaining budget for this category is looking good. Would you like me to analyze your spending patterns or set up any alerts?",
-			};
+	async function loadChatHistory() {
+		try {
+			const history = await aiAssistantService.getChatHistory(1, 50);
+			if (history.chatHistory.length > 0) {
+				const historyMessages = aiAssistantService.convertHistoryToMessages(history.chatHistory);
+				messages = [...initialMessages, ...historyMessages];
+				scrollToBottom();
+			}
+		} catch (error) {
+			console.error('Failed to load chat history:', error);
+			// Continue with initial messages if history fails to load
 		}
+	}
 
-		if (input.includes("income") || input.includes("received") || input.includes("earned")) {
-			return {
-				content:
-					"Great! I've added this income to your records. Your monthly income is tracking well. Based on your income pattern, I can suggest some automatic savings transfers or budget adjustments. What would you like to focus on?",
+	async function sendMessage(content: string) {
+		try {
+			errorMessage = "";
+			const response = await aiAssistantService.sendMessage(content);
+			
+			if (response.success) {
+				const assistantMessage: Message = {
+					id: messages.length + 1,
+					type: 'assistant',
+					content: response.data.conversationalResponse,
+					timestamp: new Date(),
+					intent: response.data.intent,
+					actionItems: response.data.actionItems,
+					insights: response.data.insights,
+					budgetSummary: response.data.budgetSummary,
+					projections: response.data.projections
+				};
+				messages = [...messages, assistantMessage];
+				scrollToBottom();
+			} else {
+				throw new Error(response.error || 'Failed to get response');
+			}
+		} catch (error) {
+			console.error('Error sending message:', error);
+			errorMessage = error.message || 'Failed to send message. Please try again.';
+			
+			// Add error message to chat
+			const errorResponse: Message = {
+				id: messages.length + 1,
+				type: 'assistant',
+				content: `I apologize, but I encountered an error: ${errorMessage}. Please try again or contact support if the issue persists.`,
+				timestamp: new Date()
 			};
+			messages = [...messages, errorResponse];
+			scrollToBottom();
 		}
-
-		if (input.includes("budget") || input.includes("spending")) {
-			return {
-				content:
-					"Let me check your budget status... You're currently at 68% of your monthly budget with 12 days remaining. Your top spending categories are Food ($420/$500) and Transportation ($180/$300). You're on track to stay within budget this month!",
-			};
-		}
-
-		if (input.includes("savings") || input.includes("save") || input.includes("goal")) {
-			return {
-				content:
-					"I'd be happy to help with your savings goals! Based on your current income and expenses, you have about $400 available for savings each month. I can help you create a plan, set up automatic transfers, or optimize your existing savings strategy.",
-			};
-		}
-
-		if (input.includes("debt") || input.includes("loan") || input.includes("payment")) {
-			return {
-				content:
-					"I can help you manage your debt effectively! You currently have $26,250 in total debt across 3 accounts. I recommend focusing on your Credit Card first (18.99% APR) using the debt avalanche method. Would you like a detailed payoff plan?",
-			};
-		}
-
-		return {
-			content:
-				"I understand you're looking for financial guidance. I can help you with budgeting, expense tracking, savings goals, debt management, and financial analysis. Could you be more specific about what you'd like assistance with?",
-		};
 	}
 
 	async function handleSendMessage(content: string) {
-		if (!content.trim()) return;
+		console.log('handleSendMessage called with:', content);
+		if (!content.trim() || isLoading) return;
 
+		// Add user message immediately
 		const userMessage: Message = {
 			id: messages.length + 1,
-			type: "user",
+			type: 'user',
 			content: content.trim(),
-			timestamp: new Date(),
+			timestamp: new Date()
 		};
-
 		messages = [...messages, userMessage];
+
 		inputValue = "";
 		isLoading = true;
 		scrollToBottom();
 
-		// Simulate AI response
-		setTimeout(() => {
-			const aiResponse = generateAIResponse(content.trim());
-			const assistantMessage: Message = {
-				id: messages.length + 2,
-				type: "assistant",
-				content: aiResponse.content,
-				timestamp: new Date(),
-			};
-
-			messages = [...messages, assistantMessage];
-			isLoading = false;
-			scrollToBottom();
-		}, 1000);
+		await sendMessage(content.trim());
+		isLoading = false;
 	}
 
 	function handleSubmit(event: SubmitEvent) {
 		event.preventDefault();
 		handleSendMessage(inputValue);
+	}
+
+	function handleQuickAction(message: string) {
+		console.log('Quick action clicked:', message);
+		// Clear the input and send the message directly
+		inputValue = "";
+		handleSendMessage(message);
 	}
 </script>
 
@@ -146,8 +149,124 @@
 							>
 								<p class="text-sm">{message.content}</p>
 							</div>
+
+							<!-- AI Assistant additional content -->
+							{#if message.type === 'assistant' && (message.actionItems?.length || message.insights?.length || message.budgetSummary)}
+								<div class="space-y-3 mt-3 max-w-md">
+									<!-- Budget Summary -->
+									{#if message.budgetSummary}
+										<Card class="bg-blue-50 border-blue-200">
+											<CardHeader class="pb-2">
+												<CardTitle class="text-sm flex items-center gap-2">
+													<DollarSign class="h-4 w-4" />
+													Budget Plan: {message.budgetSummary.framework.replace('_', ' ')}
+												</CardTitle>
+											</CardHeader>
+											<CardContent class="pt-0">
+												<div class="text-xs space-y-1">
+													<div>Monthly Budget: ${message.budgetSummary.totalMonthlyBudget.toFixed(2)}</div>
+													{#if message.budgetSummary.allocationBreakdown}
+														<div class="grid grid-cols-3 gap-2 mt-2">
+															<div class="text-center">
+																<div class="font-medium">Needs</div>
+																<div>${message.budgetSummary.allocationBreakdown.needs.toFixed(0)}</div>
+															</div>
+															<div class="text-center">
+																<div class="font-medium">Wants</div>
+																<div>${message.budgetSummary.allocationBreakdown.wants.toFixed(0)}</div>
+															</div>
+															<div class="text-center">
+																<div class="font-medium">Savings</div>
+																<div>${message.budgetSummary.allocationBreakdown.savingsAndDebt.toFixed(0)}</div>
+															</div>
+														</div>
+													{/if}
+												</div>
+											</CardContent>
+										</Card>
+									{/if}
+
+									<!-- Action Items -->
+									{#if message.actionItems?.length}
+										<Card class="bg-green-50 border-green-200">
+											<CardHeader class="pb-2">
+												<CardTitle class="text-sm flex items-center gap-2">
+													<Target class="h-4 w-4" />
+													Action Items
+												</CardTitle>
+											</CardHeader>
+											<CardContent class="pt-0">
+												<div class="space-y-2">
+													{#each message.actionItems as item}
+														<div class="flex items-start gap-2">
+															<Badge variant={item.priority === 'high' ? 'destructive' : item.priority === 'medium' ? 'default' : 'secondary'} class="text-xs">
+																{item.priority}
+															</Badge>
+															<div class="flex-1">
+																<div class="font-medium text-xs">{item.title}</div>
+																<div class="text-xs text-muted-foreground">{item.description}</div>
+																{#if item.estimatedTime}
+																	<div class="text-xs text-muted-foreground">⏱ {item.estimatedTime}</div>
+																{/if}
+															</div>
+														</div>
+													{/each}
+												</div>
+											</CardContent>
+										</Card>
+									{/if}
+
+									<!-- Insights -->
+									{#if message.insights?.length}
+										<Card class="bg-orange-50 border-orange-200">
+											<CardHeader class="pb-2">
+												<CardTitle class="text-sm flex items-center gap-2">
+													<TrendingUp class="h-4 w-4" />
+													Insights
+												</CardTitle>
+											</CardHeader>
+											<CardContent class="pt-0">
+												<div class="space-y-2">
+													{#each message.insights as insight}
+														<div class="flex items-start gap-2">
+															<AlertCircle class="h-3 w-3 mt-0.5 text-{insight.type === 'warning' ? 'orange' : insight.type === 'info' ? 'blue' : 'green'}-500" />
+															<div class="flex-1">
+																<div class="font-medium text-xs">{insight.title}</div>
+																<div class="text-xs text-muted-foreground">{insight.message}</div>
+															</div>
+														</div>
+													{/each}
+												</div>
+											</CardContent>
+										</Card>
+									{/if}
+
+									<!-- Projections -->
+									{#if message.projections}
+										<Card class="bg-purple-50 border-purple-200">
+											<CardHeader class="pb-2">
+												<CardTitle class="text-sm">Financial Projections</CardTitle>
+											</CardHeader>
+											<CardContent class="pt-0">
+												<div class="text-xs space-y-1">
+													<div>Monthly Surplus: ${message.projections.monthlySurplus.toFixed(2)}</div>
+													<div>Yearly Projection: ${message.projections.yearlyProjection.toFixed(2)}</div>
+													<div>Budget Utilization: {message.projections.budgetUtilization.toFixed(1)}%</div>
+													{#if message.projections.emergencyFundTimeline}
+														<div>Emergency Fund: {message.projections.emergencyFundTimeline} months</div>
+													{/if}
+												</div>
+											</CardContent>
+										</Card>
+									{/if}
+								</div>
+							{/if}
+
 							<p class="text-xs text-muted-foreground">
 								{message.timestamp.toLocaleTimeString()}
+								{#if message.intent}
+									• {message.intent.replace('_', ' ').toLowerCase()}
+								{/if}
 							</p>
 						</div>
 					</div>
@@ -193,9 +312,56 @@
 					<Send class="h-4 w-4" />
 				</Button>
 			</form>
-			<p class="text-xs text-muted-foreground mt-2 text-center">
-				Try: "I spent $50 on dinner" or "How's my budget looking?"
-			</p>
+			<div class="mt-2 text-center">
+				<p class="text-xs text-muted-foreground mb-2">Quick suggestions:</p>
+				<div class="flex flex-wrap gap-1 justify-center">
+					<Button 
+						variant="outline" 
+						size="sm" 
+						class="text-xs h-6 px-2"
+						on:click={() => handleQuickAction("Help me create a budget plan")}
+						disabled={isLoading}
+					>
+						📊 Budget Plan
+					</Button>
+					<Button 
+						variant="outline" 
+						size="sm" 
+						class="text-xs h-6 px-2"
+						on:click={() => handleQuickAction("Show me my financial insights")}
+						disabled={isLoading}
+					>
+						📈 Insights
+					</Button>
+					<Button 
+						variant="outline" 
+						size="sm" 
+						class="text-xs h-6 px-2"
+						on:click={() => handleQuickAction("Give me savings advice")}
+						disabled={isLoading}
+					>
+						💰 Savings
+					</Button>
+					<Button 
+						variant="outline" 
+						size="sm" 
+						class="text-xs h-6 px-2"
+						on:click={() => handleQuickAction("Help me manage my debt")}
+						disabled={isLoading}
+					>
+						🎯 Debt Help
+					</Button>
+					<Button 
+						variant="outline" 
+						size="sm" 
+						class="text-xs h-6 px-2"
+						on:click={() => handleQuickAction("Analyze my budget and recommend reallocations")}
+						disabled={isLoading}
+					>
+						🔄 Reallocation
+					</Button>
+				</div>
+			</div>
 		</div>
 	</div>
 </div> 

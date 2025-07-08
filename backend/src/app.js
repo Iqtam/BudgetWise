@@ -13,6 +13,7 @@ const balanceRoutes = require("./routes/balanceRoutes");
 const authRoutes = require("./routes/auth");
 const adminRoutes = require("./routes/admin");
 const ocrRoutes = require("./routes/ocrRoutes");
+const aiAssistantRoutes = require("./routes/aiAssistantRoutes");
 
 // Initialize express app
 const app = express();
@@ -35,6 +36,7 @@ app.use("/api/debts", debtRoutes);
 app.use("/api/savings", savingRoutes);
 app.use("/api/balance", balanceRoutes);
 app.use("/api/ocr", ocrRoutes);
+app.use("/api/assistant", aiAssistantRoutes);
 
 // Basic route
 app.get("/api/health", (req, res) => {
