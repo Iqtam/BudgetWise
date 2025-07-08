@@ -1,209 +1,1005 @@
-const request = require("supertest");
-const express = require("express");
-const transactionController = require("../controllers/transactionController");
+const request = require('supertest');
+const express = require('express');
 
-// Mock the Transaction model
-jest.mock("../models/Transaction", () => ({
-  create: jest.fn(),
-  findAll: jest.fn(),
-  findByPk: jest.fn(),
-}));
-
-const Transaction = require("../models/Transaction");
-
-// Suppress console.error during tests to reduce noise
-const originalConsoleError = console.error;
+// Suppress console.error for cleaner test output
+let originalConsoleError;
 beforeAll(() => {
+  originalConsoleError = console.error;
   console.error = jest.fn();
 });
-
 afterAll(() => {
   console.error = originalConsoleError;
 });
 
-// Create a test Express app
-const app = express();
-app.use(express.json());
-
-// Add route for testing
-app.post("/transactions", transactionController.createTransaction);
-app.get("/transactions", transactionController.getAllTransactions);
-
-describe("Transaction Controller", () => {
+describe('OCR Controller', () => {
   beforeEach(() => {
-    // Clear all mocks before each test
+    jest.resetModules();
     jest.clearAllMocks();
   });
 
-  describe("POST /transactions", () => {
-    it("should create a new transaction successfully", async () => {
-      // Mock data
-      const mockTransactionData = {
-        user_id: "test-user-123",
-        amount: -50.0,
-        date: "2024-11-05",
-        description: "Grocery shopping",
-        category_id: "category-123",
-        type: "expense",
-        event_id: null,
-        recurrence: false,
-        confirmed: true,
-      };
-
-      const mockCreatedTransaction = {
-        id: "transaction-123",
-        ...mockTransactionData,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      // Mock the Transaction.create method
-      Transaction.create.mockResolvedValue(mockCreatedTransaction);
-
-      // Make the request
-      const response = await request(app)
-        .post("/transactions")
-        .send(mockTransactionData)
-        .expect(201);
-
-      // Assertions
-      expect(response.body).toHaveProperty(
-        "message",
-        "Transaction created successfully"
-      );
-      expect(response.body).toHaveProperty("data");
-      expect(response.body.data).toHaveProperty("id", "transaction-123");
-      expect(response.body.data).toHaveProperty("amount", -50.0);
-      expect(response.body.data).toHaveProperty(
-        "description",
-        "Grocery shopping"
-      );
-      expect(response.body.data).toHaveProperty("type", "expense");
-
-      // Verify that Transaction.create was called with correct data
-      expect(Transaction.create).toHaveBeenCalledTimes(1);
-      expect(Transaction.create).toHaveBeenCalledWith({
-        user_id: "test-user-123",
-        amount: -50.0,
-        date: "2024-11-05",
-        description: "Grocery shopping",
-        category_id: "category-123",
-        type: "expense",
-        event_id: null,
-        recurrence: false,
-        confirmed: true,
+  describe('POST /ocr/receipt', () => {
+    it('should process receipt image successfully', async () => {
+      // Set up all default mocks before isolateModules
+      jest.doMock('multer', () => {
+        const mockMulter = () => ({
+          single: () => (req, res, next) => {
+            req.file = {
+              originalname: 'test-receipt.jpg',
+              mimetype: 'image/jpeg',
+              path: '/tmp/test-receipt.jpg',
+              size: 1024,
+            };
+            next();
+          },
+        });
+        mockMulter.diskStorage = jest.fn(() => ({
+          destination: jest.fn(),
+          filename: jest.fn(),
+        }));
+        return mockMulter;
       });
-    });
+      jest.doMock('fs', () => ({
+        existsSync: () => true,
+        mkdirSync: () => {},
+        readFileSync: () => Buffer.from('fake-image-data'),
+        unlinkSync: () => {},
+      }));
+      jest.doMock('@google/generative-ai', () => ({
+        GoogleGenerativeAI: jest.fn(() => ({
+          getGenerativeModel: () => ({
+            generateContent: jest.fn().mockResolvedValue({
+              response: {
+                text: jest.fn(() => JSON.stringify({
+                  type: 'expense',
+                  amount: 25.0,
+                  vendor: 'Starbucks',
+                  description: 'Coffee purchase',
+                  category: 'Food',
+                })),
+              },
+            }),
+          }),
+        })),
+      }));
+      jest.doMock('../models/User', () => ({
+        findOne: jest.fn().mockResolvedValue({ id: 'test-user-id', firebase_uid: 'test-firebase-uid' }),
+      }));
+      jest.doMock('../models/Upload', () => ({
+        create: jest.fn().mockResolvedValue({ id: 'test-upload-id', update: jest.fn().mockResolvedValue(undefined) }),
+      }));
+      jest.doMock('../models/AIExtraction', () => ({
+        create: jest.fn().mockResolvedValue({ id: 'test-extraction-id' }),
+      }));
 
-    it("should handle missing required fields", async () => {
-      const incompleteData = {
-        amount: -25.0,
-        // Missing required fields like user_id, description, etc.
-      };
-
-      // Mock Transaction.create to throw an error
-      Transaction.create.mockRejectedValue(
-        new Error("Missing required fields")
-      );
-
-      const response = await request(app)
-        .post("/transactions")
-        .send(incompleteData)
-        .expect(500);
-
-      expect(response.body).toHaveProperty(
-        "message",
-        "Missing required fields"
-      );
-    });
-
-    it("should set default values for optional fields", async () => {
-      const minimalData = {
-        user_id: "test-user-456",
-        amount: 100.0,
-        description: "Salary",
-        type: "income",
-      };
-
-      const mockCreatedTransaction = {
-        id: "transaction-456",
-        ...minimalData,
-        date: expect.any(Date),
-        recurrence: false,
-        confirmed: true,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      Transaction.create.mockResolvedValue(mockCreatedTransaction);
-
-      const response = await request(app)
-        .post("/transactions")
-        .send(minimalData)
-        .expect(201);
-
-      expect(response.body.data).toHaveProperty("id", "transaction-456");
-
-      // Verify that default values were set
-      expect(Transaction.create).toHaveBeenCalledWith({
-        user_id: "test-user-456",
-        amount: 100.0,
-        date: expect.any(Date), // Should use current date
-        description: "Salary",
-        category_id: undefined,
-        type: "income",
-        event_id: undefined,
-        recurrence: false,
-        confirmed: true,
+      let app, ocrController;
+      jest.isolateModules(() => {
+        ocrController = require('../controllers/ocrController');
+        app = express();
+        app.use(express.json());
+        const mockFirebaseAuth = (req, res, next) => { req.user = { uid: 'test-firebase-uid' }; next(); };
+        app.post('/ocr/receipt', mockFirebaseAuth, ocrController.processReceipt);
       });
-    });
-  });
-
-  describe("GET /transactions", () => {
-    it("should fetch transactions for a specific user", async () => {
-      const mockTransactions = [
-        {
-          id: "transaction-1",
-          user_id: "test-user-123",
-          amount: -30.0,
-          description: "Coffee",
-          type: "expense",
-        },
-        {
-          id: "transaction-2",
-          user_id: "test-user-123",
-          amount: 1000.0,
-          description: "Salary",
-          type: "income",
-        },
-      ];
-
-      Transaction.findAll.mockResolvedValue(mockTransactions);
 
       const response = await request(app)
-        .get("/transactions?user_id=test-user-123")
+        .post('/ocr/receipt')
+        .attach('receipt', Buffer.from('fake-image-data'), 'test-receipt.jpg')
         .expect(200);
-
-      expect(response.body).toEqual(mockTransactions);
-      expect(Transaction.findAll).toHaveBeenCalledWith({
-        where: { user_id: "test-user-123" },
-        order: [["date", "DESC"]],
+      expect(response.body.message).toBe('Receipt processed successfully');
+      expect(response.body.data).toMatchObject({
+        type: 'expense',
+        amount: 25.0,
+        vendor: 'Starbucks',
+        description: 'Coffee purchase',
+        category: 'Food',
       });
     });
 
-    it("should handle database errors gracefully", async () => {
-      Transaction.findAll.mockRejectedValue(
-        new Error("Database connection failed")
-      );
+    it('should handle missing file', async () => {
+      jest.doMock('multer', () => {
+        const mockMulter = () => ({
+          single: () => (req, res, next) => {
+            req.file = undefined;
+            next();
+          },
+        });
+        mockMulter.diskStorage = jest.fn(() => ({
+          destination: jest.fn(),
+          filename: jest.fn(),
+        }));
+        return mockMulter;
+      });
+      jest.doMock('fs', () => ({
+        existsSync: () => true,
+        mkdirSync: () => {},
+        readFileSync: () => Buffer.from('fake-image-data'),
+        unlinkSync: () => {},
+      }));
+      jest.doMock('@google/generative-ai', () => ({
+        GoogleGenerativeAI: jest.fn(() => ({
+          getGenerativeModel: () => ({
+            generateContent: jest.fn().mockResolvedValue({
+              response: {
+                text: jest.fn(() => JSON.stringify({
+                  type: 'expense',
+                  amount: 25.0,
+                  vendor: 'Starbucks',
+                  description: 'Coffee purchase',
+                  category: 'Food',
+                })),
+              },
+            }),
+          }),
+        })),
+      }));
+      jest.doMock('../models/User', () => ({
+        findOne: jest.fn().mockResolvedValue({ id: 'test-user-id', firebase_uid: 'test-firebase-uid' }),
+      }));
+      jest.doMock('../models/Upload', () => ({
+        create: jest.fn().mockResolvedValue({ id: 'test-upload-id', update: jest.fn().mockResolvedValue(undefined) }),
+      }));
+      jest.doMock('../models/AIExtraction', () => ({
+        create: jest.fn().mockResolvedValue({ id: 'test-extraction-id' }),
+      }));
+
+      let app, ocrController;
+      jest.isolateModules(() => {
+        ocrController = require('../controllers/ocrController');
+        app = express();
+        app.use(express.json());
+        const mockFirebaseAuth = (req, res, next) => { req.user = { uid: 'test-firebase-uid' }; next(); };
+        app.post('/ocr/receipt', mockFirebaseAuth, ocrController.processReceipt);
+      });
 
       const response = await request(app)
-        .get("/transactions?user_id=test-user-123")
-        .expect(500);
+        .post('/ocr/receipt')
+        .expect(400);
+      expect(response.body.message).toBe('No file uploaded');
+    });
 
-      expect(response.body).toHaveProperty(
-        "message",
-        "Database connection failed"
-      );
+    it('should handle invalid file type', async () => {
+      jest.doMock('multer', () => {
+        const mockMulter = () => ({
+          single: () => (req, res, next) => {
+            // Simulate file filter rejection
+            next(new Error('Invalid file type. Only images are allowed.'));
+          },
+        });
+        mockMulter.diskStorage = jest.fn(() => ({
+          destination: jest.fn(),
+          filename: jest.fn(),
+        }));
+        mockMulter.MulterError = class extends Error {};
+        return mockMulter;
+      });
+      jest.doMock('fs', () => ({
+        existsSync: () => true,
+        mkdirSync: () => {},
+        readFileSync: () => Buffer.from('fake-image-data'),
+        unlinkSync: () => {},
+      }));
+      jest.doMock('@google/generative-ai', () => ({
+        GoogleGenerativeAI: jest.fn(() => ({
+          getGenerativeModel: () => ({
+            generateContent: jest.fn().mockResolvedValue({
+              response: {
+                text: jest.fn(() => JSON.stringify({
+                  type: 'expense',
+                  amount: 25.0,
+                  vendor: 'Starbucks',
+                  description: 'Coffee purchase',
+                  category: 'Food',
+                })),
+              },
+            }),
+          }),
+        })),
+      }));
+      jest.doMock('../models/User', () => ({
+        findOne: jest.fn().mockResolvedValue({ id: 'test-user-id', firebase_uid: 'test-firebase-uid' }),
+      }));
+      jest.doMock('../models/Upload', () => ({
+        create: jest.fn().mockResolvedValue({ id: 'test-upload-id', update: jest.fn().mockResolvedValue(undefined) }),
+      }));
+      jest.doMock('../models/AIExtraction', () => ({
+        create: jest.fn().mockResolvedValue({ id: 'test-extraction-id' }),
+      }));
+
+      let app, ocrController;
+      jest.isolateModules(() => {
+        ocrController = require('../controllers/ocrController');
+        app = express();
+        app.use(express.json());
+        const mockFirebaseAuth = (req, res, next) => { req.user = { uid: 'test-firebase-uid' }; next(); };
+        app.post('/ocr/receipt', mockFirebaseAuth, ocrController.processReceipt);
+      });
+
+      const response = await request(app)
+        .post('/ocr/receipt')
+        .attach('receipt', Buffer.from('not-an-image'), 'test.txt')
+        .expect(400);
+      expect(response.body.message).toBe('Invalid file type. Only images are allowed.');
+    });
+
+    it('should handle user not found', async () => {
+      jest.doMock('multer', () => {
+        const mockMulter = () => ({
+          single: () => (req, res, next) => {
+            req.file = {
+              originalname: 'test-receipt.jpg',
+              mimetype: 'image/jpeg',
+              path: '/tmp/test-receipt.jpg',
+              size: 1024,
+            };
+            next();
+          },
+        });
+        mockMulter.diskStorage = jest.fn(() => ({
+          destination: jest.fn(),
+          filename: jest.fn(),
+        }));
+        return mockMulter;
+      });
+      jest.doMock('fs', () => ({
+        existsSync: () => true,
+        mkdirSync: () => {},
+        readFileSync: () => Buffer.from('fake-image-data'),
+        unlinkSync: () => {},
+      }));
+      jest.doMock('@google/generative-ai', () => ({
+        GoogleGenerativeAI: jest.fn(() => ({
+          getGenerativeModel: () => ({
+            generateContent: jest.fn().mockResolvedValue({
+              response: {
+                text: jest.fn(() => JSON.stringify({
+                  type: 'expense',
+                  amount: 25.0,
+                  vendor: 'Starbucks',
+                  description: 'Coffee purchase',
+                  category: 'Food',
+                })),
+              },
+            }),
+          }),
+        })),
+      }));
+      jest.doMock('../models/User', () => ({
+        findOne: jest.fn().mockResolvedValue(null),
+      }));
+      jest.doMock('../models/Upload', () => ({
+        create: jest.fn().mockResolvedValue({ id: 'test-upload-id', update: jest.fn().mockResolvedValue(undefined) }),
+      }));
+      jest.doMock('../models/AIExtraction', () => ({
+        create: jest.fn().mockResolvedValue({ id: 'test-extraction-id' }),
+      }));
+
+      let app, ocrController;
+      jest.isolateModules(() => {
+        ocrController = require('../controllers/ocrController');
+        app = express();
+        app.use(express.json());
+        const mockFirebaseAuth = (req, res, next) => { req.user = { uid: 'test-firebase-uid' }; next(); };
+        app.post('/ocr/receipt', mockFirebaseAuth, ocrController.processReceipt);
+      });
+
+      const response = await request(app)
+        .post('/ocr/receipt')
+        .attach('receipt', Buffer.from('fake-image-data'), 'test-receipt.jpg')
+        .expect(404);
+      expect(response.body.message).toBe('User not found');
+    });
+
+    it('should handle upload creation errors', async () => {
+      jest.doMock('multer', () => {
+        const mockMulter = () => ({
+          single: () => (req, res, next) => {
+            req.file = {
+              originalname: 'test-receipt.jpg',
+              mimetype: 'image/jpeg',
+              path: '/tmp/test-receipt.jpg',
+              size: 1024,
+            };
+            next();
+          },
+        });
+        mockMulter.diskStorage = jest.fn(() => ({
+          destination: jest.fn(),
+          filename: jest.fn(),
+        }));
+        return mockMulter;
+      });
+      jest.doMock('fs', () => ({
+        existsSync: () => true,
+        mkdirSync: () => {},
+        readFileSync: () => Buffer.from('fake-image-data'),
+        unlinkSync: () => {},
+      }));
+      jest.doMock('@google/generative-ai', () => ({
+        GoogleGenerativeAI: jest.fn(() => ({
+          getGenerativeModel: () => ({
+            generateContent: jest.fn().mockResolvedValue({
+              response: {
+                text: jest.fn(() => JSON.stringify({
+                  type: 'expense',
+                  amount: 25.0,
+                  vendor: 'Starbucks',
+                  description: 'Coffee purchase',
+                  category: 'Food',
+                })),
+              },
+            }),
+          }),
+        })),
+      }));
+      jest.doMock('../models/User', () => ({
+        findOne: jest.fn().mockResolvedValue({ id: 'test-user-id', firebase_uid: 'test-firebase-uid' }),
+      }));
+      jest.doMock('../models/Upload', () => ({
+        create: jest.fn().mockRejectedValue(new Error('Database error')),
+      }));
+      jest.doMock('../models/AIExtraction', () => ({
+        create: jest.fn().mockResolvedValue({ id: 'test-extraction-id' }),
+      }));
+
+      let app, ocrController;
+      jest.isolateModules(() => {
+        ocrController = require('../controllers/ocrController');
+        app = express();
+        app.use(express.json());
+        const mockFirebaseAuth = (req, res, next) => { req.user = { uid: 'test-firebase-uid' }; next(); };
+        app.post('/ocr/receipt', mockFirebaseAuth, ocrController.processReceipt);
+      });
+
+      const response = await request(app)
+        .post('/ocr/receipt')
+        .attach('receipt', Buffer.from('fake-image-data'), 'test-receipt.jpg')
+        .expect(500);
+      expect(response.body.message).toBe('Failed to process receipt');
+    });
+
+    it('should handle Gemini API errors', async () => {
+      jest.doMock('multer', () => {
+        const mockMulter = () => ({
+          single: () => (req, res, next) => {
+            req.file = {
+              originalname: 'test-receipt.jpg',
+              mimetype: 'image/jpeg',
+              path: '/tmp/test-receipt.jpg',
+              size: 1024,
+            };
+            next();
+          },
+        });
+        mockMulter.diskStorage = jest.fn(() => ({
+          destination: jest.fn(),
+          filename: jest.fn(),
+        }));
+        return mockMulter;
+      });
+      jest.doMock('fs', () => ({
+        existsSync: () => true,
+        mkdirSync: () => {},
+        readFileSync: () => Buffer.from('fake-image-data'),
+        unlinkSync: () => {},
+      }));
+      jest.doMock('@google/generative-ai', () => ({
+        GoogleGenerativeAI: jest.fn(() => ({
+          getGenerativeModel: () => ({
+            generateContent: jest.fn().mockRejectedValue(new Error('API Error')),
+          }),
+        })),
+      }));
+      jest.doMock('../models/User', () => ({
+        findOne: jest.fn().mockResolvedValue({ id: 'test-user-id', firebase_uid: 'test-firebase-uid' }),
+      }));
+      jest.doMock('../models/Upload', () => ({
+        create: jest.fn().mockResolvedValue({ id: 'test-upload-id', update: jest.fn().mockResolvedValue(undefined) }),
+      }));
+      jest.doMock('../models/AIExtraction', () => ({
+        create: jest.fn().mockResolvedValue({ id: 'test-extraction-id' }),
+      }));
+
+      let app, ocrController;
+      jest.isolateModules(() => {
+        ocrController = require('../controllers/ocrController');
+        app = express();
+        app.use(express.json());
+        const mockFirebaseAuth = (req, res, next) => { req.user = { uid: 'test-firebase-uid' }; next(); };
+        app.post('/ocr/receipt', mockFirebaseAuth, ocrController.processReceipt);
+      });
+
+      const response = await request(app)
+        .post('/ocr/receipt')
+        .attach('receipt', Buffer.from('fake-image-data'), 'test-receipt.jpg')
+        .expect(500);
+      expect(response.body.message).toBe('Failed to process receipt');
+    });
+
+    it('should handle invalid JSON response from Gemini', async () => {
+      jest.doMock('multer', () => {
+        const mockMulter = () => ({
+          single: () => (req, res, next) => {
+            req.file = {
+              originalname: 'test-receipt.jpg',
+              mimetype: 'image/jpeg',
+              path: '/tmp/test-receipt.jpg',
+              size: 1024,
+            };
+            next();
+          },
+        });
+        mockMulter.diskStorage = jest.fn(() => ({
+          destination: jest.fn(),
+          filename: jest.fn(),
+        }));
+        return mockMulter;
+      });
+      jest.doMock('fs', () => ({
+        existsSync: () => true,
+        mkdirSync: () => {},
+        readFileSync: () => Buffer.from('fake-image-data'),
+        unlinkSync: () => {},
+      }));
+      jest.doMock('@google/generative-ai', () => ({
+        GoogleGenerativeAI: jest.fn(() => ({
+          getGenerativeModel: () => ({
+            generateContent: jest.fn().mockResolvedValue({
+              response: { text: jest.fn(() => 'Invalid JSON response') },
+            }),
+          }),
+        })),
+      }));
+      jest.doMock('../models/User', () => ({
+        findOne: jest.fn().mockResolvedValue({ id: 'test-user-id', firebase_uid: 'test-firebase-uid' }),
+      }));
+      jest.doMock('../models/Upload', () => ({
+        create: jest.fn().mockResolvedValue({ id: 'test-upload-id', update: jest.fn().mockResolvedValue(undefined) }),
+      }));
+      jest.doMock('../models/AIExtraction', () => ({
+        create: jest.fn().mockResolvedValue({ id: 'test-extraction-id' }),
+      }));
+
+      let app, ocrController;
+      jest.isolateModules(() => {
+        ocrController = require('../controllers/ocrController');
+        app = express();
+        app.use(express.json());
+        const mockFirebaseAuth = (req, res, next) => { req.user = { uid: 'test-firebase-uid' }; next(); };
+        app.post('/ocr/receipt', mockFirebaseAuth, ocrController.processReceipt);
+      });
+
+      const response = await request(app)
+        .post('/ocr/receipt')
+        .attach('receipt', Buffer.from('fake-image-data'), 'test-receipt.jpg')
+        .expect(500);
+      expect(response.body.message).toBe('Failed to process receipt');
+    });
+
+    it('should handle file read errors', async () => {
+      jest.doMock('multer', () => {
+        const mockMulter = () => ({
+          single: () => (req, res, next) => {
+            req.file = {
+              originalname: 'test-receipt.jpg',
+              mimetype: 'image/jpeg',
+              path: '/tmp/test-receipt.jpg',
+              size: 1024,
+            };
+            next();
+          },
+        });
+        mockMulter.diskStorage = jest.fn(() => ({
+          destination: jest.fn(),
+          filename: jest.fn(),
+        }));
+        return mockMulter;
+      });
+      jest.doMock('fs', () => ({
+        existsSync: () => true,
+        mkdirSync: () => {},
+        readFileSync: () => { throw new Error('File read error'); },
+        unlinkSync: () => {},
+      }));
+      jest.doMock('@google/generative-ai', () => ({
+        GoogleGenerativeAI: jest.fn(() => ({
+          getGenerativeModel: () => ({
+            generateContent: jest.fn().mockResolvedValue({
+              response: {
+                text: jest.fn(() => JSON.stringify({
+                  type: 'expense',
+                  amount: 25.0,
+                  vendor: 'Starbucks',
+                  description: 'Coffee purchase',
+                  category: 'Food',
+                })),
+              },
+            }),
+          }),
+        })),
+      }));
+      jest.doMock('../models/User', () => ({
+        findOne: jest.fn().mockResolvedValue({ id: 'test-user-id', firebase_uid: 'test-firebase-uid' }),
+      }));
+      jest.doMock('../models/Upload', () => ({
+        create: jest.fn().mockResolvedValue({ id: 'test-upload-id', update: jest.fn().mockResolvedValue(undefined) }),
+      }));
+      jest.doMock('../models/AIExtraction', () => ({
+        create: jest.fn().mockResolvedValue({ id: 'test-extraction-id' }),
+      }));
+
+      let app, ocrController;
+      jest.isolateModules(() => {
+        ocrController = require('../controllers/ocrController');
+        app = express();
+        app.use(express.json());
+        const mockFirebaseAuth = (req, res, next) => { req.user = { uid: 'test-firebase-uid' }; next(); };
+        app.post('/ocr/receipt', mockFirebaseAuth, ocrController.processReceipt);
+      });
+
+      const response = await request(app)
+        .post('/ocr/receipt')
+        .attach('receipt', Buffer.from('fake-image-data'), 'test-receipt.jpg')
+        .expect(500);
+      expect(response.body.message).toBe('Failed to process receipt');
     });
   });
-});
+
+  describe('POST /ocr/chat', () => {
+    it('should process chat message successfully', async () => {
+      jest.doMock('multer', () => {
+        const mockMulter = () => ({
+          single: () => (req, res, next) => {
+            req.file = {
+              originalname: 'test-receipt.jpg',
+              mimetype: 'image/jpeg',
+              path: '/tmp/test-receipt.jpg',
+              size: 1024,
+            };
+            next();
+          },
+        });
+        mockMulter.diskStorage = jest.fn(() => ({
+          destination: jest.fn(),
+          filename: jest.fn(),
+        }));
+        return mockMulter;
+      });
+      jest.doMock('@google/generative-ai', () => ({
+        GoogleGenerativeAI: jest.fn(() => ({
+          getGenerativeModel: () => ({
+            generateContent: jest.fn().mockResolvedValue({
+              response: {
+                text: jest.fn(() => JSON.stringify({
+                  type: 'expense',
+                  amount: 25.0,
+                  vendor: 'Starbucks',
+                  description: 'Coffee purchase',
+                  category: 'Food',
+                })),
+              },
+            }),
+          }),
+        })),
+      }));
+      jest.doMock('../models/User', () => ({
+        findOne: jest.fn().mockResolvedValue({ id: 'test-user-id', firebase_uid: 'test-firebase-uid' }),
+      }));
+      jest.doMock('../models/AIExtraction', () => ({
+        create: jest.fn().mockResolvedValue({ id: 'test-extraction-id' }),
+      }));
+
+      let app, ocrController;
+      jest.isolateModules(() => {
+        ocrController = require('../controllers/ocrController');
+        app = express();
+        app.use(express.json());
+        const mockFirebaseAuth = (req, res, next) => { req.user = { uid: 'test-firebase-uid' }; next(); };
+        app.post('/ocr/chat', mockFirebaseAuth, ocrController.processChatTransaction);
+      });
+
+      const response = await request(app)
+        .post('/ocr/chat')
+        .send({ message: 'I spent $25 at Starbucks yesterday for coffee' })
+        .expect(200);
+      expect(response.body.message).toBe('Transaction processed successfully');
+      expect(response.body.data).toMatchObject({
+        type: 'expense',
+        amount: 25.0,
+        vendor: 'Starbucks',
+        description: 'Coffee purchase',
+        category: 'Food',
+      });
+    });
+
+    it('should handle income transactions', async () => {
+      jest.doMock('multer', () => {
+        const mockMulter = () => ({
+          single: () => (req, res, next) => {
+            req.file = {
+              originalname: 'test-receipt.jpg',
+              mimetype: 'image/jpeg',
+              path: '/tmp/test-receipt.jpg',
+              size: 1024,
+            };
+            next();
+          },
+        });
+        mockMulter.diskStorage = jest.fn(() => ({
+          destination: jest.fn(),
+          filename: jest.fn(),
+        }));
+        return mockMulter;
+      });
+      jest.doMock('@google/generative-ai', () => ({
+        GoogleGenerativeAI: jest.fn(() => ({
+          getGenerativeModel: () => ({
+            generateContent: jest.fn().mockResolvedValue({
+              response: {
+                text: jest.fn(() => JSON.stringify({
+                  type: 'income',
+                  amount: 1000.0,
+                  vendor: 'Company',
+                  description: 'Salary payment',
+                  category: 'Income',
+                })),
+              },
+            }),
+          }),
+        })),
+      }));
+      jest.doMock('../models/User', () => ({
+        findOne: jest.fn().mockResolvedValue({ id: 'test-user-id', firebase_uid: 'test-firebase-uid' }),
+      }));
+      jest.doMock('../models/AIExtraction', () => ({
+        create: jest.fn().mockResolvedValue({ id: 'test-extraction-id' }),
+      }));
+
+      let app, ocrController;
+      jest.isolateModules(() => {
+        ocrController = require('../controllers/ocrController');
+        app = express();
+        app.use(express.json());
+        const mockFirebaseAuth = (req, res, next) => { req.user = { uid: 'test-firebase-uid' }; next(); };
+        app.post('/ocr/chat', mockFirebaseAuth, ocrController.processChatTransaction);
+      });
+
+      const response = await request(app)
+        .post('/ocr/chat')
+        .send({ message: 'I received $1000 salary from company today' })
+        .expect(200);
+      expect(response.body.data).toMatchObject({
+        type: 'income',
+        amount: 1000.0,
+        vendor: 'Company',
+        description: 'Salary payment',
+        category: 'Income',
+      });
+    });
+
+    it('should handle missing message', async () => {
+      jest.doMock('multer', () => {
+        const mockMulter = () => ({
+          single: () => (req, res, next) => {
+            req.file = {
+              originalname: 'test-receipt.jpg',
+              mimetype: 'image/jpeg',
+              path: '/tmp/test-receipt.jpg',
+              size: 1024,
+            };
+            next();
+          },
+        });
+        mockMulter.diskStorage = jest.fn(() => ({
+          destination: jest.fn(),
+          filename: jest.fn(),
+        }));
+        return mockMulter;
+      });
+      let app, ocrController;
+      jest.isolateModules(() => {
+        ocrController = require('../controllers/ocrController');
+        app = express();
+        app.use(express.json());
+        const mockFirebaseAuth = (req, res, next) => { req.user = { uid: 'test-firebase-uid' }; next(); };
+        app.post('/ocr/chat', mockFirebaseAuth, ocrController.processChatTransaction);
+      });
+
+      const response = await request(app)
+        .post('/ocr/chat')
+        .send({})
+        .expect(400);
+      expect(response.body.message).toBe('Message is required and must be a non-empty string');
+    });
+
+    it('should handle empty message', async () => {
+      jest.doMock('multer', () => {
+        const mockMulter = () => ({
+          single: () => (req, res, next) => {
+            req.file = {
+              originalname: 'test-receipt.jpg',
+              mimetype: 'image/jpeg',
+              path: '/tmp/test-receipt.jpg',
+              size: 1024,
+            };
+            next();
+          },
+        });
+        mockMulter.diskStorage = jest.fn(() => ({
+          destination: jest.fn(),
+          filename: jest.fn(),
+        }));
+        return mockMulter;
+      });
+      let app, ocrController;
+      jest.isolateModules(() => {
+        ocrController = require('../controllers/ocrController');
+        app = express();
+        app.use(express.json());
+        const mockFirebaseAuth = (req, res, next) => { req.user = { uid: 'test-firebase-uid' }; next(); };
+        app.post('/ocr/chat', mockFirebaseAuth, ocrController.processChatTransaction);
+      });
+
+      const response = await request(app)
+        .post('/ocr/chat')
+        .send({ message: '' })
+        .expect(400);
+      expect(response.body.message).toBe('Message is required and must be a non-empty string');
+    });
+
+    it('should handle user not found', async () => {
+      jest.doMock('multer', () => {
+        const mockMulter = () => ({
+          single: () => (req, res, next) => {
+            req.file = {
+              originalname: 'test-receipt.jpg',
+              mimetype: 'image/jpeg',
+              path: '/tmp/test-receipt.jpg',
+              size: 1024,
+            };
+            next();
+          },
+        });
+        mockMulter.diskStorage = jest.fn(() => ({
+          destination: jest.fn(),
+          filename: jest.fn(),
+        }));
+        return mockMulter;
+      });
+      jest.doMock('@google/generative-ai', () => ({
+        GoogleGenerativeAI: jest.fn(() => ({
+          getGenerativeModel: () => ({
+            generateContent: jest.fn().mockResolvedValue({
+              response: {
+                text: jest.fn(() => JSON.stringify({
+                  type: 'expense',
+                  amount: 25.0,
+                  vendor: 'Starbucks',
+                  description: 'Coffee purchase',
+                  category: 'Food',
+                })),
+              },
+            }),
+          }),
+        })),
+      }));
+      jest.doMock('../models/User', () => ({
+        findOne: jest.fn().mockResolvedValue(null),
+      }));
+      jest.doMock('../models/AIExtraction', () => ({
+        create: jest.fn().mockResolvedValue({ id: 'test-extraction-id' }),
+      }));
+
+      let app, ocrController;
+      jest.isolateModules(() => {
+        ocrController = require('../controllers/ocrController');
+        app = express();
+        app.use(express.json());
+        const mockFirebaseAuth = (req, res, next) => { req.user = { uid: 'test-firebase-uid' }; next(); };
+        app.post('/ocr/chat', mockFirebaseAuth, ocrController.processChatTransaction);
+      });
+
+      const response = await request(app)
+        .post('/ocr/chat')
+        .send({ message: 'I spent $25 at Starbucks' })
+        .expect(404);
+      expect(response.body.message).toBe('User not found');
+    });
+
+    it('should handle Gemini API errors', async () => {
+      jest.doMock('multer', () => {
+        const mockMulter = () => ({
+          single: () => (req, res, next) => {
+            req.file = {
+              originalname: 'test-receipt.jpg',
+              mimetype: 'image/jpeg',
+              path: '/tmp/test-receipt.jpg',
+              size: 1024,
+            };
+            next();
+          },
+        });
+        mockMulter.diskStorage = jest.fn(() => ({
+          destination: jest.fn(),
+          filename: jest.fn(),
+        }));
+        return mockMulter;
+      });
+      jest.doMock('@google/generative-ai', () => ({
+        GoogleGenerativeAI: jest.fn(() => ({
+          getGenerativeModel: () => ({
+            generateContent: jest.fn().mockRejectedValue(new Error('API Error')),
+          }),
+        })),
+      }));
+      jest.doMock('../models/User', () => ({
+        findOne: jest.fn().mockResolvedValue({ id: 'test-user-id', firebase_uid: 'test-firebase-uid' }),
+      }));
+      jest.doMock('../models/AIExtraction', () => ({
+        create: jest.fn().mockResolvedValue({ id: 'test-extraction-id' }),
+      }));
+
+      let app, ocrController;
+      jest.isolateModules(() => {
+        ocrController = require('../controllers/ocrController');
+        app = express();
+        app.use(express.json());
+        const mockFirebaseAuth = (req, res, next) => { req.user = { uid: 'test-firebase-uid' }; next(); };
+        app.post('/ocr/chat', mockFirebaseAuth, ocrController.processChatTransaction);
+      });
+
+      const response = await request(app)
+        .post('/ocr/chat')
+        .send({ message: 'I spent $25 at Starbucks' })
+        .expect(500);
+      expect(response.body.message).toBe('Failed to process transaction');
+    });
+  });
+
+  describe('GET /ocr/history', () => {
+    it('should retrieve OCR history successfully', async () => {
+      jest.doMock('multer', () => {
+        const mockMulter = () => ({
+          single: () => (req, res, next) => {
+            req.file = {
+              originalname: 'test-receipt.jpg',
+              mimetype: 'image/jpeg',
+              path: '/tmp/test-receipt.jpg',
+              size: 1024,
+            };
+            next();
+          },
+        });
+        mockMulter.diskStorage = jest.fn(() => ({
+          destination: jest.fn(),
+          filename: jest.fn(),
+        }));
+        return mockMulter;
+      });
+      jest.doMock('../models/User', () => ({
+        findOne: jest.fn().mockResolvedValue({ id: 'test-user-id', firebase_uid: 'test-firebase-uid' }),
+      }));
+      jest.doMock('../models/AIExtraction', () => ({
+        findAll: jest.fn().mockResolvedValue([
+          {
+            id: 'extraction-1',
+            interpreted_type: 'expense',
+            category_suggestion: 'Food',
+            amount: 25.0,
+            extraction_method: 'ocr',
+            Upload: {
+              file_name: 'receipt1.jpg',
+              file_type: 'image/jpeg',
+              uploaded_at: '2025-07-08T14:16:46.525Z',
+            },
+          },
+        ]),
+      }));
+
+      let app, ocrController;
+      jest.isolateModules(() => {
+        ocrController = require('../controllers/ocrController');
+        app = express();
+        app.use(express.json());
+        const mockFirebaseAuth = (req, res, next) => { req.user = { uid: 'test-firebase-uid' }; next(); };
+        app.get('/ocr/history', mockFirebaseAuth, ocrController.getOCRHistory);
+      });
+
+      const response = await request(app)
+        .get('/ocr/history')
+        .expect(200);
+      expect(response.body.message).toBe('OCR history retrieved successfully');
+      expect(response.body.data).toEqual([
+        {
+          id: 'extraction-1',
+          interpreted_type: 'expense',
+          category_suggestion: 'Food',
+          amount: 25.0,
+          extraction_method: 'ocr',
+          Upload: {
+            file_name: 'receipt1.jpg',
+            file_type: 'image/jpeg',
+            uploaded_at: '2025-07-08T14:16:46.525Z',
+          },
+        },
+      ]);
+    });
+
+    it('should handle user not found', async () => {
+      jest.doMock('multer', () => {
+        const mockMulter = () => ({
+          single: () => (req, res, next) => {
+            req.file = {
+              originalname: 'test-receipt.jpg',
+              mimetype: 'image/jpeg',
+              path: '/tmp/test-receipt.jpg',
+              size: 1024,
+            };
+            next();
+          },
+        });
+        mockMulter.diskStorage = jest.fn(() => ({
+          destination: jest.fn(),
+          filename: jest.fn(),
+        }));
+        return mockMulter;
+      });
+      jest.doMock('../models/User', () => ({
+        findOne: jest.fn().mockResolvedValue(null),
+      }));
+
+      let app, ocrController;
+      jest.isolateModules(() => {
+        ocrController = require('../controllers/ocrController');
+        app = express();
+        app.use(express.json());
+        const mockFirebaseAuth = (req, res, next) => { req.user = { uid: 'test-firebase-uid' }; next(); };
+        app.get('/ocr/history', mockFirebaseAuth, ocrController.getOCRHistory);
+      });
+
+      const response = await request(app)
+        .get('/ocr/history')
+        .expect(404);
+      expect(response.body.message).toBe('User not found');
+    });
+
+    it('should handle database errors', async () => {
+      jest.doMock('multer', () => {
+        const mockMulter = () => ({
+          single: () => (req, res, next) => {
+            req.file = {
+              originalname: 'test-receipt.jpg',
+              mimetype: 'image/jpeg',
+              path: '/tmp/test-receipt.jpg',
+              size: 1024,
+            };
+            next();
+          },
+        });
+        mockMulter.diskStorage = jest.fn(() => ({
+          destination: jest.fn(),
+          filename: jest.fn(),
+        }));
+        return mockMulter;
+      });
+      jest.doMock('../models/User', () => ({
+        findOne: jest.fn().mockResolvedValue({ id: 'test-user-id', firebase_uid: 'test-firebase-uid' }),
+      }));
+      jest.doMock('../models/AIExtraction', () => ({
+        findAll: jest.fn().mockRejectedValue(new Error('Database error')),
+      }));
+
+      let app, ocrController;
+      jest.isolateModules(() => {
+        ocrController = require('../controllers/ocrController');
+        app = express();
+        app.use(express.json());
+        const mockFirebaseAuth = (req, res, next) => { req.user = { uid: 'test-firebase-uid' }; next(); };
+        app.get('/ocr/history', mockFirebaseAuth, ocrController.getOCRHistory);
+      });
+
+      const response = await request(app)
+        .get('/ocr/history')
+        .expect(500);
+      expect(response.body.message).toBe('Failed to retrieve OCR history');
+    });
+  });
+}); 

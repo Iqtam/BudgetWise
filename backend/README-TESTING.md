@@ -14,26 +14,6 @@ We use **Jest** for unit testing with **Supertest** for HTTP endpoint testing.
 - `supertest`: HTTP testing library
 - `@types/jest`: TypeScript definitions for Jest
 
-## Running Tests
-
-### Basic Test Run
-
-```bash
-npm test
-```
-
-### Watch Mode (runs tests on file changes)
-
-```bash
-npm run test:watch
-```
-
-### Coverage Report
-
-```bash
-npm run test:coverage
-```
-
 ## Test Structure
 
 ### Unit Tests
@@ -227,4 +207,204 @@ npm test -- --verbose
 
 # Update snapshots (if using)
 npm test -- --updateSnapshot
+```
+
+## How to Run Tests
+
+### Prerequisites
+
+First, make sure you're in the backend directory and have all dependencies installed:
+
+```bash
+cd backend
+npm install
+```
+
+### Basic Test Commands
+
+#### 1. **Run All Tests**
+```bash
+npm test
+```
+This runs all test suites once and shows the results.
+
+#### 2. **Run Tests in Watch Mode**
+```bash
+npm run test:watch
+```
+This runs tests continuously and re-runs when files change. Great for development.
+
+#### 3. **Run Tests with Coverage Report**
+```bash
+npm run test:coverage
+```
+This generates a detailed coverage report showing which lines of code are tested.
+
+#### 4. **Check Test Status**
+```bash
+npm run test:status
+```
+This runs tests and generates a status badge with coverage information.
+
+### Advanced Test Commands
+
+#### **Run Specific Test Files**
+```bash
+# Run only transaction controller tests
+npm test -- --testPathPattern=transactionController
+
+# Run only OCR controller tests
+npm test -- --testPathPattern=ocrController
+
+# Run only chat controller tests
+npm test -- --testPathPattern=chatController
+```
+
+#### **Run Specific Test Suites**
+```bash
+# Run tests matching a specific pattern
+npm test -- --testNamePattern="Transaction Controller"
+
+# Run tests containing "POST" in the name
+npm test -- --testNamePattern="POST"
+```
+
+#### **Run Tests with Verbose Output**
+```bash
+npm test -- --verbose
+```
+
+#### **Run Tests with Coverage for Specific Files**
+```bash
+npm test -- --coverage --testPathPattern=transactionController
+```
+
+### Test Output Examples
+
+#### **Successful Test Run**
+```bash
+$ npm test
+
+ PASS  src/__tests__/transactionController.test.js
+ PASS  src/__tests__/ocrController.test.js
+ PASS  src/__tests__/chatController.test.js
+
+Test Suites: 3 passed, 3 total
+Tests:       45 passed, 45 total
+Snapshots:   0 total
+Time:        2.145 s
+Ran all test suites.
+```
+
+#### **Coverage Report**
+```bash
+$ npm run test:coverage
+
+----------|---------|----------|---------|---------|-------------------
+File      | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s
+----------|---------|----------|---------|---------|-------------------
+All files |   100.00 |    100.00 |   100.00 |   100.00 |
+----------|---------|----------|---------|---------|-------------------
+
+Test Suites: 3 passed, 3 total
+Tests:       45 passed, 45 total
+Snapshots:   0 total
+Time:        2.145 s
+```
+
+### Test Structure
+
+The tests are organized as follows:
+
+```
+backend/src/__tests__/
+├── transactionController.test.js  # Manual transaction tests
+├── ocrController.test.js         # OCR and receipt processing tests
+└── chatController.test.js        # Chat-based transaction tests
+```
+
+### What Each Test File Covers
+
+#### **transactionController.test.js**
+- ✅ Creating transactions (manual entry)
+- ✅ Reading transactions with filtering
+- ✅ Updating transactions
+- ✅ Deleting transactions
+- ✅ Budget sync integration
+- ✅ Error handling and corner cases
+
+#### **ocrController.test.js**
+- ✅ Receipt image processing
+- ✅ Chat-based transaction extraction
+- ✅ File upload validation
+- ✅ AI integration testing
+- ✅ Error scenarios
+
+#### **chatController.test.js**
+- ✅ General financial advice queries
+- ✅ Transaction creation through chat
+- ✅ Chat history management
+- ✅ AI response processing
+- ✅ Error handling
+
+### Troubleshooting
+
+#### **If Tests Fail**
+
+1. **Check Dependencies**
+   ```bash
+   npm install
+   ```
+
+2. **Clear Jest Cache**
+   ```bash
+   npx jest --clearCache
+   ```
+
+3. **Run with Verbose Output**
+   ```bash
+   npm test -- --verbose
+   ```
+
+4. **Check for Environment Issues**
+   ```bash
+   # Make sure you're in the backend directory
+   pwd
+   ls -la src/__tests__/
+   ```
+
+#### **Common Issues**
+
+- **Module not found errors**: Run `npm install` to ensure all dependencies are installed
+- **Timeout errors**: Tests are configured with a 30-second timeout
+- **Mock errors**: Ensure all external dependencies are properly mocked
+
+### Development Workflow
+
+1. **Write Code**: Make changes to controllers
+2. **Run Tests**: `npm test` to ensure existing tests pass
+3. **Add Tests**: Write new tests for new functionality
+4. **Watch Mode**: `npm run test:watch` during development
+5. **Coverage**: `npm run test:coverage` before committing
+
+### Quick Reference
+
+```bash
+# Quick test run
+npm test
+
+# Development with watch mode
+npm run test:watch
+
+# Full coverage report
+npm run test:coverage
+
+# Test status with badge
+npm run test:status
+
+# Run specific test file
+npm test -- --testPathPattern=transactionController
+
+# Run with verbose output
+npm test -- --verbose
 ```
