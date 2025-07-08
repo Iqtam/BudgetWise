@@ -2,7 +2,7 @@ import { auth } from '$lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { PUBLIC_BACKEND_API_URL } from '$env/static/public';
 
-const API_BASE_URL = PUBLIC_BACKEND_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = PUBLIC_BACKEND_API_URL || 'http://budgetwis.me/api';
 
 interface Message {
   id: number;
