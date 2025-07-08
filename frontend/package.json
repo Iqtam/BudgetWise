@@ -38,6 +38,7 @@
 		"eslint-config-prettier": "^10.0.1",
 		"eslint-plugin-svelte": "^3.0.0",
 		"globals": "^16.0.0",
+		"happy-dom": "^18.0.1",
 		"jsdom": "^26.1.0",
 		"prettier": "^3.4.2",
 		"prettier-plugin-svelte": "^3.3.3",
@@ -55,10 +56,10 @@
 		"vitest": "^3.2.4"
 	},
 	"dependencies": {
+		"@iconify/svelte": "^5.0.0",
 		"d3": "^7.9.0",
 		"firebase": "^11.9.1",
 		"layerchart": "^1.0.11",
-		"lucide-svelte": "^0.522.0",
 		"recharts": "^2.15.4"
 	}
 }

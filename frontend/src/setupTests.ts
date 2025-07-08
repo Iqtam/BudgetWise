@@ -1,6 +1,14 @@
 import '@testing-library/jest-dom';
 import { vi } from 'vitest';
 
+// Force client-side environment for Svelte 5
+globalThis.window = globalThis.window || {};
+globalThis.document = globalThis.document || {};
+globalThis.navigator = globalThis.navigator || {};
+
+// Ensure we're not in SSR mode
+process.env.NODE_ENV = process.env.NODE_ENV || 'test';
+
 // Mock Firebase - needs to be available globally
 vi.mock('$lib/firebase', () => ({
   auth: {
@@ -64,44 +72,15 @@ vi.mock('lucide-svelte', () => {
   });
 });
 
-// Mock UI components that might have compatibility issues
-vi.mock('$lib/components/ui/button', () => ({
-  Button: vi.fn(() => null)
+// Remove UI component mocks - let real components render
+// This should fix the timeout issues
+
+// Mock Icon component from @iconify/svelte
+vi.mock('@iconify/svelte', () => ({
+  default: (props: any) => `<svg class="icon ${props?.class || ''}" data-icon="${props?.icon || ''}"></svg>`
 }));
 
-vi.mock('$lib/components/ui/card', () => ({
-  Card: vi.fn(() => null),
-  CardContent: vi.fn(() => null),
-  CardHeader: vi.fn(() => null),
-  CardTitle: vi.fn(() => null)
-}));
-
-vi.mock('$lib/components/ui/input', () => ({
-  Input: vi.fn(() => null)
-}));
-
-vi.mock('$lib/components/ui/label', () => ({
-  Label: vi.fn(() => null)
-}));
-
-vi.mock('$lib/components/ui/select', () => ({
-  Select: vi.fn(() => null),
-  SelectContent: vi.fn(() => null),
-  SelectItem: vi.fn(() => null),
-  SelectTrigger: vi.fn(() => null)
-}));
-
-vi.mock('$lib/components/ui/dialog', () => ({
-  Dialog: vi.fn(() => null),
-  DialogContent: vi.fn(() => null),
-  DialogHeader: vi.fn(() => null),
-  DialogTitle: vi.fn(() => null)
-}));
-
-vi.mock('$lib/components/ui/badge', () => ({
-  Badge: vi.fn(() => null)
-}));
-
-vi.mock('$lib/components/ui/progress', () => ({
-  Progress: vi.fn(() => null)
+// Mock separator component
+vi.mock('$lib/components/ui/separator', () => ({
+  Separator: (props: any) => `<div class="separator ${props?.class || ''}" role="separator"></div>`
 })); 
