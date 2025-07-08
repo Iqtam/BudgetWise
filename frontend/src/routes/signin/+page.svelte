@@ -1,11 +1,18 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { Button } from '$lib/components/ui/button';
-	import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
+	import {
+		Card,
+		CardContent,
+		CardDescription,
+		CardHeader,
+		CardTitle
+	} from '$lib/components/ui/card';
 	import { Input } from '$lib/components/ui/input';
 	import { Separator } from '$lib/components/ui/separator';
-	import { DollarSign, Eye, EyeOff, Mail, Lock } from 'lucide-svelte';	import { signIn, signInWithGoogle } from "$lib/services/auth";
-	import { firebaseUser, backendUser, loading } from "$lib/stores/auth";
+	import { DollarSign, Eye, EyeOff, Mail, Lock } from 'lucide-svelte';
+	import { signIn, signInWithGoogle } from '$lib/services/auth';
+	import { firebaseUser, backendUser, loading } from '$lib/stores/auth';
 
 	let email = '';
 	let password = '';
@@ -33,7 +40,7 @@
 		e.preventDefault();
 		try {
 			isLoading = true;
-			error = "";
+			error = '';
 			await signIn(email, password);
 			showToast('Welcome back!', 'You have successfully signed in to BudgetWise.');
 			// Redirect is handled by reactive statement above
@@ -42,7 +49,7 @@
 				error = e.message;
 				showToast('Sign in failed', e.message, 'destructive');
 			} else {
-				error = "Failed to sign in. Please check your credentials.";
+				error = 'Failed to sign in. Please check your credentials.';
 				showToast('Sign in failed', 'Please check your email and password.', 'destructive');
 			}
 			console.error(e);
@@ -54,19 +61,29 @@
 	async function handleGoogleSignIn() {
 		try {
 			isGoogleLoading = true;
-			error = "";
+			error = '';
+
+			console.log('Attempting Google sign-in...');
 			await signInWithGoogle();
 			showToast('Welcome back!', 'You have successfully signed in with Google.');
 			// Redirect is handled by reactive statement above
 		} catch (e) {
+			console.error('Google sign-in error:', e);
+
 			if (e instanceof Error) {
+				// Handle specific error case for redirect
+				if (e.message === 'Redirect initiated. Please wait for page to reload.') {
+					showToast('Redirecting...', 'Please wait while we redirect you to Google.', 'default');
+					// Don't set error in this case
+					return;
+				}
+
 				error = e.message;
 				showToast('Sign in failed', e.message, 'destructive');
 			} else {
-				error = "Failed to sign in with Google.";
+				error = 'Failed to sign in with Google.';
 				showToast('Sign in failed', 'Failed to sign in with Google.', 'destructive');
 			}
-			console.error(e);
 		} finally {
 			isGoogleLoading = false;
 		}
@@ -74,19 +91,23 @@
 
 	// Auto-redirect if already authenticated
 	$: if ($firebaseUser && $backendUser) {
-		goto("/dashboard");
+		goto('/dashboard');
 	}
 </script>
 
 <svelte:head>
 	<title>Sign In - BudgetWise</title>
-	<meta name="description" content="Sign in to your BudgetWise account to continue your financial journey" />
+	<meta
+		name="description"
+		content="Sign in to your BudgetWise account to continue your financial journey"
+	/>
 </svelte:head>
 
-<div class="min-h-screen bg-gray-900 text-white flex items-center justify-center p-4">
+<div class="flex min-h-screen items-center justify-center bg-gray-900 p-4 text-white">
 	{#if notification.show}
 		<div
-			class="fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg {notification.variant === 'destructive'
+			class="fixed right-4 top-4 z-50 rounded-lg p-4 shadow-lg {notification.variant ===
+			'destructive'
 				? 'bg-red-600 text-white'
 				: 'bg-green-600 text-white'}"
 		>
@@ -97,10 +118,10 @@
 
 	<div class="w-full max-w-md">
 		<!-- Header -->
-		<Card class="bg-gray-800 border-gray-700 shadow-lg">
-			<CardHeader class="text-center py-8">
-				<div class="flex justify-center mb-6">
-					<a href="/" class="flex items-center gap-2 hover:opacity-80 transition-opacity">
+		<Card class="border-gray-700 bg-gray-800 shadow-lg">
+			<CardHeader class="py-8 text-center">
+				<div class="mb-6 flex justify-center">
+					<a href="/" class="flex items-center gap-2 transition-opacity hover:opacity-80">
 						<div
 							class="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-r from-blue-500 to-green-500"
 						>
@@ -109,7 +130,7 @@
 						<span class="text-2xl font-bold text-white">BudgetWise</span>
 					</a>
 				</div>
-				<h1 class="text-2xl font-bold text-white mb-2">Welcome Back</h1>
+				<h1 class="mb-2 text-2xl font-bold text-white">Welcome Back</h1>
 				<p class="text-gray-400">Sign in to continue to your dashboard</p>
 			</CardHeader>
 			<CardContent class="space-y-6 px-8 pb-8">
@@ -124,7 +145,7 @@
 								type="email"
 								placeholder="Enter your email"
 								bind:value={email}
-								class="pl-10 bg-gray-700 border-gray-600 text-white placeholder-gray-400 h-12"
+								class="h-12 border-gray-600 bg-gray-700 pl-10 text-white placeholder-gray-400"
 								required
 								disabled={isLoading || isGoogleLoading}
 							/>
@@ -140,12 +161,13 @@
 								type={showPassword ? 'text' : 'password'}
 								placeholder="Enter your password"
 								bind:value={password}
-								class="pl-10 pr-10 bg-gray-700 border-gray-600 text-white placeholder-gray-400 h-12"
+								class="h-12 border-gray-600 bg-gray-700 pl-10 pr-10 text-white placeholder-gray-400"
 								required
 								disabled={isLoading || isGoogleLoading}
-							/>							<button
+							/>
+							<button
 								type="button"
-								class="absolute right-0 top-0 h-full px-3 py-2 hover:bg-gray-600 bg-transparent border-none cursor-pointer rounded-r-md transition-colors"
+								class="absolute right-0 top-0 h-full cursor-pointer rounded-r-md border-none bg-transparent px-3 py-2 transition-colors hover:bg-gray-600"
 								on:click={() => (showPassword = !showPassword)}
 								disabled={isLoading || isGoogleLoading}
 							>
@@ -160,12 +182,12 @@
 
 					<Button
 						type="submit"
-						class="w-full h-12 bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600 text-white font-medium text-base"
+						class="h-12 w-full bg-gradient-to-r from-blue-500 to-green-500 text-base font-medium text-white hover:from-blue-600 hover:to-green-600"
 						disabled={isLoading || isGoogleLoading}
 					>
 						{#if isLoading}
 							<div
-								class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"
+								class="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"
 							></div>
 							Signing in...
 						{:else}
@@ -186,16 +208,16 @@
 				<!-- Google Sign In -->
 				<Button
 					variant="outline"
-					class="w-full h-12 bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
-					on:click={handleGoogleSignIn}
+					class="h-12 w-full border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+					onclick={handleGoogleSignIn}
 					disabled={isGoogleLoading || isLoading}
 				>
 					{#if isGoogleLoading}
 						<div
-							class="w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin mr-2"
+							class="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"
 						></div>
 					{:else}
-						<svg class="w-5 h-5 mr-2" viewBox="0 0 24 24">
+						<svg class="mr-2 h-5 w-5" viewBox="0 0 24 24">
 							<path
 								fill="#4285F4"
 								d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -217,13 +239,19 @@
 					Continue with Google
 				</Button>
 
-				<div class="text-center text-sm text-gray-400 mt-6">
-					Don't have an account? <a href="/signup" class="text-blue-400 hover:underline font-medium">Sign Up</a>
+				<div class="mt-6 text-center text-sm text-gray-400">
+					Don't have an account? <a href="/signup" class="font-medium text-blue-400 hover:underline"
+						>Sign Up</a
+					>
 				</div>
 
-				<div class="text-center text-xs text-gray-500 mt-4 flex items-center justify-center gap-1">
-					<svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-						<path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
+				<div class="mt-4 flex items-center justify-center gap-1 text-center text-xs text-gray-500">
+					<svg class="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+						<path
+							fill-rule="evenodd"
+							d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
+							clip-rule="evenodd"
+						/>
 					</svg>
 					Secure authentication. No credit card required.
 				</div>
@@ -233,9 +261,11 @@
 		<!-- Footer -->
 		<div class="mt-6 text-center text-xs text-gray-500">
 			<p>
-				By continuing, you agree to our <a href="/terms" class="hover:underline text-gray-400">Terms of Service</a>
-				and <a href="/privacy" class="hover:underline text-gray-400">Privacy Policy</a>
+				By continuing, you agree to our <a href="/terms" class="text-gray-400 hover:underline"
+					>Terms of Service</a
+				>
+				and <a href="/privacy" class="text-gray-400 hover:underline">Privacy Policy</a>
 			</p>
 		</div>
 	</div>
-</div> 
+</div>

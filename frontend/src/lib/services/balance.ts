@@ -7,7 +7,7 @@ const API_URL = PUBLIC_BACKEND_API_URL || "http://localhost/api";
 export interface Balance {
 	id: string;
 	user_id: string;
-	balance: number;
+	balance: string;
 }
 
 export class BalanceService {

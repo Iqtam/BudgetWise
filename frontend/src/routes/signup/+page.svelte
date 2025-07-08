@@ -4,8 +4,9 @@
 	import { Card, CardContent, CardHeader } from '$lib/components/ui/card';
 	import { Input } from '$lib/components/ui/input';
 	import { Separator } from '$lib/components/ui/separator';
-	import { DollarSign, Eye, EyeOff, Mail, Lock } from 'lucide-svelte';	import { signUp, signInWithGoogle } from "$lib/services/auth";
-	import { firebaseUser, backendUser, loading } from "$lib/stores/auth";
+	import { DollarSign, Eye, EyeOff, Mail, Lock } from 'lucide-svelte';
+	import { signUp, signInWithGoogle } from '$lib/services/auth';
+	import { firebaseUser, backendUser, loading } from '$lib/stores/auth';
 
 	let email = '';
 	let password = '';
@@ -43,7 +44,7 @@
 			return;
 		}
 		try {
-			error = "";
+			error = '';
 			isLoading = true;
 			await signUp(email, password);
 			showToast('Welcome to BudgetWise!', 'Your account has been created successfully.');
@@ -53,31 +54,41 @@
 				error = e.message;
 				showToast('Sign up failed', e.message, 'destructive');
 			} else {
-				error = "Failed to create an account.";
+				error = 'Failed to create an account.';
 				showToast('Sign up failed', 'Failed to create an account.', 'destructive');
 			}
-			console.error("Sign up failed:", e);
+			console.error('Sign up failed:', e);
 		} finally {
 			isLoading = false;
 		}
 	}
 
-	async function handleGoogleSignUp() {
+	async function handleGoogleSignIn() {
 		try {
 			isGoogleLoading = true;
-			error = "";
+			error = '';
+
+			console.log('Attempting Google sign-in...');
 			await signInWithGoogle();
-			showToast('Welcome to BudgetWise!', 'Your account has been created with Google.');
+			showToast('Welcome!', 'You have successfully signed in with Google.');
 			// Redirect is handled by reactive statement above
 		} catch (e) {
+			console.error('Google sign-in error:', e);
+
 			if (e instanceof Error) {
+				// Handle specific error case for redirect
+				if (e.message === 'Redirect initiated. Please wait for page to reload.') {
+					showToast('Redirecting...', 'Please wait while we redirect you to Google.', 'default');
+					// Don't set error in this case
+					return;
+				}
+
 				error = e.message;
-				showToast('Sign up failed', e.message, 'destructive');
+				showToast('Sign in failed', e.message, 'destructive');
 			} else {
-				error = "Failed to sign up with Google.";
-				showToast('Sign up failed', 'Failed to sign up with Google.', 'destructive');
+				error = 'Failed to sign in with Google.';
+				showToast('Sign in failed', 'Failed to sign in with Google.', 'destructive');
 			}
-			console.error(e);
 		} finally {
 			isGoogleLoading = false;
 		}
@@ -85,19 +96,23 @@
 
 	// Auto-redirect if already authenticated
 	$: if ($firebaseUser && $backendUser) {
-		goto("/dashboard");
+		goto('/dashboard');
 	}
 </script>
 
 <svelte:head>
 	<title>Sign Up - BudgetWise</title>
-	<meta name="description" content="Create your BudgetWise account and start your journey to financial freedom" />
+	<meta
+		name="description"
+		content="Create your BudgetWise account and start your journey to financial freedom"
+	/>
 </svelte:head>
 
-<div class="min-h-screen bg-slate-900 flex items-center justify-center p-4">
+<div class="flex min-h-screen items-center justify-center bg-slate-900 p-4">
 	{#if notification.show}
 		<div
-			class="fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg {notification.variant === 'destructive'
+			class="fixed right-4 top-4 z-50 rounded-lg p-4 shadow-lg {notification.variant ===
+			'destructive'
 				? 'bg-red-600 text-white'
 				: 'bg-green-600 text-white'}"
 		>
@@ -107,9 +122,9 @@
 	{/if}
 
 	<div class="w-full max-w-md">
-		<Card class="bg-slate-800 border-slate-700 shadow-2xl">
-			<CardHeader class="text-center py-8">
-				<div class="flex justify-center items-center gap-3 mb-6">
+		<Card class="border-slate-700 bg-slate-800 shadow-2xl">
+			<CardHeader class="py-8 text-center">
+				<div class="mb-6 flex items-center justify-center gap-3">
 					<div
 						class="flex h-12 w-12 items-center justify-center rounded-lg bg-gradient-to-r from-blue-500 to-green-500"
 					>
@@ -117,7 +132,7 @@
 					</div>
 					<span class="text-3xl font-bold text-white">BudgetWise</span>
 				</div>
-				<h1 class="text-2xl font-bold text-white mb-2">Create Account</h1>
+				<h1 class="mb-2 text-2xl font-bold text-white">Create Account</h1>
 				<p class="text-slate-400">Start your journey to financial freedom</p>
 			</CardHeader>
 			<CardContent class="space-y-6 px-8 pb-8">
@@ -126,12 +141,13 @@
 					<div class="space-y-2">
 						<label for="email" class="text-sm font-medium text-white">Email</label>
 						<div class="relative">
-							<Mail class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />							<Input
+							<Mail class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+							<Input
 								id="email"
 								type="email"
 								placeholder="Enter your email"
 								bind:value={email}
-								class="pl-10 h-12 bg-slate-700 border-slate-600 text-white placeholder-slate-400 focus:border-blue-500"
+								class="h-12 border-slate-600 bg-slate-700 pl-10 text-white placeholder-slate-400 focus:border-blue-500"
 								required
 								disabled={isLoading || isGoogleLoading}
 							/>
@@ -141,12 +157,13 @@
 					<div class="space-y-2">
 						<label for="password" class="text-sm font-medium text-white">Password</label>
 						<div class="relative">
-							<Lock class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />							<Input
+							<Lock class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+							<Input
 								id="password"
 								type={showPassword ? 'text' : 'password'}
 								placeholder="Create a strong password"
 								bind:value={password}
-								class="pl-10 pr-10 h-12 bg-slate-700 border-slate-600 text-white placeholder-slate-400 focus:border-blue-500"
+								class="h-12 border-slate-600 bg-slate-700 pl-10 pr-10 text-white placeholder-slate-400 focus:border-blue-500"
 								required
 								disabled={isLoading || isGoogleLoading}
 							/>
@@ -155,19 +172,22 @@
 								variant="ghost"
 								size="sm"
 								class="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-								on:click={() => (showPassword = !showPassword)}
+								onclick={() => (showPassword = !showPassword)}
 								disabled={isLoading || isGoogleLoading}
 							>
 								{#if showPassword}
 									<EyeOff class="h-4 w-4 text-slate-400" />
 								{:else}
 									<Eye class="h-4 w-4 text-slate-400" />
-								{/if}							</Button>
+								{/if}
+							</Button>
 						</div>
 					</div>
 
 					<div class="space-y-2">
-						<label for="confirmPassword" class="text-sm font-medium text-white">Confirm Password</label>
+						<label for="confirmPassword" class="text-sm font-medium text-white"
+							>Confirm Password</label
+						>
 						<div class="relative">
 							<Lock class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
 							<Input
@@ -175,7 +195,7 @@
 								type="password"
 								placeholder="Confirm your password"
 								bind:value={confirmPassword}
-								class="pl-10 h-12 bg-slate-700 border-slate-600 text-white placeholder-slate-400 focus:border-blue-500"
+								class="h-12 border-slate-600 bg-slate-700 pl-10 text-white placeholder-slate-400 focus:border-blue-500"
 								required
 								disabled={isLoading || isGoogleLoading}
 							/>
@@ -184,12 +204,12 @@
 
 					<Button
 						type="submit"
-						class="w-full h-12 bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600 text-white font-medium text-base"
+						class="h-12 w-full bg-gradient-to-r from-blue-500 to-green-500 text-base font-medium text-white hover:from-blue-600 hover:to-green-600"
 						disabled={isLoading || isGoogleLoading}
 					>
 						{#if isLoading}
 							<div
-								class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"
+								class="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"
 							></div>
 							Creating account...
 						{:else}
@@ -210,16 +230,16 @@
 				<!-- Google Sign Up -->
 				<Button
 					variant="outline"
-					class="w-full h-12 bg-slate-700 border-slate-600 text-white hover:bg-slate-600"
-					on:click={handleGoogleSignUp}
+					class="h-12 w-full border-slate-600 bg-slate-700 text-white hover:bg-slate-600"
+					onclick={handleGoogleSignIn}
 					disabled={isGoogleLoading || isLoading}
 				>
 					{#if isGoogleLoading}
 						<div
-							class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"
+							class="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"
 						></div>
 					{:else}
-						<svg class="w-5 h-5 mr-2" viewBox="0 0 24 24">
+						<svg class="mr-2 h-5 w-5" viewBox="0 0 24 24">
 							<path
 								fill="#4285F4"
 								d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -241,13 +261,20 @@
 					Continue with Google
 				</Button>
 
-				<div class="text-center text-sm text-slate-400 mt-6">
-					Already have an account? <a href="/signin" class="text-blue-400 hover:underline font-medium">Sign In</a>
+				<div class="mt-6 text-center text-sm text-slate-400">
+					Already have an account? <a
+						href="/signin"
+						class="font-medium text-blue-400 hover:underline">Sign In</a
+					>
 				</div>
 
-				<div class="text-center text-xs text-slate-500 mt-4 flex items-center justify-center gap-1">
-					<svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-						<path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
+				<div class="mt-4 flex items-center justify-center gap-1 text-center text-xs text-slate-500">
+					<svg class="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+						<path
+							fill-rule="evenodd"
+							d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
+							clip-rule="evenodd"
+						/>
 					</svg>
 					Secure authentication. No credit card required.
 				</div>
@@ -257,9 +284,11 @@
 		<!-- Footer -->
 		<div class="mt-6 text-center text-xs text-slate-500">
 			<p>
-				By continuing, you agree to our <a href="/terms" class="hover:underline text-slate-400">Terms of Service</a>
-				and <a href="/privacy" class="hover:underline text-slate-400">Privacy Policy</a>
+				By continuing, you agree to our <a href="/terms" class="text-slate-400 hover:underline"
+					>Terms of Service</a
+				>
+				and <a href="/privacy" class="text-slate-400 hover:underline">Privacy Policy</a>
 			</p>
 		</div>
 	</div>
-</div> 
+</div>

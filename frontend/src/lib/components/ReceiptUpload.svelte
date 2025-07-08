@@ -116,7 +116,7 @@
 					<Camera class="h-5 w-5" />
 					Receipt Scanner
 				</CardTitle>
-				<Button variant="ghost" size="sm" on:click={closeModal}>
+				<Button variant="ghost" size="sm" onclick={closeModal}>
 					<X class="h-4 w-4" />
 				</Button>
 			</CardHeader>
@@ -140,7 +140,7 @@
 							<p class="text-sm text-gray-600 mb-2">
 								Drag & drop your receipt image here, or
 							</p>
-							<Button variant="outline" on:click={() => fileInput?.click()}>
+							<Button variant="outline" onclick={() => fileInput?.click()}>
 								Choose File
 							</Button>
 						</div>
@@ -166,7 +166,7 @@
 
 							<Button 
 								class="w-full" 
-								on:click={processReceipt} 
+								onclick={processReceipt} 
 								disabled={isProcessing}
 							>
 								{#if isProcessing}
@@ -226,11 +226,11 @@
 						</div>
 
 						<div class="flex gap-2">
-							<Button variant="outline" class="flex-1" on:click={handleEdit}>
+							<Button variant="outline" class="flex-1" onclick={handleEdit}>
 								<Edit class="h-4 w-4 mr-2" />
 								Edit
 							</Button>
-							<Button class="flex-1" on:click={handleConfirm}>
+							<Button class="flex-1" onclick={handleConfirm}>
 								<CheckCircle class="h-4 w-4 mr-2" />
 								Confirm & Add
 							</Button>

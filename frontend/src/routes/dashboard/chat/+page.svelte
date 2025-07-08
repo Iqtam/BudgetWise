@@ -1,28 +1,33 @@
 <script lang="ts">
-	import { Button } from "$lib/components/ui/button/index.js";
-	import { Input } from "$lib/components/ui/input/index.js";
-	import { ScrollArea } from "$lib/components/ui/scroll-area/index.js";
-	import { Badge } from "$lib/components/ui/badge/index.js";
-	import { Card, CardContent, CardHeader, CardTitle } from "$lib/components/ui/card/index.js";
-	import { Bot, Send, User, AlertCircle, TrendingUp, Target, DollarSign } from "lucide-svelte";
-	import { onMount } from "svelte";
-	import { aiAssistantService, type Message, type ActionItem, type Insight } from "$lib/services/aiAssistant";
+	import { Button } from '$lib/components/ui/button/index.js';
+	import { Input } from '$lib/components/ui/input/index.js';
+	import { ScrollArea } from '$lib/components/ui/scroll-area/index.js';
+	import { Badge } from '$lib/components/ui/badge/index.js';
+	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card/index.js';
+	import { Bot, Send, User, AlertCircle, TrendingUp, Target, DollarSign } from 'lucide-svelte';
+	import { onMount } from 'svelte';
+	import {
+		aiAssistantService,
+		type Message,
+		type ActionItem,
+		type Insight
+	} from '$lib/services/aiAssistant';
 
 	const initialMessages: Message[] = [
 		{
 			id: 1,
-			type: "assistant",
+			type: 'assistant',
 			content:
 				"Hello! I'm your AI financial assistant powered by advanced AI. I can help you create personalized budgets, track expenses, provide savings advice, manage debt, and analyze your financial patterns. How can I help you today?",
-			timestamp: new Date(),
-		},
+			timestamp: new Date()
+		}
 	];
 
 	let messages: Message[] = initialMessages;
-	let inputValue = "";
+	let inputValue = '';
 	let isLoading = false;
-	let scrollArea: HTMLElement;
-	let errorMessage = "";
+	let scrollArea: any;
+	let errorMessage = '';
 
 	onMount(async () => {
 		scrollToBottom();
@@ -51,9 +56,9 @@
 		}
 	}
 
-	async function sendMessage(content: string) {
+		async function sendMessage(content: string) {
 		try {
-			errorMessage = "";
+			errorMessage = '';
 			const response = await aiAssistantService.sendMessage(content);
 			
 			if (response.success) {
@@ -74,8 +79,8 @@
 				throw new Error(response.error || 'Failed to get response');
 			}
 		} catch (error) {
-			console.error('Error sending message:', error);
-			errorMessage = error.message || 'Failed to send message. Please try again.';
+		console.error('Error sending message:', error);
+		errorMessage = (error as Error).message || 'Failed to send message. Please try again.';
 			
 			// Add error message to chat
 			const errorResponse: Message = {
@@ -86,6 +91,9 @@
 			};
 			messages = [...messages, errorResponse];
 			scrollToBottom();
+		} finally {
+			// Always set loading to false when done (success or error)
+			isLoading = false;
 		}
 	}
 
@@ -102,12 +110,12 @@
 		};
 		messages = [...messages, userMessage];
 
-		inputValue = "";
+		inputValue = '';
 		isLoading = true;
 		scrollToBottom();
 
+		// Don't set isLoading to false here - let sendMessage handle it
 		await sendMessage(content.trim());
-		isLoading = false;
 	}
 
 	function handleSubmit(event: SubmitEvent) {
@@ -117,21 +125,29 @@
 
 	function handleQuickAction(message: string) {
 		console.log('Quick action clicked:', message);
-		// Clear the input and send the message directly
-		inputValue = "";
-		handleSendMessage(message);
+		// Show the message in the input box immediately
+		inputValue = message;
+		// Send the message after the next tick to ensure the input shows
+		requestAnimationFrame(() => {
+			handleSendMessage(message);
+		});
 	}
 </script>
 
-<div class="flex flex-col h-full">
+<div class="flex h-full flex-col">
 	<!-- Chat Messages -->
 	<ScrollArea bind:this={scrollArea} class="flex-1 p-4">
-		<div class="space-y-4 max-w-3xl mx-auto">
+		<div class="mx-auto max-w-3xl space-y-4">
 			{#each messages as message}
 				<div class="flex gap-3 {message.type === 'user' ? 'justify-end' : 'justify-start'}">
-					<div class="flex gap-3 max-w-[80%] {message.type === 'user' ? 'flex-row-reverse' : 'flex-row'}">
+					<div
+						class="flex max-w-[80%] gap-3 {message.type === 'user'
+							? 'flex-row-reverse'
+							: 'flex-row'}"
+					>
 						<div
-							class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full {message.type === 'user'
+							class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full {message.type ===
+							'user'
 								? 'bg-muted'
 								: 'bg-primary text-primary-foreground'}"
 						>
@@ -152,32 +168,42 @@
 
 							<!-- AI Assistant additional content -->
 							{#if message.type === 'assistant' && (message.actionItems?.length || message.insights?.length || message.budgetSummary)}
-								<div class="space-y-3 mt-3 max-w-md">
+								<div class="mt-3 max-w-md space-y-3">
 									<!-- Budget Summary -->
 									{#if message.budgetSummary}
-										<Card class="bg-blue-50 border-blue-200">
+										<Card class="border-blue-200 bg-blue-50">
 											<CardHeader class="pb-2">
-												<CardTitle class="text-sm flex items-center gap-2">
+												<CardTitle class="flex items-center gap-2 text-sm">
 													<DollarSign class="h-4 w-4" />
 													Budget Plan: {message.budgetSummary.framework.replace('_', ' ')}
 												</CardTitle>
 											</CardHeader>
 											<CardContent class="pt-0">
-												<div class="text-xs space-y-1">
-													<div>Monthly Budget: ${message.budgetSummary.totalMonthlyBudget.toFixed(2)}</div>
+												<div class="space-y-1 text-xs">
+													<div>
+														Monthly Budget: ${message.budgetSummary.totalMonthlyBudget.toFixed(2)}
+													</div>
 													{#if message.budgetSummary.allocationBreakdown}
-														<div class="grid grid-cols-3 gap-2 mt-2">
+														<div class="mt-2 grid grid-cols-3 gap-2">
 															<div class="text-center">
 																<div class="font-medium">Needs</div>
-																<div>${message.budgetSummary.allocationBreakdown.needs.toFixed(0)}</div>
+																<div>
+																	${message.budgetSummary.allocationBreakdown.needs.toFixed(0)}
+																</div>
 															</div>
 															<div class="text-center">
 																<div class="font-medium">Wants</div>
-																<div>${message.budgetSummary.allocationBreakdown.wants.toFixed(0)}</div>
+																<div>
+																	${message.budgetSummary.allocationBreakdown.wants.toFixed(0)}
+																</div>
 															</div>
 															<div class="text-center">
 																<div class="font-medium">Savings</div>
-																<div>${message.budgetSummary.allocationBreakdown.savingsAndDebt.toFixed(0)}</div>
+																<div>
+																	${message.budgetSummary.allocationBreakdown.savingsAndDebt.toFixed(
+																		0
+																	)}
+																</div>
 															</div>
 														</div>
 													{/if}
@@ -188,9 +214,9 @@
 
 									<!-- Action Items -->
 									{#if message.actionItems?.length}
-										<Card class="bg-green-50 border-green-200">
+										<Card class="border-green-200 bg-green-50">
 											<CardHeader class="pb-2">
-												<CardTitle class="text-sm flex items-center gap-2">
+												<CardTitle class="flex items-center gap-2 text-sm">
 													<Target class="h-4 w-4" />
 													Action Items
 												</CardTitle>
@@ -199,14 +225,23 @@
 												<div class="space-y-2">
 													{#each message.actionItems as item}
 														<div class="flex items-start gap-2">
-															<Badge variant={item.priority === 'high' ? 'destructive' : item.priority === 'medium' ? 'default' : 'secondary'} class="text-xs">
+															<Badge
+																variant={item.priority === 'high'
+																	? 'destructive'
+																	: item.priority === 'medium'
+																		? 'default'
+																		: 'secondary'}
+																class="text-xs"
+															>
 																{item.priority}
 															</Badge>
 															<div class="flex-1">
-																<div class="font-medium text-xs">{item.title}</div>
-																<div class="text-xs text-muted-foreground">{item.description}</div>
+																<div class="text-xs font-medium">{item.title}</div>
+																<div class="text-muted-foreground text-xs">{item.description}</div>
 																{#if item.estimatedTime}
-																	<div class="text-xs text-muted-foreground">⏱ {item.estimatedTime}</div>
+																	<div class="text-muted-foreground text-xs">
+																		⏱ {item.estimatedTime}
+																	</div>
 																{/if}
 															</div>
 														</div>
@@ -218,9 +253,9 @@
 
 									<!-- Insights -->
 									{#if message.insights?.length}
-										<Card class="bg-orange-50 border-orange-200">
+										<Card class="border-orange-200 bg-orange-50">
 											<CardHeader class="pb-2">
-												<CardTitle class="text-sm flex items-center gap-2">
+												<CardTitle class="flex items-center gap-2 text-sm">
 													<TrendingUp class="h-4 w-4" />
 													Insights
 												</CardTitle>
@@ -229,10 +264,16 @@
 												<div class="space-y-2">
 													{#each message.insights as insight}
 														<div class="flex items-start gap-2">
-															<AlertCircle class="h-3 w-3 mt-0.5 text-{insight.type === 'warning' ? 'orange' : insight.type === 'info' ? 'blue' : 'green'}-500" />
+															<AlertCircle
+																class="mt-0.5 h-3 w-3 text-{insight.type === 'warning'
+																	? 'orange'
+																	: insight.type === 'info'
+																		? 'blue'
+																		: 'green'}-500"
+															/>
 															<div class="flex-1">
-																<div class="font-medium text-xs">{insight.title}</div>
-																<div class="text-xs text-muted-foreground">{insight.message}</div>
+																<div class="text-xs font-medium">{insight.title}</div>
+																<div class="text-muted-foreground text-xs">{insight.message}</div>
 															</div>
 														</div>
 													{/each}
@@ -243,17 +284,25 @@
 
 									<!-- Projections -->
 									{#if message.projections}
-										<Card class="bg-purple-50 border-purple-200">
+										<Card class="border-purple-200 bg-purple-50">
 											<CardHeader class="pb-2">
 												<CardTitle class="text-sm">Financial Projections</CardTitle>
 											</CardHeader>
 											<CardContent class="pt-0">
-												<div class="text-xs space-y-1">
-													<div>Monthly Surplus: ${message.projections.monthlySurplus.toFixed(2)}</div>
-													<div>Yearly Projection: ${message.projections.yearlyProjection.toFixed(2)}</div>
-													<div>Budget Utilization: {message.projections.budgetUtilization.toFixed(1)}%</div>
+												<div class="space-y-1 text-xs">
+													<div>
+														Monthly Surplus: ${message.projections.monthlySurplus.toFixed(2)}
+													</div>
+													<div>
+														Yearly Projection: ${message.projections.yearlyProjection.toFixed(2)}
+													</div>
+													<div>
+														Budget Utilization: {message.projections.budgetUtilization.toFixed(1)}%
+													</div>
 													{#if message.projections.emergencyFundTimeline}
-														<div>Emergency Fund: {message.projections.emergencyFundTimeline} months</div>
+														<div>
+															Emergency Fund: {message.projections.emergencyFundTimeline} months
+														</div>
 													{/if}
 												</div>
 											</CardContent>
@@ -262,7 +311,7 @@
 								</div>
 							{/if}
 
-							<p class="text-xs text-muted-foreground">
+							<p class="text-muted-foreground text-xs">
 								{message.timestamp.toLocaleTimeString()}
 								{#if message.intent}
 									• {message.intent.replace('_', ' ').toLowerCase()}
@@ -274,20 +323,20 @@
 			{/each}
 
 			{#if isLoading}
-				<div class="flex gap-3 justify-start">
-					<div class="flex gap-3 max-w-[80%]">
-						<div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted">
+				<div class="flex justify-start gap-3">
+					<div class="flex max-w-[80%] gap-3">
+						<div class="bg-muted flex h-8 w-8 shrink-0 items-center justify-center rounded-full">
 							<Bot class="h-4 w-4" />
 						</div>
-						<div class="rounded-lg px-4 py-2 bg-muted">
+						<div class="bg-muted rounded-lg px-4 py-2">
 							<div class="flex space-x-1">
-								<div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+								<div class="h-2 w-2 animate-bounce rounded-full bg-gray-400"></div>
 								<div
-									class="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+									class="h-2 w-2 animate-bounce rounded-full bg-gray-400"
 									style="animation-delay: 0.1s"
 								></div>
 								<div
-									class="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+									class="h-2 w-2 animate-bounce rounded-full bg-gray-400"
 									style="animation-delay: 0.2s"
 								></div>
 							</div>
@@ -299,63 +348,67 @@
 	</ScrollArea>
 
 	<!-- Input Area -->
-	<div class="border-t p-4 bg-gray-900">
-		<div class="max-w-3xl mx-auto">
+	<div class="border-t bg-gray-900 p-4">
+		<div class="mx-auto max-w-3xl">
 			<form on:submit={handleSubmit} class="flex gap-2">
 				<Input
 					bind:value={inputValue}
 					placeholder="Ask me about your finances, add transactions, or get insights..."
 					disabled={isLoading}
-					class="flex-1 bg-gray-800 text-white placeholder:text-gray-400 border-gray-700 focus-visible:ring-blue-500"
+					class="flex-1 border-gray-700 bg-gray-800 text-white placeholder:text-gray-400 focus-visible:ring-blue-500"
 				/>
-				<Button type="submit" disabled={isLoading || !inputValue.trim()} class="bg-blue-600 hover:bg-blue-700 text-white border-none">
+				<Button
+					type="submit"
+					disabled={isLoading || !inputValue.trim()}
+					class="border-none bg-blue-600 text-white hover:bg-blue-700"
+				>
 					<Send class="h-4 w-4" />
 				</Button>
 			</form>
 			<div class="mt-2 text-center">
-				<p class="text-xs text-muted-foreground mb-2">Quick suggestions:</p>
-				<div class="flex flex-wrap gap-1 justify-center">
-					<Button 
-						variant="outline" 
-						size="sm" 
-						class="text-xs h-6 px-2"
-						on:click={() => handleQuickAction("Help me create a budget plan")}
+				<p class="text-muted-foreground mb-2 text-xs">Quick suggestions:</p>
+				<div class="flex flex-wrap justify-center gap-1">
+					<Button
+						variant="outline"
+						size="sm"
+						class="h-6 px-2 text-xs"
+						onclick={() => handleQuickAction('Help me create a budget plan')}
 						disabled={isLoading}
 					>
 						📊 Budget Plan
 					</Button>
-					<Button 
-						variant="outline" 
-						size="sm" 
-						class="text-xs h-6 px-2"
-						on:click={() => handleQuickAction("Show me my financial insights")}
+					<Button
+						variant="outline"
+						size="sm"
+						class="h-6 px-2 text-xs"
+						onclick={() => handleQuickAction('Show me my financial insights')}
 						disabled={isLoading}
 					>
 						📈 Insights
 					</Button>
-					<Button 
-						variant="outline" 
-						size="sm" 
-						class="text-xs h-6 px-2"
-						on:click={() => handleQuickAction("Give me savings advice")}
+					<Button
+						variant="outline"
+						size="sm"
+						class="h-6 px-2 text-xs"
+						onclick={() => handleQuickAction('Give me savings advice')}
 						disabled={isLoading}
 					>
 						💰 Savings
 					</Button>
-					<Button 
-						variant="outline" 
-						size="sm" 
-						class="text-xs h-6 px-2"
-						on:click={() => handleQuickAction("Help me manage my debt")}
+					<Button
+						variant="outline"
+						size="sm"
+						class="h-6 px-2 text-xs"
+						onclick={() => handleQuickAction('Help me manage my debt')}
 						disabled={isLoading}
 					>
 						🎯 Debt Help
 					</Button>
-					<Button 
-						variant="outline" 
-						size="sm" 
-						class="text-xs h-6 px-2"
-						on:click={() => handleQuickAction("Analyze my budget and recommend reallocations")}
+					<Button
+						variant="outline"
+						size="sm"
+						class="h-6 px-2 text-xs"
+						onclick={() => handleQuickAction('Analyze my budget and recommend reallocations')}
 						disabled={isLoading}
 					>
 						🔄 Reallocation
@@ -364,4 +417,4 @@
 			</div>
 		</div>
 	</div>
-</div> 
+</div>

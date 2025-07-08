@@ -260,7 +260,7 @@
 			if (formEndDate) {
 				const startDate = new Date(formStartDate);
 				const endDate = new Date(formEndDate);
-				
+
 				if (endDate <= startDate) {
 					dialogError = 'End date must be after the start date';
 					return;
@@ -271,7 +271,7 @@
 			const startDate = new Date(formStartDate);
 			const today = new Date();
 			today.setHours(0, 0, 0, 0); // Reset time to beginning of day for fair comparison
-			
+
 			if (startDate < today) {
 				dialogError = 'Start date cannot be in the past';
 				return;
@@ -317,7 +317,7 @@
 			if (balance && balance.balance !== null && balance.balance !== undefined) {
 				const currentBalance = parseFloat(balance.balance);
 				const transactionAmount = parseFloat(formAmount);
-				
+
 				let newBalanceValue;
 				if (formType === 'income') {
 					newBalanceValue = currentBalance + transactionAmount;
@@ -330,12 +330,14 @@
 				try {
 					// Update balance in backend
 					await balanceService.updateBalance(newBalanceValue);
-					
+
 					// Update local balance state immediately
-					balance = {
-						...balance,
-						balance: newBalanceValue.toString()
-					};
+					if (balance && balance.id && balance.user_id) {
+						balance = {
+							...balance,
+							balance: newBalanceValue.toString()
+						};
+					}
 				} catch (balanceErr) {
 					console.error('Error updating balance:', balanceErr);
 					// Don't throw error here - transaction was successful, balance update failed
@@ -369,7 +371,7 @@
 		formEvent = '';
 		formDate = new Date().toISOString().split('T')[0];
 		formIsRecurrent = false;
-		
+
 		// Reset recurring transaction fields
 		formStartDate = new Date().toISOString().split('T')[0];
 		formPeriod = '1';
@@ -378,10 +380,10 @@
 		formDurationType = 'month';
 		formRecurrenceType = 'monthly';
 		formWeekday = '';
-		
+
 		// Reset dialog error
 		dialogError = null;
-		
+
 		activeTabValue = 'manual';
 	} // Function to handle creating a new category
 	async function handleCreateCategory(event: Event) {
@@ -455,7 +457,7 @@
 			if (balance && balance.balance !== null && balance.balance !== undefined) {
 				const currentBalance = parseFloat(balance.balance);
 				const transactionAmount = transaction.amount;
-				
+
 				let newBalanceValue;
 				if (transaction.type === 'income') {
 					// Remove income (subtract from balance)
@@ -470,12 +472,14 @@
 				try {
 					// Update balance in backend
 					await balanceService.updateBalance(newBalanceValue);
-					
+
 					// Update local balance state immediately
-					balance = {
-						...balance,
-						balance: newBalanceValue.toString()
-					};
+					if (balance && balance.id && balance.user_id) {
+						balance = {
+							...balance,
+							balance: newBalanceValue.toString()
+						};
+					}
 				} catch (balanceErr) {
 					console.error('Error updating balance:', balanceErr);
 					// Don't throw error here - transaction deletion was successful, balance update failed
@@ -524,8 +528,11 @@
 		isSaving = true;
 		try {
 			// Calculate the correctly signed amount for the backend
-			const signedAmount = editType === 'expense' ? -Math.abs(parseFloat(editAmount)) : Math.abs(parseFloat(editAmount));
-			
+			const signedAmount =
+				editType === 'expense'
+					? -Math.abs(parseFloat(editAmount))
+					: Math.abs(parseFloat(editAmount));
+
 			const updatedTransaction = await transactionService.updateTransaction(editingTransaction.id, {
 				description: editDescription,
 				amount: signedAmount,
@@ -563,27 +570,29 @@
 			// Update balance based on the transaction change
 			if (balance && balance.balance !== null && balance.balance !== undefined) {
 				const currentBalance = parseFloat(balance.balance);
-				
+
 				// Calculate the difference between old and new transaction
 				const oldAmount = editingTransaction.amount; // e.g., -15 for expense, +100 for income
 				const newAmountSigned = signedAmount; // e.g., -35 for expense, +150 for income
-				
+
 				// Calculate the net change: newAmountSigned - oldAmount
 				// Example: (-35) - (-15) = -20 (expense increased, balance decreases by 20)
 				// Example: (-5) - (-15) = +10 (expense decreased, balance increases by 10)
 				const balanceDelta = newAmountSigned - oldAmount;
-				
+
 				const newBalanceValue = currentBalance + balanceDelta;
 
 				try {
 					// Update balance in backend
 					await balanceService.updateBalance(newBalanceValue);
-					
+
 					// Update local balance state immediately
-					balance = {
-						...balance,
-						balance: newBalanceValue.toString()
-					};
+					if (balance && balance.id && balance.user_id) {
+						balance = {
+							...balance,
+							balance: newBalanceValue.toString()
+						};
+					}
 				} catch (balanceErr) {
 					console.error('Error updating balance:', balanceErr);
 					// Don't throw error here - transaction update was successful, balance update failed
@@ -954,18 +963,20 @@
 		try {
 			const newBalanceValue = parseFloat(editBalanceValue);
 			const updatedBalance = await balanceService.updateBalance(newBalanceValue);
-			
+
 			// Immediately update local balance state
-			balance = {
-				...balance,
-				balance: newBalanceValue.toString()
-			};
-			
+			if (balance && balance.id && balance.user_id) {
+				balance = {
+					...balance,
+					balance: newBalanceValue.toString()
+				};
+			}
+
 			console.log('Balance updated successfully:', balance);
-			
+
 			isBalanceDialogOpen = false;
 			editBalanceValue = '';
-			
+
 			successMessage = 'Balance updated successfully';
 			setTimeout(() => {
 				successMessage = null;
@@ -1037,10 +1048,14 @@
 				{#if balance && balance.balance !== null && balance.balance !== undefined}
 					{@const balanceValue = parseFloat(balance.balance)}
 					<!-- Balance Display Mode -->
-					<div class="flex items-center justify-between bg-gray-800 border border-gray-600 rounded-md px-4 py-2 h-10 min-w-[220px]">
+					<div
+						class="flex h-10 min-w-[220px] items-center justify-between rounded-md border border-gray-600 bg-gray-800 px-4 py-2"
+					>
 						<div class="flex items-center gap-2">
 							<span class="text-sm font-medium text-gray-300">Balance:</span>
-							<span class="text-xl font-bold {balanceValue >= 0 ? 'text-green-400' : 'text-red-400'}">
+							<span
+								class="text-xl font-bold {balanceValue >= 0 ? 'text-green-400' : 'text-red-400'}"
+							>
 								${balanceValue.toFixed(2)}
 							</span>
 						</div>
@@ -1048,569 +1063,582 @@
 							variant="outline"
 							size="sm"
 							onclick={handleEditBalance}
-							class="border-2 border-green-500 bg-gray-900 font-semibold text-green-400 shadow-lg hover:bg-green-500/20 hover:text-green-300 h-6 ml-4"
+							class="ml-4 h-6 border-2 border-green-500 bg-gray-900 font-semibold text-green-400 shadow-lg hover:bg-green-500/20 hover:text-green-300"
 						>
 							<Edit class="mr-1 h-3 w-3" />
 							Edit
 						</Button>
 					</div>
 				{/if}
-			<Dialog bind:open={isDialogOpen}>
-				<DialogTrigger>
-					<div
-						class="ring-offset-background focus-visible:ring-ring inline-flex h-10 cursor-pointer items-center justify-center whitespace-nowrap rounded-md bg-gradient-to-r from-blue-500 to-green-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:from-blue-600 hover:to-green-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
+				<Dialog bind:open={isDialogOpen}>
+					<DialogTrigger>
+						<div
+							class="ring-offset-background focus-visible:ring-ring inline-flex h-10 cursor-pointer items-center justify-center whitespace-nowrap rounded-md bg-gradient-to-r from-blue-500 to-green-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:from-blue-600 hover:to-green-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
+						>
+							<Plus class="mr-2 h-4 w-4" />
+							Add Transaction
+						</div>
+					</DialogTrigger>
+					<DialogContent
+						class="max-h-[90vh] overflow-y-auto border-gray-700 bg-gray-800 text-white sm:max-w-[500px]"
 					>
-						<Plus class="mr-2 h-4 w-4" />
-						Add Transaction
-					</div>
-				</DialogTrigger>
-				<DialogContent class="border-gray-700 bg-gray-800 text-white sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
-					<DialogHeader>
-						<DialogTitle>Add New Transaction</DialogTitle>
-						<DialogDescription class="text-gray-400">
-							Record a new income or expense transaction
-						</DialogDescription>
-					</DialogHeader>
-					<Tabs bind:value={activeTabValue} class="w-full">
-						<TabsList class="grid w-full grid-cols-3 bg-gray-700">
-							<TabsTrigger
-								value="manual"
-								class="text-gray-300 data-[state=active]:bg-gray-600 data-[state=active]:text-white"
-							>
-								Manual
-							</TabsTrigger>
-							<TabsTrigger
-								value="chat"
-								class="text-gray-300 data-[state=active]:bg-gray-600 data-[state=active]:text-white"
-							>
-								Chat
-							</TabsTrigger>
-							<TabsTrigger
-								value="ocr"
-								class="text-gray-300 data-[state=active]:bg-gray-600 data-[state=active]:text-white"
-							>
-								Receipt OCR
-							</TabsTrigger>
-						</TabsList>
-
-						<TabsContent value="manual">
-							<!-- Error Message for Dialog -->
-							{#if dialogError}
-								<div class="mb-4 rounded-lg border border-red-500 bg-red-900/50 p-3">
-									<p class="text-sm text-red-300">{dialogError}</p>
-								</div>
-							{/if}
-							
-							<form onsubmit={handleAddTransaction} class="space-y-4">
-								<div class="space-y-2">
-									<Label for="description">Description</Label>
-									<Input
-										id="description"
-										bind:value={formDescription}
-										placeholder="Enter transaction description"
-										required
-										class="border-gray-600 bg-gray-700"
-									/>
-								</div>
-								<div class="grid grid-cols-2 gap-4">
-									<div class="space-y-2">
-										<Label for="amount">Amount</Label>
-										<Input
-											id="amount"
-											bind:value={formAmount}
-											type="number"
-											step="0.01"
-											placeholder="0.00"
-											required
-											class="border-gray-600 bg-gray-700"
-										/>
-									</div>
-									<div class="space-y-2">
-										<Label for="type">Type</Label>
-										<select
-											bind:value={formType}
-											required
-											class="w-full rounded-md border border-gray-600 bg-gray-700 px-3 py-2 text-white"
-										>
-											<option value="">Select transaction type</option>
-											<option value="income">Income</option>
-											<option value="expense">Expense</option>
-										</select>
-									</div>
-								</div>
-								<div class="space-y-2">
-									<div class="flex items-center justify-between">
-										<Label for="category">Category (Optional)</Label>
-										<Button
-											type="button"
-											variant="ghost"
-											size="sm"
-											onclick={() => handleNewCategoryClick()}
-											disabled={!formType}
-											class="h-auto p-0 font-normal text-blue-400 hover:text-blue-300 disabled:cursor-not-allowed disabled:text-gray-500"
-										>
-											+ New Category
-										</Button>
-									</div>
-									<div class="grid grid-cols-1 gap-2">
-										<select
-											bind:value={formCategory}
-											class="w-full rounded-md border border-gray-600 bg-gray-700 px-3 py-2 text-white"
-										>
-											<option value="">No Category</option>
-											{#each getAllCategories().filter((cat) => !formType || cat.type === formType) as category}
-												<option
-													value={category.id.toString()}
-													class={category.id.startsWith('temp_') ? 'text-blue-400' : ''}
-												>
-													{category.name}{category.id.startsWith('temp_') ? ' (New)' : ''}
-												</option>
-											{/each}
-										</select>
-										{#if formCategory}
-											{@const selectedCategory = getAllCategories().find(
-												(cat) => cat.id.toString() === formCategory
-											)}
-											{#if selectedCategory}
-												<div class="px-1 text-xs text-gray-400">
-													Selected: {selectedCategory.name} ({selectedCategory.type})
-													{#if selectedCategory.id.startsWith('temp_')}
-														<span class="text-blue-400"> - Will be created</span>
-													{/if}
-												</div>
-											{/if}
-										{/if}
-									</div>
-								</div>
-								<div class="grid grid-cols-2 gap-4">
-									<div class="space-y-2">
-										<Label for="event">Event (Optional)</Label>
-										<Input
-											id="event"
-											bind:value={formEvent}
-											placeholder="e.g., Birthday dinner, Gas for road trip"
-											class="border-gray-600 bg-gray-700"
-										/>
-									</div>
-									<div class="space-y-2">
-										<Label for="date">Date</Label>
-										<Input
-											id="date"
-											bind:value={formDate}
-											type="date"
-											required
-											class="border-gray-600 bg-gray-700"
-										/>
-									</div>
-								</div>
-
-								<div
-									class="flex items-center space-x-2 rounded-lg border border-gray-600 bg-gray-700/50 p-3"
+						<DialogHeader>
+							<DialogTitle>Add New Transaction</DialogTitle>
+							<DialogDescription class="text-gray-400">
+								Record a new income or expense transaction
+							</DialogDescription>
+						</DialogHeader>
+						<Tabs bind:value={activeTabValue} class="w-full">
+							<TabsList class="grid w-full grid-cols-3 bg-gray-700">
+								<TabsTrigger
+									value="manual"
+									class="text-gray-300 data-[state=active]:bg-gray-600 data-[state=active]:text-white"
 								>
-									<Checkbox
-										id="isRecurrent"
-										bind:checked={formIsRecurrent}
-										class="h-5 w-5 border-gray-400 data-[state=checked]:border-blue-500 data-[state=checked]:bg-blue-500"
-									/>
-									<Label
-										for="isRecurrent"
-										class="flex cursor-pointer items-center gap-2 text-sm font-medium text-white"
-									>
-										<Repeat class="h-4 w-4 text-blue-400" />
-										Recurring Transaction (Optional)
-									</Label>
-								</div>
+									Manual
+								</TabsTrigger>
+								<TabsTrigger
+									value="chat"
+									class="text-gray-300 data-[state=active]:bg-gray-600 data-[state=active]:text-white"
+								>
+									Chat
+								</TabsTrigger>
+								<TabsTrigger
+									value="ocr"
+									class="text-gray-300 data-[state=active]:bg-gray-600 data-[state=active]:text-white"
+								>
+									Receipt OCR
+								</TabsTrigger>
+							</TabsList>
 
-								<!-- Recurring Transaction Details (Conditional) -->
-								{#if formIsRecurrent}
-									<div class="space-y-4 rounded-lg border border-blue-500/30 bg-blue-900/20 p-4">
-										<h4 class="flex items-center gap-2 text-sm font-semibold text-blue-300">
-											<Repeat class="h-4 w-4" />
-											Recurring Transaction Settings
-										</h4>
-										
-										<!-- Recurrence Type -->
+							<TabsContent value="manual">
+								<!-- Error Message for Dialog -->
+								{#if dialogError}
+									<div class="mb-4 rounded-lg border border-red-500 bg-red-900/50 p-3">
+										<p class="text-sm text-red-300">{dialogError}</p>
+									</div>
+								{/if}
+
+								<form onsubmit={handleAddTransaction} class="space-y-4">
+									<div class="space-y-2">
+										<Label for="description">Description</Label>
+										<Input
+											id="description"
+											bind:value={formDescription}
+											placeholder="Enter transaction description"
+											required
+											class="border-gray-600 bg-gray-700"
+										/>
+									</div>
+									<div class="grid grid-cols-2 gap-4">
 										<div class="space-y-2">
-											<Label for="recurrenceType" class="text-white">Recurrence Type</Label>
-											<select
-												id="recurrenceType"
-												bind:value={formRecurrenceType}
-												class="w-full rounded-md border border-gray-600 bg-gray-700 px-3 py-2 text-white"
-											>
-												<option value="daily">Daily</option>
-												<option value="weekly">Weekly</option>
-												<option value="monthly">Monthly</option>
-												<option value="yearly">Yearly</option>
-											</select>
-										</div>
-
-										<!-- Period and Weekday Row -->
-										<div class="grid grid-cols-2 gap-4">
-											<div class="space-y-2">
-												<Label for="period" class="text-white">
-													Every 
-													{#if formRecurrenceType === 'daily'}day(s){/if}
-													{#if formRecurrenceType === 'weekly'}week(s){/if}
-													{#if formRecurrenceType === 'monthly'}month(s){/if}
-													{#if formRecurrenceType === 'yearly'}year(s){/if}
-												</Label>
-												<Input
-													id="period"
-													bind:value={formPeriod}
-													type="number"
-													min="1"
-													placeholder="1"
-													class="border-gray-600 bg-gray-700"
-												/>
-											</div>
-											
-											<!-- Weekday selector (only for weekly) -->
-											{#if formRecurrenceType === 'weekly'}
-												<div class="space-y-2">
-													<Label for="weekday" class="text-white">Day of Week</Label>
-													<select
-														id="weekday"
-														bind:value={formWeekday}
-														class="w-full rounded-md border border-gray-600 bg-gray-700 px-3 py-2 text-white"
-													>
-														<option value="">Select day</option>
-														<option value="Sunday">Sunday</option>
-														<option value="Monday">Monday</option>
-														<option value="Tuesday">Tuesday</option>
-														<option value="Wednesday">Wednesday</option>
-														<option value="Thursday">Thursday</option>
-														<option value="Friday">Friday</option>
-														<option value="Saturday">Saturday</option>
-													</select>
-												</div>
-											{/if}
-										</div>
-
-										<!-- Start Date -->
-										<div class="space-y-2">
-											<Label for="startDate" class="text-white">Start Date</Label>
+											<Label for="amount">Amount</Label>
 											<Input
-												id="startDate"
-												bind:value={formStartDate}
-												type="date"
+												id="amount"
+												bind:value={formAmount}
+												type="number"
+												step="0.01"
+												placeholder="0.00"
+												required
 												class="border-gray-600 bg-gray-700"
 											/>
 										</div>
+										<div class="space-y-2">
+											<Label for="type">Type</Label>
+											<select
+												bind:value={formType}
+												required
+												class="w-full rounded-md border border-gray-600 bg-gray-700 px-3 py-2 text-white"
+											>
+												<option value="">Select transaction type</option>
+												<option value="income">Income</option>
+												<option value="expense">Expense</option>
+											</select>
+										</div>
+									</div>
+									<div class="space-y-2">
+										<div class="flex items-center justify-between">
+											<Label for="category">Category (Optional)</Label>
+											<Button
+												type="button"
+												variant="ghost"
+												size="sm"
+												onclick={() => handleNewCategoryClick()}
+												disabled={!formType}
+												class="h-auto p-0 font-normal text-blue-400 hover:text-blue-300 disabled:cursor-not-allowed disabled:text-gray-500"
+											>
+												+ New Category
+											</Button>
+										</div>
+										<div class="grid grid-cols-1 gap-2">
+											<select
+												bind:value={formCategory}
+												class="w-full rounded-md border border-gray-600 bg-gray-700 px-3 py-2 text-white"
+											>
+												<option value="">No Category</option>
+												{#each getAllCategories().filter((cat) => !formType || cat.type === formType) as category}
+													<option
+														value={category.id.toString()}
+														class={category.id.startsWith('temp_') ? 'text-blue-400' : ''}
+													>
+														{category.name}{category.id.startsWith('temp_') ? ' (New)' : ''}
+													</option>
+												{/each}
+											</select>
+											{#if formCategory}
+												{@const selectedCategory = getAllCategories().find(
+													(cat) => cat.id.toString() === formCategory
+												)}
+												{#if selectedCategory}
+													<div class="px-1 text-xs text-gray-400">
+														Selected: {selectedCategory.name} ({selectedCategory.type})
+														{#if selectedCategory.id.startsWith('temp_')}
+															<span class="text-blue-400"> - Will be created</span>
+														{/if}
+													</div>
+												{/if}
+											{/if}
+										</div>
+									</div>
+									<div class="grid grid-cols-2 gap-4">
+										<div class="space-y-2">
+											<Label for="event">Event (Optional)</Label>
+											<Input
+												id="event"
+												bind:value={formEvent}
+												placeholder="e.g., Birthday dinner, Gas for road trip"
+												class="border-gray-600 bg-gray-700"
+											/>
+										</div>
+										<div class="space-y-2">
+											<Label for="date">Date</Label>
+											<Input
+												id="date"
+												bind:value={formDate}
+												type="date"
+												required
+												class="border-gray-600 bg-gray-700"
+											/>
+										</div>
+									</div>
 
-										<!-- Duration Options -->
-										<div class="space-y-3">
-											<Label class="text-white">Duration (Choose one option)</Label>
-											
-											<!-- Option 1: End Date -->
+									<div
+										class="flex items-center space-x-2 rounded-lg border border-gray-600 bg-gray-700/50 p-3"
+									>
+										<Checkbox
+											id="isRecurrent"
+											bind:checked={formIsRecurrent}
+											class="h-5 w-5 border-gray-400 data-[state=checked]:border-blue-500 data-[state=checked]:bg-blue-500"
+										/>
+										<Label
+											for="isRecurrent"
+											class="flex cursor-pointer items-center gap-2 text-sm font-medium text-white"
+										>
+											<Repeat class="h-4 w-4 text-blue-400" />
+											Recurring Transaction (Optional)
+										</Label>
+									</div>
+
+									<!-- Recurring Transaction Details (Conditional) -->
+									{#if formIsRecurrent}
+										<div class="space-y-4 rounded-lg border border-blue-500/30 bg-blue-900/20 p-4">
+											<h4 class="flex items-center gap-2 text-sm font-semibold text-blue-300">
+												<Repeat class="h-4 w-4" />
+												Recurring Transaction Settings
+											</h4>
+
+											<!-- Recurrence Type -->
 											<div class="space-y-2">
-												<Label for="endDate" class="text-sm text-gray-300">Option 1: Set End Date</Label>
-												<Input
-													id="endDate"
-													bind:value={formEndDate}
-													type="date"
-													class="border-gray-600 bg-gray-700"
-													placeholder="Leave empty for no end date"
-												/>
+												<Label for="recurrenceType" class="text-white">Recurrence Type</Label>
+												<select
+													id="recurrenceType"
+													bind:value={formRecurrenceType}
+													class="w-full rounded-md border border-gray-600 bg-gray-700 px-3 py-2 text-white"
+												>
+													<option value="daily">Daily</option>
+													<option value="weekly">Weekly</option>
+													<option value="monthly">Monthly</option>
+													<option value="yearly">Yearly</option>
+												</select>
 											</div>
 
-											<!-- Option 2: Duration Count -->
+											<!-- Period and Weekday Row -->
 											<div class="grid grid-cols-2 gap-4">
 												<div class="space-y-2">
-													<Label for="duration" class="text-sm text-gray-300">Option 2: Duration Count</Label>
+													<Label for="period" class="text-white">
+														Every
+														{#if formRecurrenceType === 'daily'}day(s){/if}
+														{#if formRecurrenceType === 'weekly'}week(s){/if}
+														{#if formRecurrenceType === 'monthly'}month(s){/if}
+														{#if formRecurrenceType === 'yearly'}year(s){/if}
+													</Label>
 													<Input
-														id="duration"
-														bind:value={formDuration}
+														id="period"
+														bind:value={formPeriod}
 														type="number"
 														min="1"
-														placeholder="e.g., 12"
+														placeholder="1"
 														class="border-gray-600 bg-gray-700"
 													/>
 												</div>
-												<div class="space-y-2">
-													<Label for="durationType" class="text-sm text-gray-300">Duration Type</Label>
-													<select
-														id="durationType"
-														bind:value={formDurationType}
-														class="w-full rounded-md border border-gray-600 bg-gray-700 px-3 py-2 text-white"
-													>
-														<option value="day">Days</option>
-														<option value="week">Weeks</option>
-														<option value="month">Months</option>
-														<option value="year">Years</option>
-													</select>
-												</div>
+
+												<!-- Weekday selector (only for weekly) -->
+												{#if formRecurrenceType === 'weekly'}
+													<div class="space-y-2">
+														<Label for="weekday" class="text-white">Day of Week</Label>
+														<select
+															id="weekday"
+															bind:value={formWeekday}
+															class="w-full rounded-md border border-gray-600 bg-gray-700 px-3 py-2 text-white"
+														>
+															<option value="">Select day</option>
+															<option value="Sunday">Sunday</option>
+															<option value="Monday">Monday</option>
+															<option value="Tuesday">Tuesday</option>
+															<option value="Wednesday">Wednesday</option>
+															<option value="Thursday">Thursday</option>
+															<option value="Friday">Friday</option>
+															<option value="Saturday">Saturday</option>
+														</select>
+													</div>
+												{/if}
 											</div>
 
-											<p class="text-xs text-gray-400">
-												💡 Leave both empty for unlimited recurring transactions
-											</p>
-										</div>
-									</div>
-								{/if}
-								<Button
-									type="submit"
-									disabled={isSaving}
-									class="w-full bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600 disabled:opacity-50"
-								>
-									{isSaving ? 'Adding...' : 'Add Transaction'}
-								</Button>
-							</form>
-						</TabsContent>
+											<!-- Start Date -->
+											<div class="space-y-2">
+												<Label for="startDate" class="text-white">Start Date</Label>
+												<Input
+													id="startDate"
+													bind:value={formStartDate}
+													type="date"
+													class="border-gray-600 bg-gray-700"
+												/>
+											</div>
 
-						<TabsContent value="chat">
-							<div class="space-y-4">
-								{#if !chatResult}
-									<!-- Chat Input Section -->
-									<div class="space-y-4">
-										<!-- Chat Input Area -->
-										<div class="space-y-4">
-									<div class="text-center">
-										<MessageSquare class="mx-auto mb-4 h-12 w-12 text-gray-400" />
-										<h3 class="mb-2 text-lg font-medium text-white">Chat Input</h3>
-												<p class="mb-4 text-gray-400">
-													Describe your transaction in natural language
-												</p>
-									</div>
-
+											<!-- Duration Options -->
 											<div class="space-y-3">
-												<Label for="chatMessage">Describe your transaction</Label>
-												<textarea
-													id="chatMessage"
-													bind:value={chatMessage}
-													placeholder="E.g., 'I spent $25 at Starbucks yesterday for coffee' or 'Received $1000 salary from company today'"
-													disabled={isProcessingChat}
-													class="w-full min-h-[100px] rounded-lg border border-gray-600 bg-gray-700 px-3 py-2 text-white placeholder-gray-400 disabled:opacity-50"
-												></textarea>
+												<Label class="text-white">Duration (Choose one option)</Label>
 
-												<Button
-													onclick={handleChatSubmit}
-													disabled={isProcessingChat || !chatMessage.trim()}
-													class="w-full bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600 disabled:opacity-50"
-												>
-													{#if isProcessingChat}
-														<div
-															class="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-white"
-														></div>
-														Processing...
-													{:else}
-														<MessageSquare class="mr-2 h-4 w-4" />
-														Process Transaction
-													{/if}
-												</Button>
-								</div>
-										</div>
-
-										{#if chatError}
-											<div class="rounded-lg border border-red-500 bg-red-900/50 p-3">
-												<p class="text-sm text-red-300">{chatError}</p>
-											</div>
-										{/if}
-									</div>
-								{:else}
-									<!-- Chat Results Preview -->
-									<div class="space-y-4">
-										<div class="text-center">
-											<div
-												class="mx-auto mb-2 flex h-8 w-8 items-center justify-center rounded-full bg-green-500"
-											>
-												<MessageSquare class="h-4 w-4 text-white" />
-											</div>
-											<h3 class="font-semibold text-green-400">Transaction Processed!</h3>
-										</div>
-
-										<div class="space-y-2 rounded-lg bg-gray-700 p-4">
-											<h4 class="mb-3 font-mono text-sm font-semibold text-white">
-												💬 Chat Preview:
-											</h4>
-											<div class="space-y-1 text-sm">
-												<div class="flex justify-between">
-													<span class="text-gray-400">Description:</span>
-													<span class="font-medium text-white">{chatResult.description}</span>
-												</div>
-												<div class="flex justify-between">
-													<span class="text-gray-400">Amount:</span>
-													<span class="font-medium text-white">৳{chatResult.amount.toFixed(2)}</span
+												<!-- Option 1: End Date -->
+												<div class="space-y-2">
+													<Label for="endDate" class="text-sm text-gray-300"
+														>Option 1: Set End Date</Label
 													>
+													<Input
+														id="endDate"
+														bind:value={formEndDate}
+														type="date"
+														class="border-gray-600 bg-gray-700"
+														placeholder="Leave empty for no end date"
+													/>
 												</div>
-												<div class="flex justify-between">
-													<span class="text-gray-400">Type:</span>
-													<Badge
-														variant={chatResult.type === 'expense' ? 'destructive' : 'default'}
-													>
-														{chatResult.type}
-													</Badge>
-												</div>
-												<div class="flex justify-between">
-													<span class="text-gray-400">Category:</span>
-													<span class="font-medium text-white">{chatResult.category}</span>
-												</div>
-												<div class="flex justify-between">
-													<span class="text-gray-400">Vendor:</span>
-													<span class="font-medium text-white">{chatResult.vendor}</span>
-												</div>
-												<div class="flex justify-between">
-													<span class="text-gray-400">Date:</span>
-													<span class="font-medium text-white"
-														>{new Date(chatResult.date).toLocaleDateString()}</span
-													>
-												</div>
-											</div>
-										</div>
 
-										<div class="flex gap-2">
-											<Button
-												variant="outline"
-												class="flex-1 border-gray-600 bg-gray-700 text-gray-300 hover:bg-gray-600"
-												onclick={handleChatEdit}
-											>
-												<Edit class="mr-2 h-4 w-4" />
-												Edit
-											</Button>
-											<Button
-												class="flex-1 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
-												onclick={handleChatConfirm}
-											>
-												<MessageSquare class="mr-2 h-4 w-4" />
-												Confirm & Add
-											</Button>
-										</div>
-									</div>
-								{/if}
-							</div>
-						</TabsContent>
+												<!-- Option 2: Duration Count -->
+												<div class="grid grid-cols-2 gap-4">
+													<div class="space-y-2">
+														<Label for="duration" class="text-sm text-gray-300"
+															>Option 2: Duration Count</Label
+														>
+														<Input
+															id="duration"
+															bind:value={formDuration}
+															type="number"
+															min="1"
+															placeholder="e.g., 12"
+															class="border-gray-600 bg-gray-700"
+														/>
+													</div>
+													<div class="space-y-2">
+														<Label for="durationType" class="text-sm text-gray-300"
+															>Duration Type</Label
+														>
+														<select
+															id="durationType"
+															bind:value={formDurationType}
+															class="w-full rounded-md border border-gray-600 bg-gray-700 px-3 py-2 text-white"
+														>
+															<option value="day">Days</option>
+															<option value="week">Weeks</option>
+															<option value="month">Months</option>
+															<option value="year">Years</option>
+														</select>
+													</div>
+												</div>
 
-						<TabsContent value="ocr">
-							<div class="space-y-4">
-								{#if !ocrResult}
-									<!-- File Upload Section -->
-									<div class="space-y-4">
-										<!-- File Upload Area -->
-										<div
-											class="flex items-center justify-center rounded-lg border-2 border-dashed border-gray-600 p-8"
-										>
-											<div class="text-center">
-												<Camera class="mx-auto mb-4 h-12 w-12 text-gray-400" />
-												<h3 class="mb-2 text-lg font-medium text-white">Receipt OCR</h3>
-												<p class="mb-4 text-gray-400">
-													Upload a receipt to automatically extract transaction details
+												<p class="text-xs text-gray-400">
+													💡 Leave both empty for unlimited recurring transactions
 												</p>
-												<Button
-													onclick={() => fileInputRef?.click()}
-													disabled={isProcessingOCR}
-													class="bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600 disabled:opacity-50"
+											</div>
+										</div>
+									{/if}
+									<Button
+										type="submit"
+										disabled={isSaving}
+										class="w-full bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600 disabled:opacity-50"
+									>
+										{isSaving ? 'Adding...' : 'Add Transaction'}
+									</Button>
+								</form>
+							</TabsContent>
+
+							<TabsContent value="chat">
+								<div class="space-y-4">
+									{#if !chatResult}
+										<!-- Chat Input Section -->
+										<div class="space-y-4">
+											<!-- Chat Input Area -->
+											<div class="space-y-4">
+												<div class="text-center">
+													<MessageSquare class="mx-auto mb-4 h-12 w-12 text-gray-400" />
+													<h3 class="mb-2 text-lg font-medium text-white">Chat Input</h3>
+													<p class="mb-4 text-gray-400">
+														Describe your transaction in natural language
+													</p>
+												</div>
+
+												<div class="space-y-3">
+													<Label for="chatMessage">Describe your transaction</Label>
+													<textarea
+														id="chatMessage"
+														bind:value={chatMessage}
+														placeholder="E.g., 'I spent $25 at Starbucks yesterday for coffee' or 'Received $1000 salary from company today'"
+														disabled={isProcessingChat}
+														class="min-h-[100px] w-full rounded-lg border border-gray-600 bg-gray-700 px-3 py-2 text-white placeholder-gray-400 disabled:opacity-50"
+													></textarea>
+
+													<Button
+														onclick={handleChatSubmit}
+														disabled={isProcessingChat || !chatMessage.trim()}
+														class="w-full bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600 disabled:opacity-50"
+													>
+														{#if isProcessingChat}
+															<div
+																class="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-white"
+															></div>
+															Processing...
+														{:else}
+															<MessageSquare class="mr-2 h-4 w-4" />
+															Process Transaction
+														{/if}
+													</Button>
+												</div>
+											</div>
+
+											{#if chatError}
+												<div class="rounded-lg border border-red-500 bg-red-900/50 p-3">
+													<p class="text-sm text-red-300">{chatError}</p>
+												</div>
+											{/if}
+										</div>
+									{:else}
+										<!-- Chat Results Preview -->
+										<div class="space-y-4">
+											<div class="text-center">
+												<div
+													class="mx-auto mb-2 flex h-8 w-8 items-center justify-center rounded-full bg-green-500"
 												>
-													{#if isProcessingOCR}
-														<div
-															class="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-white"
-														></div>
-														Processing...
-													{:else}
-														<Camera class="mr-2 h-4 w-4" />
-														Choose Receipt
-													{/if}
+													<MessageSquare class="h-4 w-4 text-white" />
+												</div>
+												<h3 class="font-semibold text-green-400">Transaction Processed!</h3>
+											</div>
+
+											<div class="space-y-2 rounded-lg bg-gray-700 p-4">
+												<h4 class="mb-3 font-mono text-sm font-semibold text-white">
+													💬 Chat Preview:
+												</h4>
+												<div class="space-y-1 text-sm">
+													<div class="flex justify-between">
+														<span class="text-gray-400">Description:</span>
+														<span class="font-medium text-white">{chatResult.description}</span>
+													</div>
+													<div class="flex justify-between">
+														<span class="text-gray-400">Amount:</span>
+														<span class="font-medium text-white"
+															>৳{chatResult.amount.toFixed(2)}</span
+														>
+													</div>
+													<div class="flex justify-between">
+														<span class="text-gray-400">Type:</span>
+														<Badge
+															variant={chatResult.type === 'expense' ? 'destructive' : 'default'}
+														>
+															{chatResult.type}
+														</Badge>
+													</div>
+													<div class="flex justify-between">
+														<span class="text-gray-400">Category:</span>
+														<span class="font-medium text-white">{chatResult.category}</span>
+													</div>
+													<div class="flex justify-between">
+														<span class="text-gray-400">Vendor:</span>
+														<span class="font-medium text-white">{chatResult.vendor}</span>
+													</div>
+													<div class="flex justify-between">
+														<span class="text-gray-400">Date:</span>
+														<span class="font-medium text-white"
+															>{new Date(chatResult.date).toLocaleDateString()}</span
+														>
+													</div>
+												</div>
+											</div>
+
+											<div class="flex gap-2">
+												<Button
+													variant="outline"
+													class="flex-1 border-gray-600 bg-gray-700 text-gray-300 hover:bg-gray-600"
+													onclick={handleChatEdit}
+												>
+													<Edit class="mr-2 h-4 w-4" />
+													Edit
+												</Button>
+												<Button
+													class="flex-1 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
+													onclick={handleChatConfirm}
+												>
+													<MessageSquare class="mr-2 h-4 w-4" />
+													Confirm & Add
 												</Button>
 											</div>
 										</div>
+									{/if}
+								</div>
+							</TabsContent>
 
-										<!-- Hidden file input -->
-										<input
-											bind:this={fileInputRef}
-											type="file"
-											accept="image/*"
-											class="hidden"
-											onchange={handleFileSelected}
-										/>
-
-										{#if selectedFile}
-											<div class="flex items-center justify-between rounded-lg bg-gray-700 p-3">
-												<div class="flex items-center gap-2">
-													<Camera class="h-4 w-4 text-green-400" />
-													<span class="text-sm text-gray-300">{selectedFile.name}</span>
-												</div>
-												<Badge variant="secondary" class="bg-gray-600 text-gray-300">
-													{(selectedFile.size / 1024 / 1024).toFixed(1)}MB
-												</Badge>
-											</div>
-										{/if}
-
-										{#if ocrError}
-											<div class="rounded-lg border border-red-500 bg-red-900/50 p-3">
-												<p class="text-sm text-red-300">{ocrError}</p>
-											</div>
-										{/if}
-									</div>
-								{:else}
-									<!-- OCR Results Preview -->
-									<div class="space-y-4">
-										<div class="text-center">
+							<TabsContent value="ocr">
+								<div class="space-y-4">
+									{#if !ocrResult}
+										<!-- File Upload Section -->
+										<div class="space-y-4">
+											<!-- File Upload Area -->
 											<div
-												class="mx-auto mb-2 flex h-8 w-8 items-center justify-center rounded-full bg-green-500"
+												class="flex items-center justify-center rounded-lg border-2 border-dashed border-gray-600 p-8"
 											>
-												<Camera class="h-4 w-4 text-white" />
+												<div class="text-center">
+													<Camera class="mx-auto mb-4 h-12 w-12 text-gray-400" />
+													<h3 class="mb-2 text-lg font-medium text-white">Receipt OCR</h3>
+													<p class="mb-4 text-gray-400">
+														Upload a receipt to automatically extract transaction details
+													</p>
+													<Button
+														onclick={() => fileInputRef?.click()}
+														disabled={isProcessingOCR}
+														class="bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600 disabled:opacity-50"
+													>
+														{#if isProcessingOCR}
+															<div
+																class="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-white"
+															></div>
+															Processing...
+														{:else}
+															<Camera class="mr-2 h-4 w-4" />
+															Choose Receipt
+														{/if}
+													</Button>
+												</div>
 											</div>
-											<h3 class="font-semibold text-green-400">Receipt Processed!</h3>
-										</div>
 
-										<div class="space-y-2 rounded-lg bg-gray-700 p-4">
-											<h4 class="mb-3 font-mono text-sm font-semibold text-white">
-												🧾 OCR Preview:
-											</h4>
-											<div class="space-y-1 text-sm">
-												<div class="flex justify-between">
-													<span class="text-gray-400">Description:</span>
-													<span class="font-medium text-white">{ocrResult.description}</span>
-												</div>
-												<div class="flex justify-between">
-													<span class="text-gray-400">Amount:</span>
-													<span class="font-medium text-white">৳{ocrResult.amount.toFixed(2)}</span>
-												</div>
-												<div class="flex justify-between">
-													<span class="text-gray-400">Type:</span>
-													<Badge variant={ocrResult.type === 'expense' ? 'destructive' : 'default'}>
-														{ocrResult.type}
+											<!-- Hidden file input -->
+											<input
+												bind:this={fileInputRef}
+												type="file"
+												accept="image/*"
+												class="hidden"
+												onchange={handleFileSelected}
+											/>
+
+											{#if selectedFile}
+												<div class="flex items-center justify-between rounded-lg bg-gray-700 p-3">
+													<div class="flex items-center gap-2">
+														<Camera class="h-4 w-4 text-green-400" />
+														<span class="text-sm text-gray-300">{selectedFile.name}</span>
+													</div>
+													<Badge variant="secondary" class="bg-gray-600 text-gray-300">
+														{(selectedFile.size / 1024 / 1024).toFixed(1)}MB
 													</Badge>
 												</div>
-												<div class="flex justify-between">
-													<span class="text-gray-400">Category:</span>
-													<span class="font-medium text-white">{ocrResult.category}</span>
+											{/if}
+
+											{#if ocrError}
+												<div class="rounded-lg border border-red-500 bg-red-900/50 p-3">
+													<p class="text-sm text-red-300">{ocrError}</p>
 												</div>
-												<div class="flex justify-between">
-													<span class="text-gray-400">Vendor:</span>
-													<span class="font-medium text-white">{ocrResult.vendor}</span>
+											{/if}
+										</div>
+									{:else}
+										<!-- OCR Results Preview -->
+										<div class="space-y-4">
+											<div class="text-center">
+												<div
+													class="mx-auto mb-2 flex h-8 w-8 items-center justify-center rounded-full bg-green-500"
+												>
+													<Camera class="h-4 w-4 text-white" />
 												</div>
-												<div class="flex justify-between">
-													<span class="text-gray-400">Date:</span>
-													<span class="font-medium text-white"
-														>{new Date(ocrResult.date).toLocaleDateString()}</span
-													>
+												<h3 class="font-semibold text-green-400">Receipt Processed!</h3>
+											</div>
+
+											<div class="space-y-2 rounded-lg bg-gray-700 p-4">
+												<h4 class="mb-3 font-mono text-sm font-semibold text-white">
+													🧾 OCR Preview:
+												</h4>
+												<div class="space-y-1 text-sm">
+													<div class="flex justify-between">
+														<span class="text-gray-400">Description:</span>
+														<span class="font-medium text-white">{ocrResult.description}</span>
+													</div>
+													<div class="flex justify-between">
+														<span class="text-gray-400">Amount:</span>
+														<span class="font-medium text-white"
+															>৳{ocrResult.amount.toFixed(2)}</span
+														>
+													</div>
+													<div class="flex justify-between">
+														<span class="text-gray-400">Type:</span>
+														<Badge
+															variant={ocrResult.type === 'expense' ? 'destructive' : 'default'}
+														>
+															{ocrResult.type}
+														</Badge>
+													</div>
+													<div class="flex justify-between">
+														<span class="text-gray-400">Category:</span>
+														<span class="font-medium text-white">{ocrResult.category}</span>
+													</div>
+													<div class="flex justify-between">
+														<span class="text-gray-400">Vendor:</span>
+														<span class="font-medium text-white">{ocrResult.vendor}</span>
+													</div>
+													<div class="flex justify-between">
+														<span class="text-gray-400">Date:</span>
+														<span class="font-medium text-white"
+															>{new Date(ocrResult.date).toLocaleDateString()}</span
+														>
+													</div>
 												</div>
 											</div>
-										</div>
 
-										<div class="flex gap-2">
-											<Button
-												variant="outline"
-												class="flex-1 border-gray-600 bg-gray-700 text-gray-300 hover:bg-gray-600"
-												onclick={handleOCREdit}
-											>
-												<Edit class="mr-2 h-4 w-4" />
-												Edit
-											</Button>
-											<Button
-												class="flex-1 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
-												onclick={handleOCRConfirm}
-											>
-												<Camera class="mr-2 h-4 w-4" />
-												Confirm & Add
-											</Button>
+											<div class="flex gap-2">
+												<Button
+													variant="outline"
+													class="flex-1 border-gray-600 bg-gray-700 text-gray-300 hover:bg-gray-600"
+													onclick={handleOCREdit}
+												>
+													<Edit class="mr-2 h-4 w-4" />
+													Edit
+												</Button>
+												<Button
+													class="flex-1 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
+													onclick={handleOCRConfirm}
+												>
+													<Camera class="mr-2 h-4 w-4" />
+													Confirm & Add
+												</Button>
+											</div>
 										</div>
-									</div>
-								{/if}
-							</div>
-						</TabsContent>
-					</Tabs>
-				</DialogContent>
-			</Dialog>
+									{/if}
+								</div>
+							</TabsContent>
+						</Tabs>
+					</DialogContent>
+				</Dialog>
 			</div>
 		</div>
 
@@ -1623,14 +1651,14 @@
 						Add a new category for your transactions
 					</DialogDescription>
 				</DialogHeader>
-				
+
 				<!-- Error Message for New Category Dialog -->
 				{#if newCategoryError}
 					<div class="mb-4 rounded-lg border border-red-500 bg-red-900/50 p-3">
 						<p class="text-sm text-red-300">{newCategoryError}</p>
 					</div>
 				{/if}
-				
+
 				<form onsubmit={handleCreateCategory} class="space-y-4">
 					<div class="space-y-2">
 						<Label for="categoryName" class="text-white">Category Name</Label>
@@ -2277,9 +2305,7 @@
 		<DialogContent class="mx-auto max-w-md border-gray-800 bg-gray-900 text-white">
 			<DialogHeader>
 				<DialogTitle class="text-white">Edit Balance</DialogTitle>
-				<DialogDescription class="text-gray-400">
-					Update your account balance
-				</DialogDescription>
+				<DialogDescription class="text-gray-400">Update your account balance</DialogDescription>
 			</DialogHeader>
 
 			<div class="space-y-4">
@@ -2301,7 +2327,7 @@
 					<Button
 						variant="outline"
 						onclick={handleCancelBalanceEdit}
-						class="flex-1 bg-black border-2 border-red-500 text-red-500 font-semibold rounded-md hover:bg-red-500/20 hover:text-red-400"
+						class="flex-1 rounded-md border-2 border-red-500 bg-black font-semibold text-red-500 hover:bg-red-500/20 hover:text-red-400"
 						disabled={isSaving}
 					>
 						Cancel
