@@ -19,15 +19,7 @@
 		DialogTitle,
 		DialogTrigger
 	} from '$lib/components/ui/dialog';
-	import {
-		PieChart,
-		TrendingUp,
-		AlertTriangle,
-		Plus,
-		DollarSign,
-		Edit,
-		Trash2
-	} from 'lucide-svelte';
+	import Icon from '@iconify/svelte';
 	import { budgetService, type Budget } from '$lib/services/budgets';
 	import { categoryService, type Category } from '$lib/services/categories';
 	import { firebaseUser, loading as authLoading } from '$lib/stores/auth';
@@ -578,7 +570,7 @@
 						<Button
 							class="bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600"
 						>
-							<Plus class="mr-2 h-4 w-4" />
+							<Icon icon="lucide:plus" class="mr-2 h-4 w-4" />
 							Create Budget
 						</Button>
 					</DialogTrigger>
@@ -620,7 +612,7 @@
 												size="sm"
 												class="border-gray-600 bg-gray-800 px-3 text-gray-300 hover:bg-gray-700"
 											>
-												<Plus class="h-4 w-4" />
+												<Icon icon="lucide:plus" class="h-4 w-4" />
 											</Button>
 										</DialogTrigger>
 										<DialogContent class="border-gray-700 bg-gray-800 text-white sm:max-w-[300px]">
@@ -826,7 +818,7 @@
 			<Card class="border-gray-800 bg-gray-900">
 				<CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
 					<CardTitle class="text-sm font-medium text-gray-300">Total Budget</CardTitle>
-					<DollarSign class="h-4 w-4 text-gray-400" />
+					<Icon icon="lucide:dollar-sign" class="h-4 w-4 text-gray-400" />
 				</CardHeader>
 				<CardContent>
 					<div class="text-2xl font-bold text-white">
@@ -843,7 +835,7 @@
 			<Card class="border-gray-800 bg-gray-900">
 				<CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
 					<CardTitle class="text-sm font-medium text-gray-300">Total Spent</CardTitle>
-					<TrendingUp class="h-4 w-4 text-gray-400" />
+					<Icon icon="lucide:trending-up" class="h-4 w-4 text-gray-400" />
 				</CardHeader>
 				<CardContent>
 					<div class="text-2xl font-bold text-red-400">
@@ -864,7 +856,7 @@
 			<Card class="border-gray-800 bg-gray-900">
 				<CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
 					<CardTitle class="text-sm font-medium text-gray-300">Remaining</CardTitle>
-					<PieChart class="h-4 w-4 text-gray-400" />
+					<Icon icon="lucide:pie-chart" class="h-4 w-4 text-gray-400" />
 				</CardHeader>
 				<CardContent>
 					<div class="text-2xl font-bold {totalRemaining >= 0 ? 'text-green-400' : 'text-red-400'}">
@@ -885,7 +877,7 @@
 			<Card class="border-gray-800 bg-gray-900">
 				<CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
 					<CardTitle class="text-sm font-medium text-gray-300">Alerts</CardTitle>
-					<AlertTriangle class="h-4 w-4 text-gray-400" />
+					<Icon icon="lucide:alert-triangle" class="h-4 w-4 text-gray-400" />
 				</CardHeader>
 				<CardContent>
 					<div class="text-2xl font-bold text-yellow-400">
@@ -951,7 +943,7 @@
 											onclick={() => handleEditBudget(budget)}
 											class="flex-1 border-2 border-green-500 bg-gray-900 font-semibold text-green-400 shadow-lg hover:bg-green-500/20 hover:text-green-300"
 										>
-											<Edit class="mr-1 h-4 w-4" />
+											<Icon icon="lucide:edit-3" class="mr-1 h-4 w-4" />
 											Edit
 										</Button>
 										<Button
@@ -961,7 +953,7 @@
 											disabled={isDeleting}
 											class="flex-1 border-2 border-red-500 bg-gray-900 font-semibold text-red-400 shadow-lg hover:bg-red-500/20 hover:text-red-300 disabled:opacity-50"
 										>
-											<Trash2 class="mr-1 h-4 w-4" />
+											<Icon icon="lucide:trash-2" class="mr-1 h-4 w-4" />
 											{isDeleting ? 'Deleting...' : 'Delete'}
 										</Button>
 									</div>
@@ -1047,7 +1039,7 @@
 			<DialogContent class="border-gray-700 bg-gray-800 text-white sm:max-w-[500px]">
 				<DialogHeader>
 					<DialogTitle class="flex items-center gap-2">
-						<PieChart class="h-5 w-5 text-blue-400" />
+						<Icon icon="lucide:pie-chart" class="h-5 w-5 text-blue-400" />
 						Budget Details
 					</DialogTitle>
 					<DialogDescription class="text-gray-400"
@@ -1135,7 +1127,7 @@
 									}
 								}}
 							>
-								<Edit class="mr-1 h-4 w-4" />
+								<Icon icon="lucide:edit-3" class="mr-1 h-4 w-4" />
 								Edit Budget
 							</Button>
 							<Button
@@ -1148,7 +1140,7 @@
 									}
 								}}
 							>
-								<Trash2 class="mr-1 h-4 w-4" />
+								<Icon icon="lucide:trash-2" class="mr-1 h-4 w-4" />
 								Delete
 							</Button>
 						</div>

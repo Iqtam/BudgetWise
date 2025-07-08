@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { Card, CardContent } from '$lib/components/ui/card';
-	import { Star } from 'lucide-svelte';
+	import Icon from '@iconify/svelte';
 
 	const testimonials = [
 		{
@@ -18,7 +18,7 @@
 			name: 'Mike Chen',
 			role: 'Software Engineer',
 			content:
-				'The chat-based expense tracking is genius. I can log expenses while on the go without opening multiple screens. It\'s like having a financial assistant in my pocket.',
+				"The chat-based expense tracking is genius. I can log expenses while on the go without opening multiple screens. It's like having a financial assistant in my pocket.",
 			rating: 5,
 			avatar: 'MC'
 		},
@@ -48,7 +48,8 @@
 				'The automated categorization is spot-on and saves me hours each month. The insights into my spending patterns were eye-opening and helped me optimize my finances.',
 			rating: 5,
 			avatar: 'LT'
-		}	];
+		}
+	];
 
 	let currentIndex = 0;
 	let intervalId: ReturnType<typeof setInterval>;
@@ -66,7 +67,8 @@
 				clearInterval(intervalId);
 			}
 		};
-	});	function goToSlide(index: number) {
+	});
+	function goToSlide(index: number) {
 		currentIndex = index;
 		console.log(`Manual navigation to testimonial ${index}`);
 	}
@@ -90,24 +92,24 @@
 </script>
 
 <div class="relative h-80 overflow-hidden">
-	<div class="flex items-center justify-center h-full">
+	<div class="flex h-full items-center justify-center">
 		{#each testimonials as testimonial, index}
 			<Card
-				class="absolute w-full max-w-2xl bg-gray-800/50 border-gray-700 backdrop-blur-sm transition-all duration-700 ease-in-out"
+				class="absolute w-full max-w-2xl border-gray-700 bg-gray-800/50 backdrop-blur-sm transition-all duration-700 ease-in-out"
 				style={getCardStyle(index)}
 			>
 				<CardContent class="p-8">
-					<div class="flex mb-4">
+					<div class="mb-4 flex">
 						{#each Array(testimonial.rating) as _, i}
-							<Star class="h-5 w-5 text-yellow-400 fill-current" />
+							<Icon icon="lucide:star" class="h-5 w-5 fill-current text-yellow-400" />
 						{/each}
 					</div>
-					<blockquote class="text-lg text-gray-300 mb-6 leading-relaxed">
+					<blockquote class="mb-6 text-lg leading-relaxed text-gray-300">
 						"{testimonial.content}"
 					</blockquote>
 					<div class="flex items-center gap-4">
 						<div
-							class="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-r from-blue-500 to-green-500 text-white font-semibold"
+							class="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-r from-blue-500 to-green-500 font-semibold text-white"
 						>
 							{testimonial.avatar}
 						</div>
@@ -122,15 +124,15 @@
 	</div>
 
 	<!-- Indicators -->
-	<div class="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
+	<div class="absolute bottom-4 left-1/2 flex -translate-x-1/2 transform space-x-2">
 		{#each testimonials as _, index}
 			<button
-				class="w-2 h-2 rounded-full transition-all duration-300 {index === currentIndex
-					? 'bg-gradient-to-r from-blue-400 to-green-400 w-8'
+				class="h-2 w-2 rounded-full transition-all duration-300 {index === currentIndex
+					? 'w-8 bg-gradient-to-r from-blue-400 to-green-400'
 					: 'bg-gray-600 hover:bg-gray-500'}"
 				aria-label="Go to testimonial {index + 1}"
 				on:click={() => goToSlide(index)}
 			></button>
 		{/each}
 	</div>
-</div> 
+</div>

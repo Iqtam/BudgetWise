@@ -55,8 +55,8 @@ global.IntersectionObserver = vi.fn().mockImplementation(() => ({
   disconnect: vi.fn()
 }));
 
-// Mock lucide-svelte to avoid Svelte 5 compatibility issues  
-vi.mock('lucide-svelte', () => {
+// Mock @iconify/svelte to avoid compatibility issues
+vi.mock('@iconify/svelte', () => {
   // Create a mock component that works with the testing library
   const MockIcon = vi.fn(() => null);
   return new Proxy({}, {

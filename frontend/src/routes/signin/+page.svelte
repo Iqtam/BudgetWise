@@ -10,7 +10,7 @@
 	} from '$lib/components/ui/card';
 	import { Input } from '$lib/components/ui/input';
 	import { Separator } from '$lib/components/ui/separator';
-	import { DollarSign, Eye, EyeOff, Mail, Lock } from 'lucide-svelte';
+	import Icon from '@iconify/svelte';
 	import { signIn, signInWithGoogle } from '$lib/services/auth';
 	import { firebaseUser, backendUser, loading } from '$lib/stores/auth';
 
@@ -125,7 +125,7 @@
 						<div
 							class="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-r from-blue-500 to-green-500"
 						>
-							<DollarSign class="h-5 w-5 text-white" />
+							<Icon icon="lucide:dollar-sign" class="h-5 w-5 text-white" />
 						</div>
 						<span class="text-2xl font-bold text-white">BudgetWise</span>
 					</a>
@@ -139,7 +139,10 @@
 					<div class="space-y-2">
 						<label for="email" class="text-sm font-medium text-gray-300">Email</label>
 						<div class="relative">
-							<Mail class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+							<Icon
+								icon="lucide:mail"
+								class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
+							/>
 							<Input
 								id="email"
 								type="email"
@@ -155,7 +158,10 @@
 					<div class="space-y-2">
 						<label for="password" class="text-sm font-medium text-gray-300">Password</label>
 						<div class="relative">
-							<Lock class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+							<Icon
+								icon="lucide:lock"
+								class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
+							/>
 							<Input
 								id="password"
 								type={showPassword ? 'text' : 'password'}
@@ -172,9 +178,9 @@
 								disabled={isLoading || isGoogleLoading}
 							>
 								{#if showPassword}
-									<EyeOff class="h-4 w-4 text-gray-400 hover:text-gray-200" />
+									<Icon icon="lucide:eye-off" class="h-4 w-4 text-gray-400 hover:text-gray-200" />
 								{:else}
-									<Eye class="h-4 w-4 text-gray-400 hover:text-gray-200" />
+									<Icon icon="lucide:eye" class="h-4 w-4 text-gray-400 hover:text-gray-200" />
 								{/if}
 							</button>
 						</div>

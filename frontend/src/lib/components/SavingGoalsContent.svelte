@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Target, TrendingUp, Calendar, Plus, DollarSign, Edit, Trash2 } from 'lucide-svelte';
+	import Icon from '@iconify/svelte';
 	import { Button } from '$lib/components/ui/button';
 	import {
 		Card,
@@ -778,7 +778,7 @@
 					<Button
 						class="bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600"
 					>
-						<Plus class="mr-2 h-4 w-4" />
+						<Icon icon="lucide:plus" class="mr-2 h-4 w-4" />
 						Add Goal
 					</Button>
 				</DialogTrigger>
@@ -960,7 +960,7 @@
 			<Card class="border-gray-800 bg-gray-900">
 				<CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
 					<CardTitle class="text-sm font-medium text-gray-300">Total Goals</CardTitle>
-					<Target class="h-4 w-4 text-gray-400" />
+					<Icon icon="lucide:target" class="h-4 w-4 text-gray-400" />
 				</CardHeader>
 				<CardContent>
 					<div class="text-2xl font-bold text-white">
@@ -977,7 +977,7 @@
 			<Card class="border-gray-800 bg-gray-900">
 				<CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
 					<CardTitle class="text-sm font-medium text-gray-300">Total Saved</CardTitle>
-					<DollarSign class="h-4 w-4 text-gray-400" />
+					<Icon icon="lucide:dollar-sign" class="h-4 w-4 text-gray-400" />
 				</CardHeader>
 				<CardContent>
 					<div class="text-2xl font-bold text-green-400">
@@ -996,7 +996,7 @@
 			<Card class="border-gray-800 bg-gray-900">
 				<CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
 					<CardTitle class="text-sm font-medium text-gray-300">Overall Progress</CardTitle>
-					<TrendingUp class="h-4 w-4 text-gray-400" />
+					<Icon icon="lucide:trending-up" class="h-4 w-4 text-gray-400" />
 				</CardHeader>
 				<CardContent>
 					<div class="text-2xl font-bold text-white">{overallProgress.toFixed(1)}%</div>
@@ -1007,7 +1007,7 @@
 			<Card class="border-gray-800 bg-gray-900">
 				<CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
 					<CardTitle class="text-sm font-medium text-gray-300">Completed Goals</CardTitle>
-					<Calendar class="h-4 w-4 text-gray-400" />
+					<Icon icon="lucide:calendar" class="h-4 w-4 text-gray-400" />
 				</CardHeader>
 				<CardContent>
 					<div class="text-2xl font-bold text-white">{completedGoals}</div>
@@ -1081,7 +1081,7 @@
 											onclick={() => handleEditGoal(goal)}
 											class="flex-1 border-2 border-green-500 bg-gray-900 font-semibold text-green-400 shadow-lg hover:bg-green-500/20 hover:text-green-300"
 										>
-											<Edit class="mr-1 h-4 w-4" />
+											<Icon icon="lucide:edit-3" class="mr-1 h-4 w-4" />
 											Edit
 										</Button>
 										<Button
@@ -1091,7 +1091,7 @@
 											disabled={isDeleting}
 											class="flex-1 border-2 border-red-500 bg-gray-900 font-semibold text-red-400 shadow-lg hover:bg-red-500/20 hover:text-red-300 disabled:opacity-50"
 										>
-											<Trash2 class="mr-1 h-4 w-4" />
+											<Icon icon="lucide:trash-2" class="mr-1 h-4 w-4" />
 											{isDeleting ? 'Deleting...' : 'Delete'}
 										</Button>
 									</div>

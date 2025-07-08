@@ -1,14 +1,5 @@
 <script lang="ts">
-	import {
-		CreditCard,
-		DollarSign,
-		TrendingDown,
-		Wallet,
-		Plus,
-		Edit,
-		Trash2,
-		Calendar
-	} from 'lucide-svelte';
+	import Icon from '@iconify/svelte';
 	import { Button } from '$lib/components/ui/button';
 	import {
 		Card,
@@ -603,7 +594,7 @@
 					<Button
 						class="bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600"
 					>
-						<Plus class="mr-2 h-4 w-4" />
+						<Icon icon="lucide:plus" class="mr-2 h-4 w-4" />
 						Add Debt
 					</Button>
 				</DialogTrigger>
@@ -833,7 +824,7 @@
 			<Card class="border-gray-800 bg-gray-900">
 				<CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
 					<CardTitle class="text-sm font-medium text-white">Account Balance</CardTitle>
-					<Wallet class="h-4 w-4 text-gray-400" />
+					<Icon icon="lucide:wallet" class="h-4 w-4 text-gray-400" />
 				</CardHeader>
 				<CardContent>
 					{#if balance && balance.balance !== null && balance.balance !== undefined}
@@ -852,7 +843,7 @@
 			<Card class="border-gray-800 bg-gray-900">
 				<CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
 					<CardTitle class="text-sm font-medium text-white">Total Debt</CardTitle>
-					<CreditCard class="h-4 w-4 text-gray-400" />
+					<Icon icon="lucide:credit-card" class="h-4 w-4 text-gray-400" />
 				</CardHeader>
 				<CardContent>
 					<div class="text-2xl font-bold text-red-600">
@@ -867,7 +858,7 @@
 			<Card class="border-gray-800 bg-gray-900">
 				<CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
 					<CardTitle class="text-sm font-medium text-white">Earliest Deadline</CardTitle>
-					<Calendar class="h-4 w-4 text-gray-400" />
+					<Icon icon="lucide:calendar" class="h-4 w-4 text-gray-400" />
 				</CardHeader>
 				<CardContent>
 					<div class="text-lg font-bold text-white">
@@ -944,7 +935,7 @@
 									onclick={() => handleEditDebt(debt)}
 									class="border-2 border-green-500 bg-gray-900 font-semibold text-green-400 shadow-lg hover:bg-green-500/20 hover:text-green-300"
 								>
-									<Edit class="mr-1 h-4 w-4" />
+									<Icon icon="lucide:edit-3" class="mr-1 h-4 w-4" />
 									Edit
 								</Button>
 								<Button
@@ -954,7 +945,7 @@
 									disabled={deletingDebtId === debt.id}
 									class="border-2 border-red-500 bg-gray-900 font-semibold text-red-400 shadow-lg hover:bg-red-500/20 hover:text-red-300 disabled:opacity-50"
 								>
-									<Trash2 class="mr-1 h-4 w-4" />
+									<Icon icon="lucide:trash-2" class="mr-1 h-4 w-4" />
 									{deletingDebtId === debt.id ? 'Deleting...' : 'Delete'}
 								</Button>
 							</div>

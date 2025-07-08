@@ -20,20 +20,7 @@
 		CardTitle
 	} from '$lib/components/ui/card';
 	import { Tabs, TabsContent, TabsList, TabsTrigger } from '$lib/components/ui/tabs';
-	import {
-		User,
-		Mail,
-		Calendar,
-		Shield,
-		Edit3,
-		Save,
-		X,
-		Camera,
-		Eye,
-		EyeOff,
-		Circle,
-		Download
-	} from 'lucide-svelte';
+	import Icon from '@iconify/svelte';
 	import { firebaseUser, backendUser } from '$lib/stores/auth';
 	import { signOut } from '$lib/services/auth';
 	import { userProfileService } from '$lib/services/userProfile';
@@ -213,7 +200,7 @@
 								variant="outline"
 								class="border-violet-400/50 bg-gradient-to-r from-violet-500/20 to-blue-500/20 text-violet-200 shadow-lg backdrop-blur-sm"
 							>
-								<User class="mr-1 h-3 w-3" />
+								<Icon icon="lucide:user" class="mr-1 h-3 w-3" />
 								{$backendUser?.role || 'Member'}
 							</Badge>
 						</div>
@@ -231,7 +218,7 @@
 							onclick={startEditing}
 							class="min-w-[90px] border-2 border-emerald-400 bg-transparent font-semibold text-emerald-300 shadow-lg transition-all duration-200 hover:border-emerald-300 hover:bg-emerald-400/20 hover:text-emerald-200"
 						>
-							<Edit3 class="mr-2 h-4 w-4" />
+							<Icon icon="lucide:edit-3" class="mr-2 h-4 w-4" />
 							Edit
 						</Button>
 					{/if}
@@ -318,11 +305,11 @@
 								onclick={cancelEditing}
 								class="border-gray-600 text-gray-300 hover:bg-gray-700"
 							>
-								<X class="mr-2 h-4 w-4" />
+								<Icon icon="lucide:x" class="mr-2 h-4 w-4" />
 								Cancel
 							</Button>
 							<Button onclick={saveProfile} class="bg-blue-600 hover:bg-blue-700">
-								<Save class="mr-2 h-4 w-4" />
+								<Icon icon="lucide:save" class="mr-2 h-4 w-4" />
 								Save Changes
 							</Button>
 						</div>
@@ -333,7 +320,7 @@
 						<Card class="border-gray-600 bg-gray-700">
 							<CardHeader class="pb-3">
 								<CardTitle class="flex items-center gap-2 text-sm font-medium text-gray-300">
-									<User class="h-4 w-4" />
+									<Icon icon="lucide:user" class="h-4 w-4" />
 									Personal Information
 								</CardTitle>
 							</CardHeader>
@@ -354,7 +341,7 @@
 										variant="outline"
 										class="border-violet-400/50 bg-gradient-to-r from-violet-500/20 to-blue-500/20 text-xs text-violet-200 shadow-lg backdrop-blur-sm"
 									>
-										<User class="mr-1 h-3 w-3" />
+										<Icon icon="lucide:user" class="mr-1 h-3 w-3" />
 										{$backendUser?.role || 'Member'}
 									</Badge>
 								</div>
@@ -364,7 +351,7 @@
 						<Card class="border-gray-600 bg-gray-700">
 							<CardHeader class="pb-3">
 								<CardTitle class="flex items-center gap-2 text-sm font-medium text-gray-300">
-									<Shield class="h-4 w-4" />
+									<Icon icon="lucide:shield" class="h-4 w-4" />
 									Account Security
 								</CardTitle>
 							</CardHeader>
@@ -375,7 +362,7 @@
 										variant="outline"
 										class="flex items-center gap-1 border-green-400/50 bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-xs text-green-200 shadow-lg backdrop-blur-sm"
 									>
-										<Circle class="h-2 w-2 fill-current" />
+										<Icon icon="lucide:circle" class="h-2 w-2 fill-current" />
 										Active
 									</Badge>
 								</div>
@@ -407,14 +394,14 @@
 								variant="outline"
 								class="w-full justify-start border-black bg-black font-bold text-white hover:bg-gray-900"
 							>
-								<Camera class="mr-2 h-4 w-4" />
+								<Icon icon="lucide:camera" class="mr-2 h-4 w-4" />
 								Upload Profile Picture
 							</Button>
 							<Button
 								variant="outline"
 								class="w-full justify-start border-black bg-black font-bold text-amber-600 hover:bg-gray-900"
 							>
-								<Download class="mr-2 h-4 w-4" />
+								<Icon icon="lucide:download" class="mr-2 h-4 w-4" />
 								Export Data
 							</Button>
 							<Button

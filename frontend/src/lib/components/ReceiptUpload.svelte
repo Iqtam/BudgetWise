@@ -4,7 +4,7 @@
 	import { Label } from '$lib/components/ui/label';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
-	import { Camera, Upload, Loader2, CheckCircle, Edit, X } from 'lucide-svelte';
+	import Icon from '@iconify/svelte';
 	import { createEventDispatcher } from 'svelte';
 	import { ocrService, type OCRResult } from '$lib/services/ocr';
 
@@ -32,7 +32,7 @@
 
 	function handleFile(file: File) {
 		error = null;
-		
+
 		// Validate file type
 		if (!ocrService.validateFileType(file)) {
 			error = 'Please select a valid image file (JPG, PNG, GIF, WebP)';
@@ -100,7 +100,7 @@
 	function onDrop(event: DragEvent) {
 		event.preventDefault();
 		dragActive = false;
-		
+
 		const files = event.dataTransfer?.files;
 		if (files && files[0]) {
 			handleFile(files[0]);
@@ -110,24 +110,24 @@
 
 {#if isOpen}
 	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-		<Card class="w-full max-w-md mx-4">
+		<Card class="mx-4 w-full max-w-md">
 			<CardHeader class="flex flex-row items-center justify-between">
 				<CardTitle class="flex items-center gap-2">
-					<Camera class="h-5 w-5" />
+					<Icon icon="lucide:camera" class="h-5 w-5" />
 					Receipt Scanner
 				</CardTitle>
 				<Button variant="ghost" size="sm" onclick={closeModal}>
-					<X class="h-4 w-4" />
+					<Icon icon="lucide:x" class="h-4 w-4" />
 				</Button>
 			</CardHeader>
-			
+
 			<CardContent class="space-y-4">
 				{#if !ocrResult}
 					<!-- File Upload Section -->
 					<div class="space-y-4">
 						<!-- Drag & Drop Area -->
 						<div
-							class="border-2 border-dashed rounded-lg p-6 text-center transition-colors {dragActive
+							class="rounded-lg border-2 border-dashed p-6 text-center transition-colors {dragActive
 								? 'border-primary bg-primary/5'
 								: 'border-gray-300 hover:border-gray-400'}"
 							on:dragover={onDragOver}
@@ -136,13 +136,9 @@
 							role="button"
 							tabindex="0"
 						>
-							<Upload class="h-8 w-8 mx-auto mb-2 text-gray-400" />
-							<p class="text-sm text-gray-600 mb-2">
-								Drag & drop your receipt image here, or
-							</p>
-							<Button variant="outline" onclick={() => fileInput?.click()}>
-								Choose File
-							</Button>
+							<Icon icon="lucide:upload" class="mx-auto mb-2 h-8 w-8 text-gray-400" />
+							<p class="mb-2 text-sm text-gray-600">Drag & drop your receipt image here, or</p>
+							<Button variant="outline" onclick={() => fileInput?.click()}>Choose File</Button>
 						</div>
 
 						<input
@@ -154,9 +150,9 @@
 						/>
 
 						{#if selectedFile}
-							<div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+							<div class="flex items-center justify-between rounded-lg bg-gray-50 p-3">
 								<div class="flex items-center gap-2">
-									<CheckCircle class="h-4 w-4 text-green-500" />
+									<Icon icon="lucide:check-circle" class="h-4 w-4 text-green-500" />
 									<span class="text-sm text-gray-700">{selectedFile.name}</span>
 								</div>
 								<Badge variant="secondary">
@@ -164,23 +160,19 @@
 								</Badge>
 							</div>
 
-							<Button 
-								class="w-full" 
-								onclick={processReceipt} 
-								disabled={isProcessing}
-							>
+							<Button class="w-full" onclick={processReceipt} disabled={isProcessing}>
 								{#if isProcessing}
-									<Loader2 class="h-4 w-4 mr-2 animate-spin" />
+									<Icon icon="lucide:loader-2" class="mr-2 h-4 w-4 animate-spin" />
 									Processing...
 								{:else}
-									<Camera class="h-4 w-4 mr-2" />
+									<Icon icon="lucide:camera" class="mr-2 h-4 w-4" />
 									Scan Receipt
 								{/if}
 							</Button>
 						{/if}
 
 						{#if error}
-							<div class="p-3 bg-red-50 border border-red-200 rounded-lg">
+							<div class="rounded-lg border border-red-200 bg-red-50 p-3">
 								<p class="text-sm text-red-600">{error}</p>
 							</div>
 						{/if}
@@ -189,12 +181,12 @@
 					<!-- OCR Results Preview -->
 					<div class="space-y-4">
 						<div class="text-center">
-							<CheckCircle class="h-8 w-8 mx-auto mb-2 text-green-500" />
+							<Icon icon="lucide:check-circle" class="mx-auto mb-2 h-8 w-8 text-green-500" />
 							<h3 class="font-semibold text-green-700">Receipt Processed!</h3>
 						</div>
 
-						<div class="bg-gray-50 p-4 rounded-lg space-y-2">
-							<h4 class="font-mono text-sm font-semibold mb-3">🧾 OCR Preview:</h4>
+						<div class="space-y-2 rounded-lg bg-gray-50 p-4">
+							<h4 class="mb-3 font-mono text-sm font-semibold">🧾 OCR Preview:</h4>
 							<div class="space-y-1 text-sm">
 								<div class="flex justify-between">
 									<span class="text-gray-600">Description:</span>
@@ -227,11 +219,11 @@
 
 						<div class="flex gap-2">
 							<Button variant="outline" class="flex-1" onclick={handleEdit}>
-								<Edit class="h-4 w-4 mr-2" />
+								<Icon icon="lucide:edit-3" class="mr-2 h-4 w-4" />
 								Edit
 							</Button>
 							<Button class="flex-1" onclick={handleConfirm}>
-								<CheckCircle class="h-4 w-4 mr-2" />
+								<Icon icon="lucide:check-circle" class="mr-2 h-4 w-4" />
 								Confirm & Add
 							</Button>
 						</div>

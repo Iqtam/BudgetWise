@@ -20,18 +20,7 @@
 		DialogTrigger
 	} from '$lib/components/ui/dialog';
 	import { Tabs, TabsContent, TabsList, TabsTrigger } from '$lib/components/ui/tabs';
-	import {
-		ArrowDownIcon,
-		ArrowUpIcon,
-		Camera,
-		MessageSquare,
-		Plus,
-		Search,
-		Repeat,
-		ArrowUpDown,
-		Trash2,
-		Edit
-	} from 'lucide-svelte';
+	import Icon from '@iconify/svelte';
 	import { transactionService, type Transaction } from '$lib/services/transactions';
 	import { categoryService, type Category } from '$lib/services/categories';
 	import { balanceService, type Balance } from '$lib/services/balance';
@@ -1065,7 +1054,7 @@
 							onclick={handleEditBalance}
 							class="ml-4 h-6 border-2 border-green-500 bg-gray-900 font-semibold text-green-400 shadow-lg hover:bg-green-500/20 hover:text-green-300"
 						>
-							<Edit class="mr-1 h-3 w-3" />
+							<Icon icon="lucide:edit-3" class="mr-1 h-3 w-3" />
 							Edit
 						</Button>
 					</div>
@@ -1075,7 +1064,7 @@
 						<div
 							class="ring-offset-background focus-visible:ring-ring inline-flex h-10 cursor-pointer items-center justify-center whitespace-nowrap rounded-md bg-gradient-to-r from-blue-500 to-green-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:from-blue-600 hover:to-green-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
 						>
-							<Plus class="mr-2 h-4 w-4" />
+							<Icon icon="lucide:plus" class="mr-2 h-4 w-4" />
 							Add Transaction
 						</div>
 					</DialogTrigger>
@@ -1233,7 +1222,7 @@
 											for="isRecurrent"
 											class="flex cursor-pointer items-center gap-2 text-sm font-medium text-white"
 										>
-											<Repeat class="h-4 w-4 text-blue-400" />
+											<Icon icon="lucide:repeat" class="h-4 w-4 text-blue-400" />
 											Recurring Transaction (Optional)
 										</Label>
 									</div>
@@ -1242,7 +1231,7 @@
 									{#if formIsRecurrent}
 										<div class="space-y-4 rounded-lg border border-blue-500/30 bg-blue-900/20 p-4">
 											<h4 class="flex items-center gap-2 text-sm font-semibold text-blue-300">
-												<Repeat class="h-4 w-4" />
+												<Icon icon="lucide:repeat" class="h-4 w-4" />
 												Recurring Transaction Settings
 											</h4>
 
@@ -1388,7 +1377,10 @@
 											<!-- Chat Input Area -->
 											<div class="space-y-4">
 												<div class="text-center">
-													<MessageSquare class="mx-auto mb-4 h-12 w-12 text-gray-400" />
+													<Icon
+														icon="lucide:message-square"
+														class="mx-auto mb-4 h-12 w-12 text-gray-400"
+													/>
 													<h3 class="mb-2 text-lg font-medium text-white">Chat Input</h3>
 													<p class="mb-4 text-gray-400">
 														Describe your transaction in natural language
@@ -1416,7 +1408,7 @@
 															></div>
 															Processing...
 														{:else}
-															<MessageSquare class="mr-2 h-4 w-4" />
+															<Icon icon="lucide:message-square" class="mr-2 h-4 w-4" />
 															Process Transaction
 														{/if}
 													</Button>
@@ -1436,7 +1428,7 @@
 												<div
 													class="mx-auto mb-2 flex h-8 w-8 items-center justify-center rounded-full bg-green-500"
 												>
-													<MessageSquare class="h-4 w-4 text-white" />
+													<Icon icon="lucide:message-square" class="h-4 w-4 text-white" />
 												</div>
 												<h3 class="font-semibold text-green-400">Transaction Processed!</h3>
 											</div>
@@ -1487,14 +1479,14 @@
 													class="flex-1 border-gray-600 bg-gray-700 text-gray-300 hover:bg-gray-600"
 													onclick={handleChatEdit}
 												>
-													<Edit class="mr-2 h-4 w-4" />
+													<Icon icon="lucide:edit-3" class="mr-2 h-4 w-4" />
 													Edit
 												</Button>
 												<Button
 													class="flex-1 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
 													onclick={handleChatConfirm}
 												>
-													<MessageSquare class="mr-2 h-4 w-4" />
+													<Icon icon="lucide:message-square" class="mr-2 h-4 w-4" />
 													Confirm & Add
 												</Button>
 											</div>
@@ -1513,7 +1505,7 @@
 												class="flex items-center justify-center rounded-lg border-2 border-dashed border-gray-600 p-8"
 											>
 												<div class="text-center">
-													<Camera class="mx-auto mb-4 h-12 w-12 text-gray-400" />
+													<Icon icon="lucide:camera" class="mx-auto mb-4 h-12 w-12 text-gray-400" />
 													<h3 class="mb-2 text-lg font-medium text-white">Receipt OCR</h3>
 													<p class="mb-4 text-gray-400">
 														Upload a receipt to automatically extract transaction details
@@ -1529,7 +1521,7 @@
 															></div>
 															Processing...
 														{:else}
-															<Camera class="mr-2 h-4 w-4" />
+															<Icon icon="lucide:camera" class="mr-2 h-4 w-4" />
 															Choose Receipt
 														{/if}
 													</Button>
@@ -1548,7 +1540,7 @@
 											{#if selectedFile}
 												<div class="flex items-center justify-between rounded-lg bg-gray-700 p-3">
 													<div class="flex items-center gap-2">
-														<Camera class="h-4 w-4 text-green-400" />
+														<Icon icon="lucide:camera" class="h-4 w-4 text-green-400" />
 														<span class="text-sm text-gray-300">{selectedFile.name}</span>
 													</div>
 													<Badge variant="secondary" class="bg-gray-600 text-gray-300">
@@ -1570,7 +1562,7 @@
 												<div
 													class="mx-auto mb-2 flex h-8 w-8 items-center justify-center rounded-full bg-green-500"
 												>
-													<Camera class="h-4 w-4 text-white" />
+													<Icon icon="lucide:camera" class="h-4 w-4 text-white" />
 												</div>
 												<h3 class="font-semibold text-green-400">Receipt Processed!</h3>
 											</div>
@@ -1621,14 +1613,14 @@
 													class="flex-1 border-gray-600 bg-gray-700 text-gray-300 hover:bg-gray-600"
 													onclick={handleOCREdit}
 												>
-													<Edit class="mr-2 h-4 w-4" />
+													<Icon icon="lucide:edit-3" class="mr-2 h-4 w-4" />
 													Edit
 												</Button>
 												<Button
 													class="flex-1 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
 													onclick={handleOCRConfirm}
 												>
-													<Camera class="mr-2 h-4 w-4" />
+													<Icon icon="lucide:camera" class="mr-2 h-4 w-4" />
 													Confirm & Add
 												</Button>
 											</div>
@@ -1709,14 +1701,14 @@
 						value="expense"
 						class="rounded-lg border border-gray-700 bg-gray-800 p-3 text-gray-300 transition-all duration-200 hover:bg-gray-700 data-[state=active]:border-red-500 data-[state=active]:bg-red-900 data-[state=active]:text-white"
 					>
-						<ArrowDownIcon class="mr-2 h-4 w-4" />
+						<Icon icon="lucide:arrow-down" class="mr-2 h-4 w-4" />
 						Expenses
 					</TabsTrigger>
 					<TabsTrigger
 						value="income"
 						class="rounded-lg border border-gray-700 bg-gray-800 p-3 text-gray-300 transition-all duration-200 hover:bg-gray-700 data-[state=active]:border-green-500 data-[state=active]:bg-green-900 data-[state=active]:text-white"
 					>
-						<ArrowUpIcon class="mr-2 h-4 w-4" />
+						<Icon icon="lucide:arrow-up" class="mr-2 h-4 w-4" />
 						Income
 					</TabsTrigger>
 				</TabsList>
@@ -1725,7 +1717,10 @@
 					<!-- Filters and Search -->
 					<div class="flex flex-col gap-4 sm:flex-row">
 						<div class="relative flex-1">
-							<Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+							<Icon
+								icon="lucide:search"
+								class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
+							/>
 							<Input
 								placeholder="Search expenses..."
 								bind:value={searchTerm}
@@ -1757,7 +1752,7 @@
 					<Card class="border-gray-800 bg-gray-900">
 						<CardHeader>
 							<CardTitle class="flex items-center gap-2 text-white">
-								<ArrowDownIcon class="h-5 w-5 text-red-400" />
+								<Icon icon="lucide:arrow-down" class="h-5 w-5 text-red-400" />
 								Expense Transactions
 							</CardTitle>
 							<CardDescription class="flex items-center justify-between text-gray-400">
@@ -1787,7 +1782,7 @@
 												<div
 													class="flex h-10 w-10 items-center justify-center rounded-full bg-red-500/20 text-red-400"
 												>
-													<ArrowDownIcon class="h-5 w-5" />
+													<Icon icon="lucide:arrow-down" class="h-5 w-5" />
 												</div>
 												<div>
 													<div class="flex items-center gap-2">
@@ -1797,7 +1792,7 @@
 																variant="outline"
 																class="border-blue-500 text-xs text-blue-400"
 															>
-																<Repeat class="mr-1 h-3 w-3" />
+																<Icon icon="lucide:repeat" class="mr-1 h-3 w-3" />
 																Recurring
 															</Badge>
 														{/if}
@@ -1830,7 +1825,7 @@
 														onclick={() => handleEditTransaction(transaction)}
 														class="flex-1 border-2 border-green-500 bg-gray-900 font-semibold text-green-400 shadow-lg hover:bg-green-500/20 hover:text-green-300"
 													>
-														<Edit class="mr-1 h-4 w-4" />
+														<Icon icon="lucide:edit-3" class="mr-1 h-4 w-4" />
 														Edit
 													</Button>
 													<Button
@@ -1840,7 +1835,7 @@
 														class="flex-1 border-2 border-red-500 bg-gray-900 font-semibold text-red-400 shadow-lg hover:bg-red-500/20 hover:text-red-300"
 														disabled={isDeleting}
 													>
-														<Trash2 class="mr-1 h-4 w-4" />
+														<Icon icon="lucide:trash-2" class="mr-1 h-4 w-4" />
 														Delete
 													</Button>
 												</div>
@@ -1916,7 +1911,10 @@
 					<!-- Filters and Search -->
 					<div class="flex flex-col gap-4 sm:flex-row">
 						<div class="relative flex-1">
-							<Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+							<Icon
+								icon="lucide:search"
+								class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
+							/>
 							<Input
 								placeholder="Search income..."
 								bind:value={searchTerm}
@@ -1948,7 +1946,7 @@
 					<Card class="border-gray-800 bg-gray-900">
 						<CardHeader>
 							<CardTitle class="flex items-center gap-2 text-white">
-								<ArrowUpIcon class="h-5 w-5 text-green-400" />
+								<Icon icon="lucide:arrow-up" class="h-5 w-5 text-green-400" />
 								Income Transactions
 							</CardTitle>
 							<CardDescription class="flex items-center justify-between text-gray-400">
@@ -1978,7 +1976,7 @@
 												<div
 													class="flex h-10 w-10 items-center justify-center rounded-full bg-green-500/20 text-green-400"
 												>
-													<ArrowUpIcon class="h-5 w-5" />
+													<Icon icon="lucide:arrow-up" class="h-5 w-5" />
 												</div>
 												<div>
 													<div class="flex items-center gap-2">
@@ -1988,7 +1986,7 @@
 																variant="outline"
 																class="border-blue-500 text-xs text-blue-400"
 															>
-																<Repeat class="mr-1 h-3 w-3" />
+																<Icon icon="lucide:repeat" class="mr-1 h-3 w-3" />
 																Recurring
 															</Badge>
 														{/if}
@@ -2021,7 +2019,7 @@
 														onclick={() => handleEditTransaction(transaction)}
 														class="flex-1 border-2 border-green-500 bg-gray-900 font-semibold text-green-400 shadow-lg hover:bg-green-500/20 hover:text-green-300"
 													>
-														<Edit class="mr-1 h-4 w-4" />
+														<Icon icon="lucide:edit-3" class="mr-1 h-4 w-4" />
 														Edit
 													</Button>
 													<Button
@@ -2031,7 +2029,7 @@
 														class="flex-1 border-2 border-red-500 bg-gray-900 font-semibold text-red-400 shadow-lg hover:bg-red-500/20 hover:text-red-300"
 														disabled={isDeleting}
 													>
-														<Trash2 class="mr-1 h-4 w-4" />
+														<Icon icon="lucide:trash-2" class="mr-1 h-4 w-4" />
 														Delete
 													</Button>
 												</div>
@@ -2111,10 +2109,10 @@
 				<DialogHeader>
 					<DialogTitle class="flex items-center gap-2">
 						{#if selectedTransactionDetails?.type === 'income'}
-							<ArrowUpIcon class="h-5 w-5 text-green-400" />
+							<Icon icon="lucide:arrow-up" class="h-5 w-5 text-green-400" />
 							Income Details
 						{:else}
-							<ArrowDownIcon class="h-5 w-5 text-red-400" />
+							<Icon icon="lucide:arrow-down" class="h-5 w-5 text-red-400" />
 							Expense Details
 						{/if}
 					</DialogTitle>
@@ -2171,7 +2169,7 @@
 						{/if}
 						{#if selectedTransactionDetails.recurrence}
 							<div class="flex items-center gap-2">
-								<Repeat class="h-4 w-4 text-blue-400" />
+								<Icon icon="lucide:repeat" class="h-4 w-4 text-blue-400" />
 								<span class="text-blue-400">Recurring Transaction</span>
 							</div>
 						{/if}

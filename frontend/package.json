@@ -55,10 +55,10 @@
 		"vitest": "^3.2.4"
 	},
 	"dependencies": {
+		"@iconify/svelte": "^5.0.0",
 		"d3": "^7.9.0",
 		"firebase": "^11.9.1",
 		"layerchart": "^1.0.11",
-		"lucide-svelte": "^0.522.0",
 		"recharts": "^2.15.4"
 	}
 }

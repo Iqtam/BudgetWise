@@ -4,7 +4,7 @@
 	import { Card, CardContent, CardHeader } from '$lib/components/ui/card';
 	import { Input } from '$lib/components/ui/input';
 	import { Separator } from '$lib/components/ui/separator';
-	import { DollarSign, Eye, EyeOff, Mail, Lock } from 'lucide-svelte';
+	import Icon from '@iconify/svelte';
 	import { signUp, signInWithGoogle } from '$lib/services/auth';
 	import { firebaseUser, backendUser, loading } from '$lib/stores/auth';
 
@@ -128,7 +128,7 @@
 					<div
 						class="flex h-12 w-12 items-center justify-center rounded-lg bg-gradient-to-r from-blue-500 to-green-500"
 					>
-						<DollarSign class="h-6 w-6 text-white" />
+						<Icon icon="lucide:dollar-sign" class="h-6 w-6 text-white" />
 					</div>
 					<span class="text-3xl font-bold text-white">BudgetWise</span>
 				</div>
@@ -141,7 +141,10 @@
 					<div class="space-y-2">
 						<label for="email" class="text-sm font-medium text-white">Email</label>
 						<div class="relative">
-							<Mail class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+							<Icon
+								icon="lucide:mail"
+								class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+							/>
 							<Input
 								id="email"
 								type="email"
@@ -157,7 +160,10 @@
 					<div class="space-y-2">
 						<label for="password" class="text-sm font-medium text-white">Password</label>
 						<div class="relative">
-							<Lock class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+							<Icon
+								icon="lucide:lock"
+								class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+							/>
 							<Input
 								id="password"
 								type={showPassword ? 'text' : 'password'}
@@ -176,9 +182,9 @@
 								disabled={isLoading || isGoogleLoading}
 							>
 								{#if showPassword}
-									<EyeOff class="h-4 w-4 text-slate-400" />
+									<Icon icon="lucide:eye-off" class="h-4 w-4 text-slate-400" />
 								{:else}
-									<Eye class="h-4 w-4 text-slate-400" />
+									<Icon icon="lucide:eye" class="h-4 w-4 text-slate-400" />
 								{/if}
 							</Button>
 						</div>
@@ -189,7 +195,10 @@
 							>Confirm Password</label
 						>
 						<div class="relative">
-							<Lock class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+							<Icon
+								icon="lucide:lock"
+								class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+							/>
 							<Input
 								id="confirmPassword"
 								type="password"
