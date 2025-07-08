@@ -13,7 +13,11 @@ export interface Debt {
 	expiration_date: string;
 	interest_rate: number;
 	amount: number;
+	original_amount?: number;
 	taken_from: string;
+	is_fully_paid?: boolean;
+	fully_paid_date?: string;
+	last_payment_date?: string;
 	created_at?: string;
 	updated_at?: string;
 }
@@ -135,6 +139,18 @@ export class DebtService {
 			throw error;
 		}
 	}
+
+	async makePayment(debtId: string, paymentAmount: number): Promise<any> {
+		try {
+			return await this.apiCall(`/debts/${debtId}/payment`, {
+				method: 'POST',
+				body: JSON.stringify({ payment_amount: paymentAmount }),
+			});
+		} catch (error) {
+			console.error('Error making debt payment:', error);
+			throw error;
+		}
+	}
 }
 
-export const debtService = new DebtService(); 
+export const debtService = new DebtService();

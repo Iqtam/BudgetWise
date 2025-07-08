@@ -11,5 +11,6 @@ router.get('/', debtController.getAllDebts);
 router.get('/:id', debtController.getDebtById);
 router.put('/:id', debtController.updateDebt);
 router.delete('/:id', debtController.deleteDebt);
+router.post('/:id/payment', debtController.makeDebtPayment);
 
 module.exports = router;
