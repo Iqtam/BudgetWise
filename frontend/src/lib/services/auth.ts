@@ -18,7 +18,7 @@ interface FirebaseError extends Error {
     code?: string;
 }
 
-const API_URL = PUBLIC_BACKEND_API_URL ||  "http://localhost/api";
+const API_URL = PUBLIC_BACKEND_API_URL ||  "http://budgetwis.me/api";
 // const API_URL="http://localhost:5000";
 // const API_URL = PUBLIC_BACKEND_API_URL;
 // console.log("PUBLIC_BACKEND_API_URL");

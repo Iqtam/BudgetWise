@@ -1,7 +1,7 @@
 import { PUBLIC_BACKEND_API_URL } from '$env/static/public';
 import { auth } from '$lib/firebase';
 
-const API_URL = PUBLIC_BACKEND_API_URL || "http://localhost/api";
+const API_URL = PUBLIC_BACKEND_API_URL || "http://budgetwis.me/api";
 
 // Helper function to get Firebase token
 const getAuthToken = async (): Promise<string | null> => {
