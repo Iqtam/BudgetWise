@@ -64,6 +64,12 @@
 	let editBalanceValue = $state('');
 	let isBalanceDialogOpen = $state(false);
 
+	// Separate error states for dialogs
+	let dialogError = $state<string | null>(null);
+	let newCategoryError = $state<string | null>(null);
+	let editTransactionError = $state<string | null>(null);
+	let balanceError = $state<string | null>(null);
+
 	// OCR Receipt state
 	let selectedFile = $state<File | null>(null);
 	let isProcessingOCR = $state(false);
@@ -86,6 +92,15 @@
 	let formEvent = $state('');
 	let formDate = $state(new Date().toISOString().split('T')[0]);
 	let formIsRecurrent = $state(false);
+
+	// Recurring transaction fields
+	let formStartDate = $state(new Date().toISOString().split('T')[0]);
+	let formPeriod = $state('1');
+	let formEndDate = $state('');
+	let formDuration = $state('');
+	let formDurationType = $state('month');
+	let formRecurrenceType = $state('monthly');
+	let formWeekday = $state('');
 
 	// Edit form fields
 	let editDescription = $state('');
@@ -227,8 +242,44 @@
 		// Prevent double submission
 		if (isSaving) return;
 
+		// Validate recurring transaction dates
+		if (formIsRecurrent) {
+			// Check if weekday is required for weekly recurrence
+			if (formRecurrenceType === 'weekly' && !formWeekday) {
+				dialogError = 'Please select a day of the week for weekly recurring transactions';
+				return;
+			}
+
+			// Check if both end date and duration are provided (user should choose only one)
+			if (formEndDate && formDuration) {
+				dialogError = 'Please choose either an end date OR duration count, not both';
+				return;
+			}
+
+			// Validate start date vs end date
+			if (formEndDate) {
+				const startDate = new Date(formStartDate);
+				const endDate = new Date(formEndDate);
+				
+				if (endDate <= startDate) {
+					dialogError = 'End date must be after the start date';
+					return;
+				}
+			}
+
+			// Validate start date is not in the past (optional - you can remove this if you want to allow past dates)
+			const startDate = new Date(formStartDate);
+			const today = new Date();
+			today.setHours(0, 0, 0, 0); // Reset time to beginning of day for fair comparison
+			
+			if (startDate < today) {
+				dialogError = 'Start date cannot be in the past';
+				return;
+			}
+		}
+
 		isSaving = true;
-		error = null;
+		dialogError = null;
 		successMessage = null;
 
 		try {
@@ -304,7 +355,7 @@
 			}, 3000);
 		} catch (err) {
 			console.error('Error creating transaction:', err);
-			error = err instanceof Error ? err.message : 'Failed to create transaction';
+			dialogError = err instanceof Error ? err.message : 'Failed to create transaction';
 			// Don't close dialog on error, let user try again
 		} finally {
 			isSaving = false;
@@ -318,6 +369,19 @@
 		formEvent = '';
 		formDate = new Date().toISOString().split('T')[0];
 		formIsRecurrent = false;
+		
+		// Reset recurring transaction fields
+		formStartDate = new Date().toISOString().split('T')[0];
+		formPeriod = '1';
+		formEndDate = '';
+		formDuration = '';
+		formDurationType = 'month';
+		formRecurrenceType = 'monthly';
+		formWeekday = '';
+		
+		// Reset dialog error
+		dialogError = null;
+		
 		activeTabValue = 'manual';
 	} // Function to handle creating a new category
 	async function handleCreateCategory(event: Event) {
@@ -350,14 +414,14 @@
 			}, 3000);
 		} catch (err) {
 			console.error('Error creating category:', err);
-			error = err instanceof Error ? err.message : 'Failed to create category';
+			newCategoryError = err instanceof Error ? err.message : 'Failed to create category';
 		}
 	}
 
 	// Function to handle opening new category dialog
 	function handleNewCategoryClick() {
 		if (!formType) {
-			error = 'Please select a transaction type first';
+			dialogError = 'Please select a transaction type first';
 			return;
 		}
 
@@ -991,7 +1055,7 @@
 						</Button>
 					</div>
 				{/if}
-				<Dialog bind:open={isDialogOpen}>
+			<Dialog bind:open={isDialogOpen}>
 				<DialogTrigger>
 					<div
 						class="ring-offset-background focus-visible:ring-ring inline-flex h-10 cursor-pointer items-center justify-center whitespace-nowrap rounded-md bg-gradient-to-r from-blue-500 to-green-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:from-blue-600 hover:to-green-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
@@ -1000,7 +1064,7 @@
 						Add Transaction
 					</div>
 				</DialogTrigger>
-				<DialogContent class="border-gray-700 bg-gray-800 text-white sm:max-w-[425px]">
+				<DialogContent class="border-gray-700 bg-gray-800 text-white sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
 					<DialogHeader>
 						<DialogTitle>Add New Transaction</DialogTitle>
 						<DialogDescription class="text-gray-400">
@@ -1030,6 +1094,13 @@
 						</TabsList>
 
 						<TabsContent value="manual">
+							<!-- Error Message for Dialog -->
+							{#if dialogError}
+								<div class="mb-4 rounded-lg border border-red-500 bg-red-900/50 p-3">
+									<p class="text-sm text-red-300">{dialogError}</p>
+								</div>
+							{/if}
+							
 							<form onsubmit={handleAddTransaction} class="space-y-4">
 								<div class="space-y-2">
 									<Label for="description">Description</Label>
@@ -1149,6 +1220,133 @@
 										Recurring Transaction (Optional)
 									</Label>
 								</div>
+
+								<!-- Recurring Transaction Details (Conditional) -->
+								{#if formIsRecurrent}
+									<div class="space-y-4 rounded-lg border border-blue-500/30 bg-blue-900/20 p-4">
+										<h4 class="flex items-center gap-2 text-sm font-semibold text-blue-300">
+											<Repeat class="h-4 w-4" />
+											Recurring Transaction Settings
+										</h4>
+										
+										<!-- Recurrence Type -->
+										<div class="space-y-2">
+											<Label for="recurrenceType" class="text-white">Recurrence Type</Label>
+											<select
+												id="recurrenceType"
+												bind:value={formRecurrenceType}
+												class="w-full rounded-md border border-gray-600 bg-gray-700 px-3 py-2 text-white"
+											>
+												<option value="daily">Daily</option>
+												<option value="weekly">Weekly</option>
+												<option value="monthly">Monthly</option>
+												<option value="yearly">Yearly</option>
+											</select>
+										</div>
+
+										<!-- Period and Weekday Row -->
+										<div class="grid grid-cols-2 gap-4">
+											<div class="space-y-2">
+												<Label for="period" class="text-white">
+													Every 
+													{#if formRecurrenceType === 'daily'}day(s){/if}
+													{#if formRecurrenceType === 'weekly'}week(s){/if}
+													{#if formRecurrenceType === 'monthly'}month(s){/if}
+													{#if formRecurrenceType === 'yearly'}year(s){/if}
+												</Label>
+												<Input
+													id="period"
+													bind:value={formPeriod}
+													type="number"
+													min="1"
+													placeholder="1"
+													class="border-gray-600 bg-gray-700"
+												/>
+											</div>
+											
+											<!-- Weekday selector (only for weekly) -->
+											{#if formRecurrenceType === 'weekly'}
+												<div class="space-y-2">
+													<Label for="weekday" class="text-white">Day of Week</Label>
+													<select
+														id="weekday"
+														bind:value={formWeekday}
+														class="w-full rounded-md border border-gray-600 bg-gray-700 px-3 py-2 text-white"
+													>
+														<option value="">Select day</option>
+														<option value="Sunday">Sunday</option>
+														<option value="Monday">Monday</option>
+														<option value="Tuesday">Tuesday</option>
+														<option value="Wednesday">Wednesday</option>
+														<option value="Thursday">Thursday</option>
+														<option value="Friday">Friday</option>
+														<option value="Saturday">Saturday</option>
+													</select>
+												</div>
+											{/if}
+										</div>
+
+										<!-- Start Date -->
+										<div class="space-y-2">
+											<Label for="startDate" class="text-white">Start Date</Label>
+											<Input
+												id="startDate"
+												bind:value={formStartDate}
+												type="date"
+												class="border-gray-600 bg-gray-700"
+											/>
+										</div>
+
+										<!-- Duration Options -->
+										<div class="space-y-3">
+											<Label class="text-white">Duration (Choose one option)</Label>
+											
+											<!-- Option 1: End Date -->
+											<div class="space-y-2">
+												<Label for="endDate" class="text-sm text-gray-300">Option 1: Set End Date</Label>
+												<Input
+													id="endDate"
+													bind:value={formEndDate}
+													type="date"
+													class="border-gray-600 bg-gray-700"
+													placeholder="Leave empty for no end date"
+												/>
+											</div>
+
+											<!-- Option 2: Duration Count -->
+											<div class="grid grid-cols-2 gap-4">
+												<div class="space-y-2">
+													<Label for="duration" class="text-sm text-gray-300">Option 2: Duration Count</Label>
+													<Input
+														id="duration"
+														bind:value={formDuration}
+														type="number"
+														min="1"
+														placeholder="e.g., 12"
+														class="border-gray-600 bg-gray-700"
+													/>
+												</div>
+												<div class="space-y-2">
+													<Label for="durationType" class="text-sm text-gray-300">Duration Type</Label>
+													<select
+														id="durationType"
+														bind:value={formDurationType}
+														class="w-full rounded-md border border-gray-600 bg-gray-700 px-3 py-2 text-white"
+													>
+														<option value="day">Days</option>
+														<option value="week">Weeks</option>
+														<option value="month">Months</option>
+														<option value="year">Years</option>
+													</select>
+												</div>
+											</div>
+
+											<p class="text-xs text-gray-400">
+												💡 Leave both empty for unlimited recurring transactions
+											</p>
+										</div>
+									</div>
+								{/if}
 								<Button
 									type="submit"
 									disabled={isSaving}
@@ -1166,13 +1364,13 @@
 									<div class="space-y-4">
 										<!-- Chat Input Area -->
 										<div class="space-y-4">
-											<div class="text-center">
-												<MessageSquare class="mx-auto mb-4 h-12 w-12 text-gray-400" />
-												<h3 class="mb-2 text-lg font-medium text-white">Chat Input</h3>
+									<div class="text-center">
+										<MessageSquare class="mx-auto mb-4 h-12 w-12 text-gray-400" />
+										<h3 class="mb-2 text-lg font-medium text-white">Chat Input</h3>
 												<p class="mb-4 text-gray-400">
 													Describe your transaction in natural language
 												</p>
-											</div>
+									</div>
 
 											<div class="space-y-3">
 												<Label for="chatMessage">Describe your transaction</Label>
@@ -1199,7 +1397,7 @@
 														Process Transaction
 													{/if}
 												</Button>
-											</div>
+								</div>
 										</div>
 
 										{#if chatError}
@@ -1425,6 +1623,14 @@
 						Add a new category for your transactions
 					</DialogDescription>
 				</DialogHeader>
+				
+				<!-- Error Message for New Category Dialog -->
+				{#if newCategoryError}
+					<div class="mb-4 rounded-lg border border-red-500 bg-red-900/50 p-3">
+						<p class="text-sm text-red-300">{newCategoryError}</p>
+					</div>
+				{/if}
+				
 				<form onsubmit={handleCreateCategory} class="space-y-4">
 					<div class="space-y-2">
 						<Label for="categoryName" class="text-white">Category Name</Label>
@@ -1656,7 +1862,7 @@
 											<span class="px-2 text-gray-400">...</span>
 											<Button
 												variant="outline"
-											size="sm"
+												size="sm"
 												onclick={() => (currentPage = paginatedData.totalPages)}
 												class={currentPage === paginatedData.totalPages
 													? 'border-blue-500 bg-blue-600 text-white hover:bg-blue-700'

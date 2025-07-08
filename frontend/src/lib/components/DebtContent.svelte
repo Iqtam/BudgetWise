@@ -50,6 +50,10 @@
 	let deletingDebtId = $state<string | null>(null);
 	const itemsPerPage = 10;
 
+	// Separate error states for dialogs
+	let createDebtError = $state<string | null>(null);
+	let editDebtError = $state<string | null>(null);
+
 	// Form fields
 	let formDescription = $state("");
 	let formType = $state<'bank' | 'personal'>('bank');
@@ -275,8 +279,28 @@
 			return;
 		}
 
+		// Validate start date vs expiration date
+		const startDate = new Date(formStartDate);
+		const expirationDate = new Date(formExpirationDate);
+		
+		if (expirationDate <= startDate) {
+			createDebtError = 'Expiration date must be after the start date';
+			return;
+		}
+
+		// Validate amounts are positive
+		if (parseFloat(formAmount) <= 0) {
+			createDebtError = 'Debt amount must be greater than 0';
+			return;
+		}
+
+		if (parseFloat(formInterestRate) < 0) {
+			createDebtError = 'Interest rate cannot be negative';
+			return;
+		}
+
 		isSaving = true;
-		error = null;
+		createDebtError = null;
 		try {
 			await debtService.createDebt({
 				description: formDescription,
@@ -309,7 +333,7 @@
 			}, 3000);
 		} catch (err) {
 			console.error('Error creating debt:', err);
-			error = err instanceof Error ? err.message : 'Failed to create debt';
+			createDebtError = err instanceof Error ? err.message : 'Failed to create debt';
 		} finally {
 			isSaving = false;
 		}
@@ -391,6 +415,26 @@
 		
 		if (!editingDebt || !editFormDescription || !editFormAmount || !editFormInterestRate || !editFormTakenFrom || !editFormStartDate || !editFormExpirationDate) {
 			error = 'Please fill in all required fields';
+			return;
+		}
+
+		// Validate start date vs expiration date
+		const startDate = new Date(editFormStartDate);
+		const expirationDate = new Date(editFormExpirationDate);
+		
+		if (expirationDate <= startDate) {
+			error = 'Expiration date must be after the start date';
+			return;
+		}
+
+		// Validate amounts are positive
+		if (parseFloat(editFormAmount) <= 0) {
+			error = 'Debt amount must be greater than 0';
+			return;
+		}
+
+		if (parseFloat(editFormInterestRate) < 0) {
+			error = 'Interest rate cannot be negative';
 			return;
 		}
 
@@ -528,6 +572,14 @@
 					<DialogTitle>Add New Debt</DialogTitle>
 					<DialogDescription class="text-gray-400">Record a new debt to track and manage</DialogDescription>
 				</DialogHeader>
+				
+				<!-- Error Message for Create Debt Dialog -->
+				{#if createDebtError}
+					<div class="mb-4 rounded-lg border border-red-500 bg-red-900/50 p-3">
+						<p class="text-sm text-red-300">{createDebtError}</p>
+					</div>
+				{/if}
+				
 				<form on:submit={handleAddDebt} class="space-y-4">
 					<div class="space-y-2">
 						<Label for="description">Description</Label>

@@ -28,6 +28,11 @@
 	let editingBudget = $state<Budget | null>(null);
 	let isDeleting = $state(false);
 
+	// Separate error states for dialogs
+	let createBudgetError = $state<string | null>(null);
+	let editBudgetError = $state<string | null>(null);
+	let newCategoryError = $state<string | null>(null);
+
 	// Form fields
 	let formCategory = $state("");
 	let formBudgetAmount = $state("");
@@ -150,8 +155,23 @@
 			return;
 		}
 
+		// Validate start date vs end date
+		const startDate = new Date(formStartDate);
+		const endDate = new Date(formEndDate);
+		
+		if (endDate <= startDate) {
+			createBudgetError = 'End date must be after the start date';
+			return;
+		}
+
+		// Validate budget amount is positive
+		if (parseFloat(formBudgetAmount) <= 0) {
+			createBudgetError = 'Budget amount must be greater than 0';
+			return;
+		}
+
 		isSaving = true;
-		error = null;
+		createBudgetError = null;
 		try {
 			await budgetService.createBudget({
 				category_id: formCategory || undefined,
@@ -181,7 +201,7 @@
 			}, 3000);
 		} catch (err) {
 			console.error('Error creating budget:', err);
-			error = err instanceof Error ? err.message : 'Failed to create budget';
+			createBudgetError = err instanceof Error ? err.message : 'Failed to create budget';
 		} finally {
 			isSaving = false;
 		}
@@ -208,8 +228,23 @@
 			return;
 		}
 
+		// Validate start date vs end date
+		const startDate = new Date(editFormStartDate);
+		const endDate = new Date(editFormEndDate);
+		
+		if (endDate <= startDate) {
+			editBudgetError = 'End date must be after the start date';
+			return;
+		}
+
+		// Validate budget amount is positive
+		if (parseFloat(editFormBudgetAmount) <= 0) {
+			editBudgetError = 'Budget amount must be greater than 0';
+			return;
+		}
+
 		isSaving = true;
-		error = null;
+		editBudgetError = null;
 		try {
 			await budgetService.updateBudget(editingBudget.id, {
 				category_id: editFormCategory || undefined,
@@ -234,7 +269,7 @@
 			}, 3000);
 		} catch (err) {
 			console.error('Error updating budget:', err);
-			error = err instanceof Error ? err.message : 'Failed to update budget';
+			editBudgetError = err instanceof Error ? err.message : 'Failed to update budget';
 		} finally {
 			isSaving = false;
 		}
@@ -491,7 +526,7 @@
 			>
 				{isSaving ? 'Refreshing...' : 'Refresh'}
 			</Button>
-			<Dialog bind:open={isBudgetDialogOpen}>
+		<Dialog bind:open={isBudgetDialogOpen}>
 			<DialogTrigger>
 				<Button class="bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600">
 					<Plus class="h-4 w-4 mr-2" />
@@ -505,6 +540,14 @@
 						Set up a new spending budget for a category
 					</DialogDescription>
 				</DialogHeader>
+				
+				<!-- Error Message for Create Budget Dialog -->
+				{#if createBudgetError}
+					<div class="mb-4 rounded-lg border border-red-500 bg-red-900/50 p-3">
+						<p class="text-sm text-red-300">{createBudgetError}</p>
+					</div>
+				{/if}
+				
 				<form onsubmit={handleCreateBudget} class="space-y-4">					<div class="space-y-2">
 						<Label for="category">Category (Optional)</Label>
 						<div class="flex gap-2">
@@ -630,6 +673,14 @@
 					Update your budget settings
 				</DialogDescription>
 			</DialogHeader>
+			
+			<!-- Error Message for Edit Budget Dialog -->
+			{#if editBudgetError}
+				<div class="mb-4 rounded-lg border border-red-500 bg-red-900/50 p-3">
+					<p class="text-sm text-red-300">{editBudgetError}</p>
+				</div>
+			{/if}
+			
 			<form onsubmit={handleUpdateBudget} class="space-y-4">
 				<div class="space-y-2">
 					<Label for="editCategory">Category (Optional)</Label>
@@ -1020,13 +1071,13 @@
 				<!-- Alert Box (Red/Yellow) -->
 				{#if budgetInsights.alert}
 					{#if budgetInsights.alert.type === 'overspending_forecast'}
-						<div class="p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
+				<div class="p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
 							<h4 class="font-semibold text-red-400">Overspending Forecast</h4>
-							<p class="text-sm text-gray-300 mt-1">
+					<p class="text-sm text-gray-300 mt-1">
 								At your current pace, you're likely to exceed your {getCategoryName(budgetInsights.alert.budget.category_id)} budget by {budgetInsights.alert.forecast.overspendPercentage.toFixed(0)}% this period.
 								You're spending ${budgetInsights.alert.forecast.dailySpendRate.toFixed(2)} per day with {budgetInsights.alert.forecast.daysRemaining} days remaining.
-							</p>
-						</div>
+					</p>
+				</div>
 					{:else if budgetInsights.alert.type === 'over_budget'}
 						<div class="p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
 							<h4 class="font-semibold text-red-400">Budget Exceeded</h4>
@@ -1055,24 +1106,24 @@
 
 				<!-- Progress Box (Green) - Only show if there's good/great progress -->
 				{#if budgetInsights.progress}
-					<div class="p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
+				<div class="p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
 						<h4 class="font-semibold text-green-400">
 							{budgetInsights.progress.progressMargin > 25 ? 'Great Progress' : 'Good Progress'}
 						</h4>
-						<p class="text-sm text-gray-300 mt-1">
+					<p class="text-sm text-gray-300 mt-1">
 							Excellent pacing on your {getCategoryName(budgetInsights.progress.budget.category_id)} budget! You've used {budgetInsights.progress.spentPercentage.toFixed(0)}% of your budget while {budgetInsights.progress.timeElapsedPercentage.toFixed(0)}% of the time period has passed.
-						</p>
-					</div>
+					</p>
+				</div>
 				{/if}
 
 				<!-- Tip Box (Blue) -->
 				{#if budgetInsights.tip}
 					{#if budgetInsights.tip.type === 'reallocation'}
-						<div class="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-							<h4 class="font-semibold text-blue-400">Optimization Tip</h4>
-							<p class="text-sm text-gray-300 mt-1">
+				<div class="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+					<h4 class="font-semibold text-blue-400">Optimization Tip</h4>
+					<p class="text-sm text-gray-300 mt-1">
 								Consider reallocating unused funds from your {getCategoryName(budgetInsights.tip.underutilized.category_id)} budget to categories where you're approaching limits like {getCategoryName(budgetInsights.tip.overutilized.category_id)}.
-							</p>
+					</p>
 						</div>
 					{:else if budgetInsights.tip.type === 'monitoring'}
 						<div class="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
