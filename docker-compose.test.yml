@@ -2,90 +2,94 @@ version: '3.8'
 
 services:
   # Test database
-  postgres-test:
-    image: postgres:13
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres-db-test
+    ports:
+      - "5433:5432"
     environment:
-      POSTGRES_DB: budgetwise_test
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres_test_data:/var/lib/postgresql/data
       - ./backend/src/config/db/init:/docker-entrypoint-initdb.d
     networks:
       - test-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
   # Backend tests
-  backend-test:
+  backend:
     build:
       context: ./backend
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
+    container_name: backend-test
     environment:
-      - NODE_ENV=test
-      - DB_HOST=postgres-test
-      - DB_PORT=5432
-      - DB_NAME=budgetwise_test
-      - DB_USER=postgres
-      - DB_PASSWORD=password
-      - JWT_SECRET=test_jwt_secret_key_for_testing_only
-      - FIREBASE_PROJECT_ID=test-project
-      - FIREBASE_PRIVATE_KEY=test-key
-      - FIREBASE_CLIENT_EMAIL=test@test.com
-    volumes:
-      - ./backend:/app
-      - /app/node_modules
+      NODE_ENV: test
+      PORT: 5000
+      HOST: 0.0.0.0
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      FIREBASE_SERVICE_ACCOUNT: ${FIREBASE_SERVICE_ACCOUNT}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+    expose:
+      - "5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
     networks:
       - test-network
-    depends_on:
-      postgres-test:
-        condition: service_healthy
     command: npm test
 
   # Frontend tests
-  frontend-test:
+  frontend:
     build:
       context: ./frontend
+      dockerfile: Dockerfile
       target: test
+    container_name: frontend-test
     environment:
-      - NODE_ENV=test
-      - PUBLIC_BACKEND_API_URL=http://backend-test:3001
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-      - frontend_test_cache:/app/.vite-temp
+      NODE_ENV: test
+      PUBLIC_BACKEND_API_URL: ${PUBLIC_BACKEND_API_URL}
+      PUBLIC_FIREBASE_API_KEY: ${PUBLIC_FIREBASE_API_KEY}
+      PUBLIC_FIREBASE_AUTH_DOMAIN: ${PUBLIC_FIREBASE_AUTH_DOMAIN}
+      PUBLIC_FIREBASE_PROJECT_ID: ${PUBLIC_FIREBASE_PROJECT_ID}
+      PUBLIC_FIREBASE_STORAGE_BUCKET: ${PUBLIC_FIREBASE_STORAGE_BUCKET}
+      PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${PUBLIC_FIREBASE_MESSAGING_SENDER_ID}
+      PUBLIC_FIREBASE_APP_ID: ${PUBLIC_FIREBASE_APP_ID}
+    expose:
+      - "3000"
+    depends_on:
+      - backend
     networks:
       - test-network
-    # Override the default test command to use Docker-specific config
-    command: >
-      sh -c "
-        echo 'Setting up test environment...' &&
-        chmod -R 755 /app &&
-        mkdir -p /app/.vite-temp &&
-        chmod 777 /app/.vite-temp &&
-        echo 'Running frontend tests with Docker config...' &&
-        npm run test:docker
-      "
+    command: npm run test:docker
 
-  # E2E tests (if needed)
+  # E2E tests
   e2e-test:
     build:
       context: ./e2e
+      dockerfile: Dockerfile
     environment:
-      - NODE_ENV=test
-      - BACKEND_URL=http://backend-test:3001
-      - FRONTEND_URL=http://frontend:3000
+      NODE_ENV: test
+      BACKEND_URL: http://backend:5000
+      FRONTEND_URL: http://frontend:3000
     volumes:
       - ./e2e:/app
       - /app/node_modules
     networks:
       - test-network
     depends_on:
-      - backend-test
-      - frontend-test
+      - backend
+      - frontend
     profiles:
       - e2e
     command: npm test
@@ -96,8 +100,10 @@ services:
     networks:
       - test-network
     depends_on:
-      - backend-test
-      - frontend-test
+      backend:
+        condition: service_completed_successfully
+      frontend:
+        condition: service_completed_successfully
     command: >
       sh -c "
         echo 'All tests completed successfully!' &&
@@ -106,7 +112,6 @@ services:
 
 volumes:
   postgres_test_data:
-  frontend_test_cache:
 
 networks:
   test-network:
