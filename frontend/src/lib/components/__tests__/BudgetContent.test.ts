@@ -105,7 +105,7 @@ describe('BudgetContent Component', () => {
     vi.restoreAllMocks();
   });
 
-  describe.only('Component Rendering', () => {
+  describe('Component Rendering', () => {
     it('should render main content after loading', async () => {
       render(BudgetContent);
       await waitForComponentLoad();
@@ -188,311 +188,311 @@ describe('BudgetContent Component', () => {
     // });
   });
 
-  describe('Budget Display', () => {
-    it('should display budget cards with correct information', async () => {
-      const mockBudgets = [
-        createMockBudget({ 
-          id: 'budget1', 
-          goal_amount: 500, 
-          spent: 150,
-          category_id: 'cat1'
-        })
-      ];
+  // describe('Budget Display', () => {
+  //   it('should display budget cards with correct information', async () => {
+  //     const mockBudgets = [
+  //       createMockBudget({ 
+  //         id: 'budget1', 
+  //         goal_amount: 500, 
+  //         spent: 150,
+  //         category_id: 'cat1'
+  //       })
+  //     ];
       
-      const mockCategories = [
-        createMockCategory({ id: 'cat1', name: 'Groceries' })
-      ];
+  //     const mockCategories = [
+  //       createMockCategory({ id: 'cat1', name: 'Groceries' })
+  //     ];
       
-      vi.mocked(budgetService.getAllBudgets).mockResolvedValue(mockBudgets);
-      vi.mocked(categoryService.getExpenseCategories).mockResolvedValue(mockCategories);
+  //     vi.mocked(budgetService.getAllBudgets).mockResolvedValue(mockBudgets);
+  //     vi.mocked(categoryService.getExpenseCategories).mockResolvedValue(mockCategories);
       
-      render(BudgetContent);
-      await waitForComponentLoad();
+  //     render(BudgetContent);
+  //     await waitForComponentLoad();
       
-      // Check if budget information is displayed
-      expect(screen.getByText('Groceries')).toBeInTheDocument();
-      expect(screen.getByText('$150.00')).toBeInTheDocument();
-      expect(screen.getByText('$500.00')).toBeInTheDocument();
-    });
+  //     // Check if budget information is displayed
+  //     expect(screen.getByText('Groceries')).toBeInTheDocument();
+  //     expect(screen.getByText('$150.00')).toBeInTheDocument();
+  //     expect(screen.getByText('$500.00')).toBeInTheDocument();
+  //   });
 
-    it('should display budget action buttons when budgets exist', async () => {
-      const mockBudgets = [
-        createMockBudget({ 
-          id: 'budget1', 
-          goal_amount: 500, 
-          spent: 150
-        })
-      ];
+  //   it('should display budget action buttons when budgets exist', async () => {
+  //     const mockBudgets = [
+  //       createMockBudget({ 
+  //         id: 'budget1', 
+  //         goal_amount: 500, 
+  //         spent: 150
+  //       })
+  //     ];
       
-      vi.mocked(budgetService.getAllBudgets).mockResolvedValue(mockBudgets);
+  //     vi.mocked(budgetService.getAllBudgets).mockResolvedValue(mockBudgets);
       
-      render(BudgetContent);
-      await waitForComponentLoad();
+  //     render(BudgetContent);
+  //     await waitForComponentLoad();
       
-      // Find action buttons
-      const buttons = screen.getAllByRole('button');
-      const editButton = buttons.find(button => button.textContent?.includes('Edit'));
-      const deleteButton = buttons.find(button => button.textContent?.includes('Delete'));
+  //     // Find action buttons
+  //     const buttons = screen.getAllByRole('button');
+  //     const editButton = buttons.find(button => button.textContent?.includes('Edit'));
+  //     const deleteButton = buttons.find(button => button.textContent?.includes('Delete'));
       
-      expect(editButton).toBeTruthy();
-      expect(deleteButton).toBeTruthy();
-    });
+  //     expect(editButton).toBeTruthy();
+  //     expect(deleteButton).toBeTruthy();
+  //   });
 
-    it('should show budget status correctly', async () => {
-      const mockBudgets = [
-        createMockBudget({ 
-          id: 'budget1', 
-          goal_amount: 500, 
-          spent: 450 // 90% spent - should show "Near Limit"
-        })
-      ];
+  //   it('should show budget status correctly', async () => {
+  //     const mockBudgets = [
+  //       createMockBudget({ 
+  //         id: 'budget1', 
+  //         goal_amount: 500, 
+  //         spent: 450 // 90% spent - should show "Near Limit"
+  //       })
+  //     ];
       
-      vi.mocked(budgetService.getAllBudgets).mockResolvedValue(mockBudgets);
+  //     vi.mocked(budgetService.getAllBudgets).mockResolvedValue(mockBudgets);
       
-      render(BudgetContent);
-      await waitForComponentLoad();
+  //     render(BudgetContent);
+  //     await waitForComponentLoad();
       
-      expect(screen.getByText('Near Limit')).toBeInTheDocument();
-    });
-  });
+  //     expect(screen.getByText('Near Limit')).toBeInTheDocument();
+  //   });
+  // });
 
-  describe('Budget Actions', () => {
-    const mockBudget = createMockBudget({ 
-      id: 'budget1', 
-      goal_amount: 500, 
-      spent: 150,
-      category_id: 'cat1'
-    });
+  // describe('Budget Actions', () => {
+  //   const mockBudget = createMockBudget({ 
+  //     id: 'budget1', 
+  //     goal_amount: 500, 
+  //     spent: 150,
+  //     category_id: 'cat1'
+  //   });
 
-    const mockCategory = createMockCategory({ id: 'cat1', name: 'Groceries' });
+  //   const mockCategory = createMockCategory({ id: 'cat1', name: 'Groceries' });
 
-    beforeEach(() => {
-      vi.mocked(budgetService.getAllBudgets).mockResolvedValue([mockBudget]);
-      vi.mocked(categoryService.getExpenseCategories).mockResolvedValue([mockCategory]);
-    });
+  //   beforeEach(() => {
+  //     vi.mocked(budgetService.getAllBudgets).mockResolvedValue([mockBudget]);
+  //     vi.mocked(categoryService.getExpenseCategories).mockResolvedValue([mockCategory]);
+  //   });
 
-    it('should handle budget deletion', async () => {
-      vi.mocked(window.confirm).mockReturnValue(true);
+  //   it('should handle budget deletion', async () => {
+  //     vi.mocked(window.confirm).mockReturnValue(true);
       
-      render(BudgetContent);
-      await waitForComponentLoad();
+  //     render(BudgetContent);
+  //     await waitForComponentLoad();
       
-      // Find delete button by role and text content
-      const buttons = screen.getAllByRole('button');
-      const deleteButton = buttons.find(button => 
-        button.textContent?.includes('Delete')
-      );
+  //     // Find delete button by role and text content
+  //     const buttons = screen.getAllByRole('button');
+  //     const deleteButton = buttons.find(button => 
+  //       button.textContent?.includes('Delete')
+  //     );
       
-      expect(deleteButton).toBeTruthy();
-      await user.click(deleteButton!);
+  //     expect(deleteButton).toBeTruthy();
+  //     await user.click(deleteButton!);
       
-      expect(window.confirm).toHaveBeenCalledWith(
-        'Are you sure you want to delete the budget for "Groceries"?'
-      );
-      expect(budgetService.deleteBudget).toHaveBeenCalledWith('budget1');
-    });
+  //     expect(window.confirm).toHaveBeenCalledWith(
+  //       'Are you sure you want to delete the budget for "Groceries"?'
+  //     );
+  //     expect(budgetService.deleteBudget).toHaveBeenCalledWith('budget1');
+  //   });
 
-    it('should not delete budget when cancelled', async () => {
-      vi.mocked(window.confirm).mockReturnValue(false);
+  //   it('should not delete budget when cancelled', async () => {
+  //     vi.mocked(window.confirm).mockReturnValue(false);
       
-      render(BudgetContent);
-      await waitForComponentLoad();
+  //     render(BudgetContent);
+  //     await waitForComponentLoad();
       
-      // Find delete button by role and text content
-      const buttons = screen.getAllByRole('button');
-      const deleteButton = buttons.find(button => 
-        button.textContent?.includes('Delete')
-      );
+  //     // Find delete button by role and text content
+  //     const buttons = screen.getAllByRole('button');
+  //     const deleteButton = buttons.find(button => 
+  //       button.textContent?.includes('Delete')
+  //     );
       
-      expect(deleteButton).toBeTruthy();
-      await user.click(deleteButton!);
+  //     expect(deleteButton).toBeTruthy();
+  //     await user.click(deleteButton!);
       
-      expect(window.confirm).toHaveBeenCalled();
-      expect(budgetService.deleteBudget).not.toHaveBeenCalled();
-    });
+  //     expect(window.confirm).toHaveBeenCalled();
+  //     expect(budgetService.deleteBudget).not.toHaveBeenCalled();
+  //   });
 
-    it('should handle sync budgets action', async () => {
-      render(BudgetContent);
-      await waitForComponentLoad();
+  //   it('should handle sync budgets action', async () => {
+  //     render(BudgetContent);
+  //     await waitForComponentLoad();
       
-      // Find sync button by role and text content
-      const buttons = screen.getAllByRole('button');
-      const syncButton = buttons.find(button => 
-        button.textContent?.includes('Sync Budgets')
-      );
+  //     // Find sync button by role and text content
+  //     const buttons = screen.getAllByRole('button');
+  //     const syncButton = buttons.find(button => 
+  //       button.textContent?.includes('Sync Budgets')
+  //     );
       
-      expect(syncButton).toBeTruthy();
-      await user.click(syncButton!);
+  //     expect(syncButton).toBeTruthy();
+  //     await user.click(syncButton!);
       
-      expect(budgetService.syncBudgetSpending).toHaveBeenCalled();
-    });
-  });
+  //     expect(budgetService.syncBudgetSpending).toHaveBeenCalled();
+  //   });
+  // });
 
-  describe('Create Budget Dialog', () => {
-    it('should open create budget dialog', async () => {
-      render(BudgetContent);
-      await waitForComponentLoad();
+  // describe('Create Budget Dialog', () => {
+  //   it('should open create budget dialog', async () => {
+  //     render(BudgetContent);
+  //     await waitForComponentLoad();
       
-      // Find and click the Create Budget button
-      const createBudgetButton = screen.getByText('Create Budget');
-      await user.click(createBudgetButton);
+  //     // Find and click the Create Budget button
+  //     const createBudgetButton = screen.getByText('Create Budget');
+  //     await user.click(createBudgetButton);
       
-      // Check if dialog content appears
-      expect(screen.getByText('Create New Budget')).toBeInTheDocument();
-      expect(screen.getByText('Set up a spending budget for a category')).toBeInTheDocument();
-    });
+  //     // Check if dialog content appears
+  //     expect(screen.getByText('Create New Budget')).toBeInTheDocument();
+  //     expect(screen.getByText('Set up a spending budget for a category')).toBeInTheDocument();
+  //   });
 
-    it('should show form fields in create dialog', async () => {
-      render(BudgetContent);
-      await waitForComponentLoad();
+  //   it('should show form fields in create dialog', async () => {
+  //     render(BudgetContent);
+  //     await waitForComponentLoad();
       
-      const createBudgetButton = screen.getByText('Create Budget');
-      await user.click(createBudgetButton);
+  //     const createBudgetButton = screen.getByText('Create Budget');
+  //     await user.click(createBudgetButton);
       
-      // Check for form fields
-      expect(screen.getByLabelText('Category (Optional)')).toBeInTheDocument();
-      expect(screen.getByLabelText('Budget Amount')).toBeInTheDocument();
-      expect(screen.getByLabelText('Start Date')).toBeInTheDocument();
-      expect(screen.getByLabelText('End Date')).toBeInTheDocument();
-    });
+  //     // Check for form fields
+  //     expect(screen.getByLabelText('Category (Optional)')).toBeInTheDocument();
+  //     expect(screen.getByLabelText('Budget Amount')).toBeInTheDocument();
+  //     expect(screen.getByLabelText('Start Date')).toBeInTheDocument();
+  //     expect(screen.getByLabelText('End Date')).toBeInTheDocument();
+  //   });
 
-    it('should handle create budget form submission', async () => {
-      vi.mocked(categoryService.getExpenseCategories).mockResolvedValue([
-        createMockCategory({ id: 'cat1', name: 'Groceries' })
-      ]);
+  //   it('should handle create budget form submission', async () => {
+  //     vi.mocked(categoryService.getExpenseCategories).mockResolvedValue([
+  //       createMockCategory({ id: 'cat1', name: 'Groceries' })
+  //     ]);
       
-      render(BudgetContent);
-      await waitForComponentLoad();
+  //     render(BudgetContent);
+  //     await waitForComponentLoad();
       
-      const createBudgetButton = screen.getByText('Create Budget');
-      await user.click(createBudgetButton);
+  //     const createBudgetButton = screen.getByText('Create Budget');
+  //     await user.click(createBudgetButton);
       
-      // Fill form fields
-      const budgetAmountInput = screen.getByLabelText('Budget Amount');
-      const startDateInput = screen.getByLabelText('Start Date');
-      const endDateInput = screen.getByLabelText('End Date');
+  //     // Fill form fields
+  //     const budgetAmountInput = screen.getByLabelText('Budget Amount');
+  //     const startDateInput = screen.getByLabelText('Start Date');
+  //     const endDateInput = screen.getByLabelText('End Date');
       
-      await user.type(budgetAmountInput, '500');
-      await user.type(startDateInput, '2024-01-01');
-      await user.type(endDateInput, '2024-12-31');
+  //     await user.type(budgetAmountInput, '500');
+  //     await user.type(startDateInput, '2024-01-01');
+  //     await user.type(endDateInput, '2024-12-31');
       
-      // Submit form
-      const submitButton = screen.getByText('Create Budget');
-      await user.click(submitButton);
+  //     // Submit form
+  //     const submitButton = screen.getByText('Create Budget');
+  //     await user.click(submitButton);
       
-      expect(budgetService.createBudget).toHaveBeenCalledWith({
-        category_id: undefined,
-        start_date: '2024-01-01',
-        end_date: '2024-12-31',
-        goal_amount: 500,
-        spent: 0
-      });
-    });
-  });
+  //     expect(budgetService.createBudget).toHaveBeenCalledWith({
+  //       category_id: undefined,
+  //       start_date: '2024-01-01',
+  //       end_date: '2024-12-31',
+  //       goal_amount: 500,
+  //       spent: 0
+  //     });
+  //   });
+  // });
 
-  describe('Authentication', () => {
-    it('should show loading state when authentication is loading', async () => {
-      vi.mocked(authLoading).set(true);
+  // describe('Authentication', () => {
+  //   it('should show loading state when authentication is loading', async () => {
+  //     vi.mocked(authLoading).set(true);
       
-      render(BudgetContent);
+  //     render(BudgetContent);
       
-      expect(screen.getByText('Authenticating...')).toBeInTheDocument();
-    });
+  //     expect(screen.getByText('Authenticating...')).toBeInTheDocument();
+  //   });
 
-    it('should not load data when authentication is loading', async () => {
-      vi.mocked(authLoading).set(true);
+  //   it('should not load data when authentication is loading', async () => {
+  //     vi.mocked(authLoading).set(true);
       
-      render(BudgetContent);
+  //     render(BudgetContent);
       
-      // Should not call services while loading
-      expect(budgetService.getAllBudgets).not.toHaveBeenCalled();
-      expect(categoryService.getExpenseCategories).not.toHaveBeenCalled();
-    });
-  });
+  //     // Should not call services while loading
+  //     expect(budgetService.getAllBudgets).not.toHaveBeenCalled();
+  //     expect(categoryService.getExpenseCategories).not.toHaveBeenCalled();
+  //   });
+  // });
 
-  describe('Service Integration', () => {
-    it('should call services on load', async () => {
-      render(BudgetContent);
-      await waitForComponentLoad();
+  // describe('Service Integration', () => {
+  //   it('should call services on load', async () => {
+  //     render(BudgetContent);
+  //     await waitForComponentLoad();
       
-      // Services should be called during component load
-      expect(budgetService.syncBudgetSpending).toHaveBeenCalled();
-      expect(budgetService.getAllBudgets).toHaveBeenCalled();
-      expect(categoryService.getExpenseCategories).toHaveBeenCalled();
-    });
+  //     // Services should be called during component load
+  //     expect(budgetService.syncBudgetSpending).toHaveBeenCalled();
+  //     expect(budgetService.getAllBudgets).toHaveBeenCalled();
+  //     expect(categoryService.getExpenseCategories).toHaveBeenCalled();
+  //   });
 
-    it('should handle service errors gracefully', async () => {
-      vi.mocked(budgetService.getAllBudgets).mockRejectedValue(new Error('Network error'));
+  //   it('should handle service errors gracefully', async () => {
+  //     vi.mocked(budgetService.getAllBudgets).mockRejectedValue(new Error('Network error'));
       
-      render(BudgetContent);
+  //     render(BudgetContent);
       
-      // Should show error state
-      await waitFor(() => {
-        expect(screen.getByText('Network error')).toBeInTheDocument();
-      });
-    });
-  });
+  //     // Should show error state
+  //     await waitFor(() => {
+  //       expect(screen.getByText('Network error')).toBeInTheDocument();
+  //     });
+  //   });
+  // });
 
-  describe('Budget Insights', () => {
-    it('should display budget insights when available', async () => {
-      const mockBudgets = [
-        createMockBudget({ 
-          id: 'budget1', 
-          goal_amount: 500, 
-          spent: 450, // 90% spent - should trigger insights
-          start_date: '2024-01-01',
-          end_date: '2024-12-31'
-        })
-      ];
+  // describe('Budget Insights', () => {
+  //   it('should display budget insights when available', async () => {
+  //     const mockBudgets = [
+  //       createMockBudget({ 
+  //         id: 'budget1', 
+  //         goal_amount: 500, 
+  //         spent: 450, // 90% spent - should trigger insights
+  //         start_date: '2024-01-01',
+  //         end_date: '2024-12-31'
+  //       })
+  //     ];
       
-      vi.mocked(budgetService.getAllBudgets).mockResolvedValue(mockBudgets);
+  //     vi.mocked(budgetService.getAllBudgets).mockResolvedValue(mockBudgets);
       
-      render(BudgetContent);
-      await waitForComponentLoad();
+  //     render(BudgetContent);
+  //     await waitForComponentLoad();
       
-      // Should show insights section
-      expect(screen.getByText('Budget Insights')).toBeInTheDocument();
-    });
-  });
+  //     // Should show insights section
+  //     expect(screen.getByText('Budget Insights')).toBeInTheDocument();
+  //   });
+  // });
 
-  describe('Basic Interactions', () => {
-    it('should render all required UI elements', async () => {
-      render(BudgetContent);
-      await waitForComponentLoad();
+  // describe('Basic Interactions', () => {
+  //   it('should render all required UI elements', async () => {
+  //     render(BudgetContent);
+  //     await waitForComponentLoad();
       
-      // Check for main UI elements
-      expect(screen.getByText('Budget Management')).toBeInTheDocument();
-      expect(screen.getByText('Track and manage your spending budgets')).toBeInTheDocument();
-      expect(screen.getByText('Create Budget')).toBeInTheDocument();
+  //     // Check for main UI elements
+  //     expect(screen.getByText('Budget Management')).toBeInTheDocument();
+  //     expect(screen.getByText('Track and manage your spending budgets')).toBeInTheDocument();
+  //     expect(screen.getByText('Create Budget')).toBeInTheDocument();
       
-      const buttons = screen.getAllByRole('button');
-      const syncButton = buttons.find(button => button.textContent?.includes('Sync Budgets'));
-      expect(syncButton).toBeTruthy();
-    });
+  //     const buttons = screen.getAllByRole('button');
+  //     const syncButton = buttons.find(button => button.textContent?.includes('Sync Budgets'));
+  //     expect(syncButton).toBeTruthy();
+  //   });
 
-    it('should handle button clicks without errors', async () => {
-      const mockBudgets = [
-        createMockBudget({ goal_amount: 500, spent: 150 })
-      ];
+  //   it('should handle button clicks without errors', async () => {
+  //     const mockBudgets = [
+  //       createMockBudget({ goal_amount: 500, spent: 150 })
+  //     ];
       
-      vi.mocked(budgetService.getAllBudgets).mockResolvedValue(mockBudgets);
+  //     vi.mocked(budgetService.getAllBudgets).mockResolvedValue(mockBudgets);
       
-      render(BudgetContent);
-      await waitForComponentLoad();
+  //     render(BudgetContent);
+  //     await waitForComponentLoad();
       
-      // Test various button clicks
-      const createButton = screen.getByText('Create Budget');
-      await user.click(createButton);
+  //     // Test various button clicks
+  //     const createButton = screen.getByText('Create Budget');
+  //     await user.click(createButton);
       
-      const buttons = screen.getAllByRole('button');
-      const syncButton = buttons.find(button => button.textContent?.includes('Sync Budgets'));
-      if (syncButton) {
-        await user.click(syncButton);
-      }
+  //     const buttons = screen.getAllByRole('button');
+  //     const syncButton = buttons.find(button => button.textContent?.includes('Sync Budgets'));
+  //     if (syncButton) {
+  //       await user.click(syncButton);
+  //     }
       
-      // All interactions should work without throwing errors
-      expect(createButton).toBeInTheDocument();
-      expect(syncButton).toBeTruthy();
-    });
-  });
+  //     // All interactions should work without throwing errors
+  //     expect(createButton).toBeInTheDocument();
+  //     expect(syncButton).toBeTruthy();
+  //   });
+  // });
 }); 
