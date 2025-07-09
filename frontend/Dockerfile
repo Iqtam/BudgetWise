@@ -23,7 +23,7 @@ FROM node:20-alpine as test
 WORKDIR /app
 
 COPY package*.json ./
-COPY .env .env
+COPY .env* ./
 # Changed from 'npm ci' to 'npm install' to ensure dependencies are properly installed
 RUN npm install
 
@@ -56,7 +56,7 @@ ENV PUBLIC_BACKEND_API_URL=$PUBLIC_BACKEND_API_URL
 WORKDIR /app
 
 COPY package*.json ./
-COPY .env .env
+COPY .env* ./
 RUN npm install
 
 COPY . .
@@ -68,7 +68,7 @@ FROM node:20-alpine AS production
 WORKDIR /app
 
 COPY package*.json ./
-COPY .env .env
+COPY .env* ./
 RUN npm install --omit=dev
 
 # Copy everything needed to run the SvelteKit server
