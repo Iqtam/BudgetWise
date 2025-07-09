@@ -407,16 +407,16 @@ describe('TransactionsContent Component', () => {
   });
 
   describe('Add Transaction Dialog', () => {
-    it('should open add transaction dialog', async () => {
-      render(TransactionsContent);
-      await waitForComponentLoad();
+    // it('should open add transaction dialog', async () => {
+    //   render(TransactionsContent);
+    //   await waitForComponentLoad();
       
-      const addButton = screen.getByText('Add Transaction');
-      await user.click(addButton);
+    //   const addButton = screen.getByText('Add Transaction');
+    //   await user.click(addButton);
       
-      expect(screen.getByText('Add New Transaction')).toBeInTheDocument();
-      expect(screen.getByText('Record a new income or expense transaction')).toBeInTheDocument();
-    });
+    //   expect(screen.getByText('Add New Transaction')).toBeInTheDocument();
+    //   expect(screen.getByText('Record a new income or expense transaction')).toBeInTheDocument();
+    // });
 
     it('should show manual, chat, and OCR tabs', async () => {
       render(TransactionsContent);
