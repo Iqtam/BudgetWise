@@ -64,44 +64,44 @@ vi.mock('@iconify/svelte', () => {
   });
 });
 
-// Mock UI components that might have compatibility issues
-vi.mock('$lib/components/ui/button', () => ({
-  Button: vi.fn(() => null)
-}));
+// // Mock UI components that might have compatibility issues
+// vi.mock('$lib/components/ui/button', () => ({
+//   Button: vi.fn(() => null)
+// }));
 
-vi.mock('$lib/components/ui/card', () => ({
-  Card: vi.fn(() => null),
-  CardContent: vi.fn(() => null),
-  CardHeader: vi.fn(() => null),
-  CardTitle: vi.fn(() => null)
-}));
+// vi.mock('$lib/components/ui/card', () => ({
+//   Card: vi.fn(() => null),
+//   CardContent: vi.fn(() => null),
+//   CardHeader: vi.fn(() => null),
+//   CardTitle: vi.fn(() => null)
+// }));
 
-vi.mock('$lib/components/ui/input', () => ({
-  Input: vi.fn(() => null)
-}));
+// vi.mock('$lib/components/ui/input', () => ({
+//   Input: vi.fn(() => null)
+// }));
 
-vi.mock('$lib/components/ui/label', () => ({
-  Label: vi.fn(() => null)
-}));
+// vi.mock('$lib/components/ui/label', () => ({
+//   Label: vi.fn(() => null)
+// }));
 
-vi.mock('$lib/components/ui/select', () => ({
-  Select: vi.fn(() => null),
-  SelectContent: vi.fn(() => null),
-  SelectItem: vi.fn(() => null),
-  SelectTrigger: vi.fn(() => null)
-}));
+// vi.mock('$lib/components/ui/select', () => ({
+//   Select: vi.fn(() => null),
+//   SelectContent: vi.fn(() => null),
+//   SelectItem: vi.fn(() => null),
+//   SelectTrigger: vi.fn(() => null)
+// }));
 
-vi.mock('$lib/components/ui/dialog', () => ({
-  Dialog: vi.fn(() => null),
-  DialogContent: vi.fn(() => null),
-  DialogHeader: vi.fn(() => null),
-  DialogTitle: vi.fn(() => null)
-}));
+// vi.mock('$lib/components/ui/dialog', () => ({
+//   Dialog: vi.fn(() => null),
+//   DialogContent: vi.fn(() => null),
+//   DialogHeader: vi.fn(() => null),
+//   DialogTitle: vi.fn(() => null)
+// }));
 
-vi.mock('$lib/components/ui/badge', () => ({
-  Badge: vi.fn(() => null)
-}));
+// vi.mock('$lib/components/ui/badge', () => ({
+//   Badge: vi.fn(() => null)
+// }));
 
-vi.mock('$lib/components/ui/progress', () => ({
-  Progress: vi.fn(() => null)
-})); 
+// vi.mock('$lib/components/ui/progress', () => ({
+//   Progress: vi.fn(() => null)
+// })); 

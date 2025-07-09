@@ -1,6 +1,7 @@
 import devtoolsJson from 'vite-plugin-devtools-json';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
+import path from 'path';
 
 export default defineConfig({
   plugins: [sveltekit(), devtoolsJson()],
@@ -20,7 +21,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '$lib': new URL('./src/lib', import.meta.url).pathname
+      $lib: path.resolve(__dirname, 'src/lib'),
     }
   }
 });
