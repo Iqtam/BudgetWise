@@ -6,8 +6,22 @@
 		CardHeader,
 		CardTitle
 	} from '$lib/components/ui/card';
-	import { Button } from '$lib/components/ui/button';
-	import Icon from '@iconify/svelte';
+
+	function handleNavigation(path: string) {
+		console.log('Navigating to:', path);
+		// Use direct navigation with full URL
+		const fullPath = window.location.origin + path;
+		console.log('Full path:', fullPath);
+		window.location.href = fullPath;
+	}
+
+	function testClick() {
+		console.log('Button clicked!');
+		// Test with full URL
+		const fullPath = window.location.origin + '/dashboard/transactions';
+		console.log('Test navigation to:', fullPath);
+		window.location.href = fullPath;
+	}
 </script>
 
 <Card class="border-gray-800 bg-gray-900">
@@ -17,50 +31,45 @@
 	</CardHeader>
 	<CardContent>
 		<div class="grid grid-cols-2 gap-3">
-			<Button
-				variant="outline"
-				class="h-auto flex-col gap-2 border-gray-700 bg-gray-800 p-4 text-white hover:border-gray-600 hover:bg-gray-700 hover:text-white"
-				onclick={() => (window.location.href = '/dashboard/transactions')}
+			<button
+				class="h-auto flex-col gap-2 border border-gray-700 bg-gray-800 p-4 text-white hover:border-gray-600 hover:bg-gray-700 hover:text-white rounded-md"
+				on:click={testClick}
 			>
-				<Icon icon="lucide:plus" class="h-5 w-5" />
+				<span class="text-lg">+</span>
 				<span class="text-xs">Add Transaction</span>
-			</Button>
+			</button>
 
-			<Button
-				variant="outline"
-				class="h-auto flex-col gap-2 border-gray-700 bg-gray-800 p-4 text-white hover:border-gray-600 hover:bg-gray-700 hover:text-white"
-				onclick={() => (window.location.href = '/dashboard/budget')}
+			<button
+				class="h-auto flex-col gap-2 border border-gray-700 bg-gray-800 p-4 text-white hover:border-gray-600 hover:bg-gray-700 hover:text-white rounded-md"
+				on:click={() => handleNavigation('/dashboard/budget')}
 			>
-				<Icon icon="lucide:target" class="h-5 w-5" />
+				<span class="text-lg">🎯</span>
 				<span class="text-xs">Set Budget</span>
-			</Button>
+			</button>
 
-			<Button
-				variant="outline"
-				class="h-auto flex-col gap-2 border-gray-700 bg-gray-800 p-4 text-white hover:border-gray-600 hover:bg-gray-700 hover:text-white"
-				onclick={() => (window.location.href = '/dashboard/savings')}
+			<button
+				class="h-auto flex-col gap-2 border border-gray-700 bg-gray-800 p-4 text-white hover:border-gray-600 hover:bg-gray-700 hover:text-white rounded-md"
+				on:click={() => handleNavigation('/dashboard/goals')}
 			>
-				<Icon icon="lucide:piggy-bank" class="h-5 w-5" />
+				<span class="text-lg">💰</span>
 				<span class="text-xs">Add Savings</span>
-			</Button>
+			</button>
 
-			<Button
-				variant="outline"
-				class="h-auto flex-col gap-2 border-gray-700 bg-gray-800 p-4 text-white hover:border-gray-600 hover:bg-gray-700 hover:text-white"
-				onclick={() => (window.location.href = '/dashboard/debt')}
+			<button
+				class="h-auto flex-col gap-2 border border-gray-700 bg-gray-800 p-4 text-white hover:border-gray-600 hover:bg-gray-700 hover:text-white rounded-md"
+				on:click={() => handleNavigation('/dashboard/debt')}
 			>
-				<Icon icon="lucide:credit-card" class="h-5 w-5" />
+				<span class="text-lg">💳</span>
 				<span class="text-xs">Pay Debt</span>
-			</Button>
+			</button>
 
-			<Button
-				variant="outline"
-				class="col-span-2 h-auto flex-col gap-2 border-gray-700 bg-gray-800 p-4 text-white hover:border-gray-600 hover:bg-gray-700 hover:text-white"
-				onclick={() => (window.location.href = '/dashboard/chat')}
+			<button
+				class="col-span-2 h-auto flex-col gap-2 border border-gray-700 bg-gray-800 p-4 text-white hover:border-gray-600 hover:bg-gray-700 hover:text-white rounded-md"
+				on:click={() => handleNavigation('/dashboard/chat')}
 			>
-				<Icon icon="lucide:bot" class="h-5 w-5" />
+				<span class="text-lg">🤖</span>
 				<span class="text-xs">Ask AI Assistant</span>
-			</Button>
+			</button>
 		</div>
 	</CardContent>
 </Card>
