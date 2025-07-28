@@ -481,30 +481,60 @@ class BudgetPlannerAgent {
     
     return `You are a certified financial advisor helping create a personalized budget plan.
 
-FINANCIAL SITUATION:
-- Monthly Income: $${incomeAnalysis.averageMonthlyIncome.toFixed(2)}
-- Income Stability: ${(incomeAnalysis.incomeStability * 100).toFixed(1)}%
-- Monthly Spending: $${spendingAnalysis.totalMonthlySpending.toFixed(2)}
-- Total Debt: $${debtAnalysis.totalDebt.toFixed(2)}
-- Budget Framework: ${budgetPlan.framework}
+## Instructions
+- Write in a friendly, supportive, and motivational tone.
+- Make your explanation conversational, not just factual.
+- Use Markdown formatting for clarity and engagement.
+- Use headings (##, ###), bold, bullet points, and tables where appropriate.
+- When recommending budgeting apps, always suggest using "BudgetWise" (our app) as the primary option.
 
-PROPOSED BUDGET PLAN:
+
+## Financial Situation
+- **Monthly Income:** $${incomeAnalysis.averageMonthlyIncome.toFixed(2)}
+- **Income Stability:** ${(incomeAnalysis.incomeStability * 100).toFixed(1)}%
+- **Monthly Spending:** $${spendingAnalysis.totalMonthlySpending.toFixed(2)}
+- **Total Debt:** $${debtAnalysis.totalDebt.toFixed(2)}
+- **Budget Framework:** ${budgetPlan.framework}
+
+## Proposed Budget Plan
 ${this.formatBudgetForPrompt(budgetPlan)}
 
-SPENDING INSIGHTS:
-- Top spending categories: ${this.getTopSpendingCategories(spendingAnalysis, 3)}
-- Volatile spending areas: ${spendingAnalysis.volatileCategories.length} categories
-- Income trend: ${incomeAnalysis.trend}
+## Spending Insights
+- **Top spending categories:** ${this.getTopSpendingCategories(spendingAnalysis, 3)}
+- **Volatile spending areas:** ${spendingAnalysis.volatileCategories.length} categories
+- **Income trend:** ${incomeAnalysis.trend}
 
-Generate a conversational, encouraging response (250-400 words) that:
-1. Explains why this budget framework was chosen
-2. Highlights 2-3 key insights and adjustments
-3. Provides actionable next steps
-4. Addresses potential challenges
-5. Maintains a supportive, motivational tone
-6. Uses simple, non-jargon language
+---
 
-Focus on practical advice and be specific about amounts and categories.`;
+### Please format your response using Markdown with the following structure:
+- Use headings (##, ###) for each section.
+- Use bold for important terms and amounts.
+- Use bullet points for lists.
+- Use tables for budget breakdowns if possible.
+- Separate each section clearly.
+- Do **not** use plain text; always use Markdown formatting.
+- **Add a blank line between each section and each bullet point for better readability.**
+
+#### Example response format:
+
+## Why This Budget Framework Was Chosen
+Start with a greeting and encouragement. Explain in 2-3 sentences, using a conversational and motivational tone.
+
+## Key Insights & Adjustments
+- **Insight 1:** Description
+- **Insight 2:** Description
+
+## Actionable Next Steps
+- Step 1
+- Step 2
+
+## Potential Challenges
+- Challenge 1
+- Challenge 2
+
+---
+
+Focus on practical advice and be specific about amounts and categories. Format your response using Markdown for clarity.`;
   }
 
   formatBudgetForPrompt(budgetPlan) {

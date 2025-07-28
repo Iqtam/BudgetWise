@@ -14,6 +14,7 @@ interface Message {
   insights?: Insight[];
   budgetSummary?: BudgetSummary;
   projections?: Projections;
+  displayedContent?: string; // For rendering markdown or HTML content
 }
 
 interface ActionItem {

@@ -12,13 +12,14 @@
 		type ActionItem,
 		type Insight
 	} from '$lib/services/aiAssistant';
-
+	import { marked } from 'marked';
 	const initialMessages: Message[] = [
 		{
 			id: 1,
 			type: 'assistant',
 			content:
 				"Hello! I'm your AI financial assistant powered by advanced AI. I can help you create personalized budgets, track expenses, provide savings advice, manage debt, and analyze your financial patterns. How can I help you today?",
+			displayedContent: "Hello! I'm your AI financial assistant powered by advanced AI. I can help you create personalized budgets, track expenses, provide savings advice, manage debt, and analyze your financial patterns. How can I help you today?",
 			timestamp: new Date()
 		}
 	];
@@ -28,7 +29,8 @@
 	let isLoading = false;
 	let scrollArea: any;
 	let errorMessage = '';
-
+	let typingInterval: any = null;
+	let isTyping = false;
 	onMount(async () => {
 		scrollToBottom();
 		await loadChatHistory();
@@ -41,12 +43,58 @@
 			}
 		}, 100);
 	}
+	function startTypingEffect(message: Message, speed = 20) {
+    // Prevent multiple intervals
+    if (typingInterval) clearInterval(typingInterval);
+
+    message.displayedContent = '';
+    let i = 0;
+    isTyping = true;
+    typingInterval = setInterval(() => {
+        if (!isTyping) {
+            clearInterval(typingInterval);
+            typingInterval = null;
+            return;
+        }
+        if (i < message.content.length) {
+            message.displayedContent += message.content[i];
+            messages = [...messages];
+            i++;
+        } else {
+            clearInterval(typingInterval);
+            typingInterval = null;
+            isTyping = false;
+            message.displayedContent = message.content;
+            messages = [...messages];
+        }
+    }, speed);
+}
+
+function stopTyping() {
+	console.log('stopTyping called');
+    isTyping = false;
+    if (typingInterval) {
+        clearInterval(typingInterval);
+        typingInterval = null;
+    }
+    // Show full content for the last assistant message
+    const lastMsg = messages[messages.length - 1];
+    if (lastMsg && lastMsg.type === 'assistant') {
+        lastMsg.displayedContent = lastMsg.content;
+        messages = [...messages];
+    }
+}
 
 	async function loadChatHistory() {
 		try {
 			const history = await aiAssistantService.getChatHistory(1, 50);
 			if (history.chatHistory.length > 0) {
 				const historyMessages = aiAssistantService.convertHistoryToMessages(history.chatHistory);
+				for (const msg of historyMessages) {
+                if (msg.type === 'assistant') {
+                    msg.displayedContent = msg.content;
+                }
+            }
 				messages = [...initialMessages, ...historyMessages];
 				scrollToBottom();
 			}
@@ -60,12 +108,13 @@
 		try {
 			errorMessage = '';
 			const response = await aiAssistantService.sendMessage(content);
-
+			console.log('AI response:', response);
 			if (response.success) {
 				const assistantMessage: Message = {
 					id: messages.length + 1,
 					type: 'assistant',
 					content: response.data.conversationalResponse,
+					displayedContent:'',
 					timestamp: new Date(),
 					intent: response.data.intent,
 					actionItems: response.data.actionItems,
@@ -74,6 +123,7 @@
 					projections: response.data.projections
 				};
 				messages = [...messages, assistantMessage];
+				startTypingEffect(assistantMessage);
 				scrollToBottom();
 			} else {
 				throw new Error(response.error || 'Failed to get response');
@@ -163,9 +213,14 @@
 									? 'bg-muted'
 									: 'bg-primary text-primary-foreground'}"
 							>
-								<p class="text-sm">{message.content}</p>
+								{#if message.type === 'assistant'}
+									<div class="text-sm" >{@html marked.parse(message.displayedContent || '')}</div>
+								{:else}
+									<p class="text-sm">{message.content}</p>
+								{/if}
 							</div>
 
+							{#if message.displayedContent === message.content}
 							<!-- AI Assistant additional content -->
 							{#if message.type === 'assistant' && (message.actionItems?.length || message.insights?.length || message.budgetSummary)}
 								<div class="mt-3 max-w-md space-y-3">
@@ -311,6 +366,7 @@
 									{/if}
 								</div>
 							{/if}
+							{/if}
 
 							<p class="text-muted-foreground text-xs">
 								{message.timestamp.toLocaleTimeString()}
@@ -358,6 +414,18 @@
 					disabled={isLoading}
 					class="flex-1 border-gray-700 bg-gray-800 text-white placeholder:text-gray-400 focus-visible:ring-blue-500"
 				/>
+
+				{#if isTyping}
+					<Button
+						type="button"
+						onclick={stopTyping}
+						class="border-none bg-red-600 text-white hover:bg-red-700 flex items-center"
+						style="margin-right: 0.5rem;"
+					>
+						<Icon icon="lucide:stop-circle" class="h-4 w-4 mr-1" />
+						Stop
+					</Button>
+				{/if}
 				<Button
 					type="submit"
 					disabled={isLoading || !inputValue.trim()}

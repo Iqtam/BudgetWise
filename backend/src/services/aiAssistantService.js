@@ -122,6 +122,7 @@ class AIAssistantService {
     try {
       const prompt = `Classify this financial query into one of these categories:
       - BUDGET_PLANNING: User wants help creating or planning a budget
+      - BUDGET_REALLOCATION: User wants to reallocate, redistribute, or optimize budget allocations
       - EXPENSE_TRACKING: User wants to track or record expenses
       - SAVINGS_ADVICE: User wants advice on saving money or savings goals
       - DEBT_MANAGEMENT: User wants help with debt payment or debt strategy
@@ -318,6 +319,10 @@ class AIAssistantService {
         financialSnapshot.transactions, 
         financialSnapshot.categories
       );
+      console.log('Financial Snapshot:', financialSnapshot);
+      console.log('Income Analysis:', incomeAnalysis);
+      console.log('Spending Analysis:', spendingAnalysis);
+
 
       // Generate insights
       const topSpendingCategory = Object.values(spendingAnalysis.categoryBreakdown)
@@ -341,7 +346,7 @@ class AIAssistantService {
 
       return {
         conversationalResponse: response,
-        insights: this.budgetPlannerAgent.generateInsights(financialSnapshot, {}),
+        insights: this.budgetPlannerAgent.generateInsights( {spendingAnalysis, incomeAnalysis} ),
         actionItems: [
           {
             id: 1,
@@ -377,7 +382,7 @@ class AIAssistantService {
         timeframe, 
         targetGoals
       );
-      
+      console.log('Reallocation analysis result:', reallocationResult);
       if (!reallocationResult.success) {
         return {
           conversationalResponse: `I encountered an issue analyzing your budget for reallocation: ${reallocationResult.error}. ${reallocationResult.fallbackAdvice?.message || 'Please try again later.'}`,
@@ -391,7 +396,7 @@ class AIAssistantService {
       }
       
       // Generate conversational response
-      const conversationalResponse = await this.generateReallocationResponse(reallocationResult);
+      const conversationalResponse = await this.reallocationAgent.generateReallocationLLMResponse(userId, reallocationResult);
       
       return {
         conversationalResponse,
