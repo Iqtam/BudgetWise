@@ -3,6 +3,9 @@ FROM node:20-alpine as development
 
 WORKDIR /app
 
+# Install wget for health checks
+RUN apk add --no-cache wget
+
 COPY package*.json ./
 
 
