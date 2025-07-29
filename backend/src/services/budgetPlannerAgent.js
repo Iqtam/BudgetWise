@@ -559,6 +559,23 @@ class BudgetPlannerAgent {
   }
 
   createBudgetPlanPrompt(financialSnapshot, budgetPlan, userContext) {
+    // Add conversation context if available
+    let contextEnhancement = "";
+    if (
+      userContext.conversationMemory &&
+      userContext.conversationMemory.hasContext
+    ) {
+      contextEnhancement = `
+
+## Conversation Context
+${userContext.conversationMemory.context}
+
+## Instructions for Context-Aware Response
+- Reference previous conversation topics when relevant
+- Build upon previous advice and recommendations
+- Maintain consistency with earlier suggestions
+- Address any follow-up questions or clarifications`;
+    }
     const { incomeAnalysis, spendingAnalysis, debtAnalysis } =
       financialSnapshot;
 
@@ -618,7 +635,7 @@ Start with a greeting and encouragement. Explain in 2-3 sentences, using a conve
 
 ---
 
-Focus on practical advice and be specific about amounts and categories. Format your response using Markdown for clarity.`;
+Focus on practical advice and be specific about amounts and categories. Format your response using Markdown for clarity.${contextEnhancement}`;
   }
 
   formatBudgetForPrompt(budgetPlan) {

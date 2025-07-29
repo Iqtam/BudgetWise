@@ -273,7 +273,8 @@ Just let me know which area interests you most!`;
       financialSnapshot,
       incomeAnalysis,
       spendingAnalysis,
-      userMessage
+      userMessage,
+      conversationContext
     );
 
     try {
@@ -318,7 +319,8 @@ Just let me know which area interests you most!`;
     financialSnapshot,
     incomeAnalysis,
     spendingAnalysis,
-    userMessage
+    userMessage,
+    conversationContext = {}
   ) {
     const baseData = this.getBaseFinancialData(
       incomeAnalysis,
@@ -379,6 +381,24 @@ Just let me know which area interests you most!`;
 - Focus on overall financial health improvement`;
     }
 
+    // Add conversation context if available
+    let contextEnhancement = "";
+    if (
+      conversationContext.conversationMemory &&
+      conversationContext.conversationMemory.hasContext
+    ) {
+      contextEnhancement = `
+
+## Conversation Context
+${conversationContext.conversationMemory.context}
+
+## Instructions for Context-Aware Response
+- Reference previous conversation topics when relevant
+- Build upon previous advice and recommendations
+- Maintain consistency with earlier suggestions
+- Address any follow-up questions or clarifications`;
+    }
+
     return `You are a certified financial advisor providing ${insightType} insights and analysis.
 
 ## Instructions
@@ -389,7 +409,7 @@ Just let me know which area interests you most!`;
 - Provide actionable insights and specific recommendations.
 - Be encouraging and focus on opportunities for improvement.
 
-${specificInstructions}
+${specificInstructions}${contextEnhancement}
 
 ## Financial Data Analysis
 

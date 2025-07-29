@@ -1,8 +1,11 @@
 const BudgetPlannerAgent = require("./budgetPlannerAgent");
+const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 class DebtManagementService {
   constructor() {
     this.budgetPlannerAgent = new BudgetPlannerAgent();
+    this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    this.model = this.genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
   }
 
   // Handle debt management requests
@@ -21,33 +24,17 @@ class DebtManagementService {
         };
       }
 
-      let strategy =
-        debtAnalysis.recommendedStrategy === "avalanche"
-          ? "debt avalanche (paying highest interest rates first)"
-          : "debt snowball (paying smallest balances first)";
-
-      const response = `I can help you tackle your debt strategically! Here's your debt situation:
-
-      **Total Debt:** $${debtAnalysis.totalDebt.toFixed(2)}
-      **Minimum Monthly Payments:** $${debtAnalysis.minimumPayments.toFixed(2)}
-      **Recommended Strategy:** ${strategy}
-
-      ${
-        debtAnalysis.recommendedStrategy === "avalanche"
-          ? "Focus on paying extra toward your highest interest debt while making minimum payments on others."
-          : "Start by paying off your smallest debt completely, then move to the next smallest. This builds momentum!"
-      }`;
+      // Generate LLM response
+      const response = await this.generateDebtLLMResponse(
+        debtAnalysis,
+        financialSnapshot,
+        message
+      );
 
       return {
-        conversationalResponse: response,
-        actionItems: this.generateDebtActionItems(debtAnalysis),
-        insights: [
-          {
-            type: "tip",
-            title: "Debt Payoff Strategy",
-            message: `The ${strategy} method can save you money and help you become debt-free faster.`,
-          },
-        ],
+        conversationalResponse: response.conversationalResponse,
+        actionItems: response.actionItems,
+        insights: response.insights,
         graphData: this.generateDebtGraphData(debtAnalysis, financialSnapshot),
       };
     } catch (error) {
@@ -98,6 +85,136 @@ class DebtManagementService {
     }
 
     return actions;
+  }
+
+  // Generate LLM response for debt management
+  async generateDebtLLMResponse(debtAnalysis, financialSnapshot, userMessage) {
+    const prompt = this.createDebtAdvicePrompt(debtAnalysis, financialSnapshot, userMessage);
+
+    try {
+      const result = await this.model.generateContent(prompt);
+      const response = await result.response;
+      const text = response.text();
+
+      return {
+        conversationalResponse: text,
+        actionItems: this.generateDebtActionItems(debtAnalysis),
+        insights: this.generateDebtInsights(debtAnalysis),
+      };
+    } catch (error) {
+      console.error("Error generating debt LLM response:", error);
+      return {
+        conversationalResponse: this.generateFallbackDebtResponse(debtAnalysis),
+        actionItems: this.generateDebtActionItems(debtAnalysis),
+        insights: this.generateDebtInsights(debtAnalysis),
+      };
+    }
+  }
+
+  // Create prompt for debt advice
+  createDebtAdvicePrompt(debtAnalysis, financialSnapshot, userMessage) {
+    const debts = financialSnapshot.debts || [];
+    const strategy = debtAnalysis.recommendedStrategy === "avalanche"
+      ? "debt avalanche (paying highest interest rates first)"
+      : "debt snowball (paying smallest balances first)";
+
+    const debtBreakdown = debts.map(debt => ({
+      name: debt.name || debt.description || "Unknown Debt",
+      balance: parseFloat(debt.amount) || 0,
+      interestRate: parseFloat(debt.interest_rate) || 0
+    }));
+
+    return `You are a certified financial advisor providing personalized debt management advice.
+
+## Instructions
+- Write in a friendly, supportive, and motivational tone
+- Use Markdown formatting for clarity and engagement
+- Provide specific, actionable advice based on the user's debt situation
+- Be encouraging and focus on debt payoff strategies
+- Address the user's specific message if provided
+
+## Debt Analysis
+
+### Overall Debt Situation
+- **Total Debt:** $${debtAnalysis.totalDebt.toFixed(2)}
+- **Minimum Monthly Payments:** $${debtAnalysis.minimumPayments.toFixed(2)}
+- **Recommended Strategy:** ${strategy}
+- **Number of Debts:** ${debts.length}
+
+### Individual Debts
+${debtBreakdown.map((debt, index) => 
+  `${index + 1}. ${debt.name}: $${debt.balance.toFixed(2)} (${debt.interestRate}% interest)`
+).join('\n')}
+
+### User Context
+- **User Message:** "${userMessage}"
+- **Analysis Period:** Current debt situation
+
+---
+
+### Please format your response using Markdown with the following structure:
+
+## Debt Analysis
+Start with an encouraging overview of their debt situation and payoff potential.
+
+## Key Insights
+- **Insight 1:** [Specific finding about their debt situation]
+- **Insight 2:** [Another important observation]
+- **Insight 3:** [Additional recommendation]
+
+## Debt Payoff Strategy
+- **Recommended Approach:** [Explain the ${strategy} method]
+- **Priority Order:** [Which debts to tackle first and why]
+- **Monthly Payment Strategy:** [How to allocate extra payments]
+
+## Actionable Next Steps
+- [Specific, actionable steps the user can take]
+
+---
+
+Focus on being specific about amounts, interest rates, and realistic payoff timelines. Use encouraging language and emphasize the benefits of becoming debt-free. Format your response using Markdown for clarity and readability.`;
+  }
+
+  // Generate fallback response if LLM fails
+  generateFallbackDebtResponse(debtAnalysis) {
+    const strategy = debtAnalysis.recommendedStrategy === "avalanche"
+      ? "debt avalanche (paying highest interest rates first)"
+      : "debt snowball (paying smallest balances first)";
+
+    return `I can help you tackle your debt strategically! Here's your debt situation:
+
+**Total Debt:** $${debtAnalysis.totalDebt.toFixed(2)}
+**Minimum Monthly Payments:** $${debtAnalysis.minimumPayments.toFixed(2)}
+**Recommended Strategy:** ${strategy}
+
+${
+  debtAnalysis.recommendedStrategy === "avalanche"
+    ? "Focus on paying extra toward your highest interest debt while making minimum payments on others."
+    : "Start by paying off your smallest debt completely, then move to the next smallest. This builds momentum!"
+}`;
+  }
+
+  // Generate insights for debt management
+  generateDebtInsights(debtAnalysis) {
+    const insights = [];
+
+    if (debtAnalysis.totalDebt > 0) {
+      insights.push({
+        type: "tip",
+        title: "Debt Payoff Strategy",
+        message: `The ${debtAnalysis.recommendedStrategy} method can save you money and help you become debt-free faster.`,
+      });
+    }
+
+    if (debtAnalysis.minimumPayments > debtAnalysis.totalDebt * 0.1) {
+      insights.push({
+        type: "warning",
+        title: "High Minimum Payments",
+        message: `Your minimum payments are ${((debtAnalysis.minimumPayments / debtAnalysis.totalDebt) * 100).toFixed(1)}% of your total debt. Consider debt consolidation if beneficial.`,
+      });
+    }
+
+    return insights;
   }
 
   // Generate graph data for debt management

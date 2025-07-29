@@ -10,6 +10,7 @@ const SavingsAdviceService = require("./savingsAdviceService");
 const DebtManagementService = require("./debtManagementService");
 const FinancialInsightsService = require("./financialInsightsService");
 const GeneralQuestionService = require("./generalQuestionService");
+const ConversationMemoryService = require("./conversationMemoryService");
 
 // Initialize Gemini AI for intent classification
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
@@ -26,6 +27,7 @@ class AIAssistantService {
     this.debtManagementService = new DebtManagementService();
     this.financialInsightsService = new FinancialInsightsService();
     this.generalQuestionService = new GeneralQuestionService();
+    this.conversationMemoryService = new ConversationMemoryService();
 
     // Intent patterns
     this.intentPatterns = {
@@ -100,20 +102,40 @@ class AIAssistantService {
 
       console.log(`Processing message for user ${user.id}: "${message}"`);
 
-      // Classify intent
-      const intent = await this.classifyIntent(message);
+      // Get conversation context and memory
+      const conversationMemory =
+        await this.conversationMemoryService.getConversationContext(
+          user.id,
+          message
+        );
+      console.log("Conversation context:", conversationMemory);
+
+      // Classify intent with context awareness
+      const intent = await this.classifyIntentWithContext(
+        message,
+        conversationMemory
+      );
       console.log(`Classified intent: ${intent}`);
 
-      // Route to appropriate agent
-      const response = await this.routeToAgent(
+      // Route to appropriate agent with enhanced context
+      const response = await this.routeToAgentWithContext(
         intent,
         user.id,
         message,
-        conversationContext
+        conversationContext,
+        conversationMemory
       );
 
-      // Store interaction in chat history
+      // Store interaction in chat history and memory
       await this.storeChatInteraction(user.id, message, intent, response);
+      await this.conversationMemoryService.storeInteraction(
+        user.id,
+        message,
+        intent,
+        response.conversationalResponse,
+        this.getResponseType(intent)
+      );
+
       console.log("Chat Response", response);
       console.log("Response keys:", Object.keys(response));
       console.log("Graph data in response:", response.graphData);
@@ -178,6 +200,46 @@ class AIAssistantService {
     return "GENERAL_QUESTION";
   }
 
+  // Context-aware intent classification
+  async classifyIntentWithContext(message, conversationMemory) {
+    const lowerMessage = message.toLowerCase();
+
+    // Check if this is a follow-up question
+    const isFollowUp = this.conversationMemoryService.isFollowUpQuestion(
+      message,
+      conversationMemory.recentTopics
+    );
+
+    if (isFollowUp && conversationMemory.hasContext) {
+      // For follow-up questions, try to maintain context from recent topics
+      const recentTopics = conversationMemory.recentTopics;
+      if (recentTopics.length > 0) {
+        const mostRecentTopic = recentTopics[0].topic;
+
+        // Map topics to intents
+        const topicToIntent = {
+          "Budget Planning": "BUDGET_PLANNING",
+          "Financial Analysis": "FINANCIAL_INSIGHTS",
+          Savings: "SAVINGS_ADVICE",
+          "Debt Management": "DEBT_MANAGEMENT",
+          "Expense Tracking": "EXPENSE_TRACKING",
+          "Budget Reallocation": "BUDGET_REALLOCATION",
+        };
+
+        const suggestedIntent = topicToIntent[mostRecentTopic];
+        if (suggestedIntent) {
+          console.log(
+            `Follow-up question detected, maintaining context: ${suggestedIntent}`
+          );
+          return suggestedIntent;
+        }
+      }
+    }
+
+    // Fall back to regular intent classification
+    return await this.classifyIntent(message);
+  }
+
   // Route to appropriate agent based on intent
   async routeToAgent(intent, userId, message, conversationContext) {
     switch (intent) {
@@ -217,6 +279,73 @@ class AIAssistantService {
           userId,
           message,
           conversationContext
+        );
+
+      case "GENERAL_QUESTION":
+      default:
+        return await this.generalQuestionService.handleGeneralQuestion(
+          userId,
+          message
+        );
+    }
+  }
+
+  // Context-aware routing to appropriate agent
+  async routeToAgentWithContext(
+    intent,
+    userId,
+    message,
+    conversationContext,
+    conversationMemory
+  ) {
+    // Enhance conversation context with memory
+    const enhancedContext = {
+      ...conversationContext,
+      conversationMemory,
+      isFollowUp: this.conversationMemoryService.isFollowUpQuestion(
+        message,
+        conversationMemory.recentTopics
+      ),
+      userPreferences: conversationMemory.userPreferences,
+    };
+
+    switch (intent) {
+      case "BUDGET_PLANNING":
+        return await this.budgetPlannerAgent.createBudgetPlan(
+          userId,
+          message,
+          enhancedContext
+        );
+
+      case "EXPENSE_TRACKING":
+        return await this.expenseTrackingService.handleExpenseTracking(
+          userId,
+          message
+        );
+
+      case "SAVINGS_ADVICE":
+        return await this.savingsAdviceService.handleSavingsAdvice(
+          userId,
+          message
+        );
+
+      case "DEBT_MANAGEMENT":
+        return await this.debtManagementService.handleDebtManagement(
+          userId,
+          message
+        );
+
+      case "FINANCIAL_INSIGHTS":
+        return await this.financialInsightsService.handleFinancialInsights(
+          userId,
+          message
+        );
+
+      case "BUDGET_REALLOCATION":
+        return await this.reallocationAgent.handleBudgetReallocation(
+          userId,
+          message,
+          enhancedContext
         );
 
       case "GENERAL_QUESTION":
