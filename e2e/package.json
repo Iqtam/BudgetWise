@@ -18,5 +18,8 @@
     "@types/node": "^24.0.11",
     "playwright": "^1.52.0",
     "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "vite-plugin-devtools-json": "^0.4.1"
   }
 }

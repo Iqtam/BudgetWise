@@ -69,7 +69,7 @@
 	async function loadData() {
 		isLoading = true;
 		error = null;
-		try {
+				try {
 			// First sync budget spending to ensure we have up-to-date data
 			await budgetService.syncBudgetSpending();
 
@@ -77,7 +77,7 @@
 				budgetService.getAllBudgets(),
 				categoryService.getExpenseCategories() // Only get expense categories for budgets
 			]);
-
+			
 			budgets = budgetData;
 			categories = categoryData;
 		} catch (err) {
@@ -117,7 +117,7 @@
 	}
 	async function handleAddCategory(event: Event) {
 		event.preventDefault();
-
+		
 		if (!newCategoryName.trim()) {
 			// Show visual indication instead of blocking message
 			categoryNameError = true;
@@ -135,15 +135,15 @@
 
 			// Add the new category to our local categories list
 			categories = [...categories, newCategory];
-
+			
 			// Select the new category in the form
 			formCategory = newCategory.id;
-
+			
 			// Reset form and close dialog
 			newCategoryName = '';
 			categoryNameError = false;
 			isNewCategoryOpen = false;
-
+			
 			successMessage = 'Category created successfully';
 			setTimeout(() => {
 				successMessage = null;
@@ -171,7 +171,7 @@
 
 	async function handleCreateBudget(event: Event) {
 		event.preventDefault();
-
+		
 		if (!formBudgetAmount || !formStartDate || !formEndDate) {
 			error = 'Please fill in all required fields';
 			return;
@@ -206,9 +206,9 @@
 			// Sync budget spending and reload data to get the new budget with current spending
 			await budgetService.syncBudgetSpending();
 			await loadData();
-
+			
 			isBudgetDialogOpen = false;
-
+			
 			// Reset form
 			formCategory = '';
 			formBudgetAmount = '';
@@ -245,7 +245,7 @@
 
 	async function handleUpdateBudget(event: Event) {
 		event.preventDefault();
-
+		
 		if (!editingBudget || !editFormBudgetAmount || !editFormStartDate || !editFormEndDate) {
 			error = 'Please fill in all required fields';
 			return;
@@ -279,10 +279,10 @@
 			// Sync budget spending and reload data to get the updated budget with current spending
 			await budgetService.syncBudgetSpending();
 			await loadData();
-
+			
 			isEditDialogOpen = false;
 			editingBudget = null;
-
+			
 			// Show success message
 			successMessage = 'Budget updated successfully';
 
@@ -311,10 +311,10 @@
 		error = null;
 		try {
 			await budgetService.deleteBudget(budget.id);
-
+			
 			// Reload data to remove the deleted budget
 			await loadData();
-
+			
 			// Show success message
 			successMessage = 'Budget deleted successfully';
 
@@ -548,12 +548,12 @@
 			<div class="text-gray-400">Loading budgets...</div>
 		</div>
 	{:else}
-		<!-- Header -->
-		<div class="flex items-center justify-between">
-			<div>
-				<h2 class="text-2xl font-bold text-white">Budget Management</h2>
-				<p class="text-gray-400">Track and manage your spending budgets</p>
-			</div>
+	<!-- Header -->
+	<div class="flex items-center justify-between">
+		<div>
+			<h2 class="text-2xl font-bold text-white">Budget Management</h2>
+			<p class="text-gray-400">Track and manage your spending budgets</p>
+		</div>
 			<div class="flex items-center gap-3">
 				<!-- Manual Refresh Button (spending syncs automatically) -->
 				<Button
@@ -565,22 +565,22 @@
 				>
 					{isSaving ? 'Refreshing...' : 'Refresh'}
 				</Button>
-				<Dialog bind:open={isBudgetDialogOpen}>
-					<DialogTrigger>
+		<Dialog bind:open={isBudgetDialogOpen}>
+			<DialogTrigger>
 						<Button
 							class="bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600"
 						>
 							<Icon icon="lucide:plus" class="mr-2 h-4 w-4" />
-							Create Budget
-						</Button>
-					</DialogTrigger>
+					Create Budget
+				</Button>
+			</DialogTrigger>
 					<DialogContent class="border-gray-700 bg-gray-800 text-white sm:max-w-[425px]">
-						<DialogHeader>
-							<DialogTitle>Create New Budget</DialogTitle>
-							<DialogDescription class="text-gray-400">
-								Set up a new spending budget for a category
-							</DialogDescription>
-						</DialogHeader>
+				<DialogHeader>
+					<DialogTitle>Create New Budget</DialogTitle>
+					<DialogDescription class="text-gray-400">
+						Set up a new spending budget for a category
+					</DialogDescription>
+				</DialogHeader>
 
 						<!-- Error Message for Create Budget Dialog -->
 						{#if createBudgetError}
@@ -591,33 +591,33 @@
 
 						<form onsubmit={handleCreateBudget} class="space-y-4">
 							<div class="space-y-2">
-								<Label for="category">Category (Optional)</Label>
-								<div class="flex gap-2">
+						<Label for="category">Category (Optional)</Label>
+						<div class="flex gap-2">
 									<select
 										bind:value={formCategory}
 										class="flex-1 rounded-md border border-gray-600 bg-gray-700 px-3 py-2 text-white"
 									>
-										<option value="">Select category (optional)</option>
-										{#each categories as category}
-											<option value={category.id}>
-												{category.name}
-											</option>
-										{/each}
-									</select>
-									<Dialog bind:open={isNewCategoryOpen}>
-										<DialogTrigger>
-											<Button
-												type="button"
-												variant="outline"
-												size="sm"
+								<option value="">Select category (optional)</option>
+								{#each categories as category}
+									<option value={category.id}>
+										{category.name}
+									</option>
+								{/each}
+							</select>
+							<Dialog bind:open={isNewCategoryOpen}>
+								<DialogTrigger>
+									<Button
+										type="button"
+										variant="outline"
+										size="sm"
 												class="border-gray-600 bg-gray-800 px-3 text-gray-300 hover:bg-gray-700"
-											>
+									>
 												<Icon icon="lucide:plus" class="h-4 w-4" />
-											</Button>
-										</DialogTrigger>
+									</Button>
+								</DialogTrigger>
 										<DialogContent class="border-gray-700 bg-gray-800 text-white sm:max-w-[300px]">
-											<DialogHeader>
-												<DialogTitle>Add New Category</DialogTitle>
+									<DialogHeader>
+										<DialogTitle>Add New Category</DialogTitle>
 												<DialogDescription class="text-gray-400"
 													>Create a new budget category</DialogDescription
 												>
@@ -626,111 +626,111 @@
 												<div class="relative space-y-2">
 													<Label for="newCategory">Category Name</Label>
 													<div class="group relative">
-														<Input
-															id="newCategory"
-															bind:value={newCategoryName}
-															placeholder="Enter category name"
+												<Input
+													id="newCategory"
+													bind:value={newCategoryName}
+													placeholder="Enter category name"
 															oninput={() => (categoryNameError = false)}
 															class="bg-gray-700 {categoryNameError
 																? 'border-red-500 focus:border-red-500 focus:ring-1 focus:ring-red-500'
 																: 'border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500'}"
-														/>
-														<!-- Error message only shows on hover -->
+												/>
+												<!-- Error message only shows on hover -->
 														<div
 															class="pointer-events-none absolute left-0 top-full z-10 mt-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
 														>
 															<div
 																class="whitespace-nowrap rounded bg-red-500 px-2 py-1 text-xs text-white shadow-lg"
 															>
-																{#if categoryNameError}
-																	Category name is required
-																{:else}
-																	Please fill out this field
-																{/if}
-															</div>
-														</div>
+														{#if categoryNameError}
+															Category name is required
+														{:else}
+															Please fill out this field
+														{/if}
 													</div>
+												</div>
+											</div>
 												</div>
 												<div class="flex gap-2">
 													<Button
-														type="button"
-														variant="outline"
-														onclick={() => {
-															isNewCategoryOpen = false;
-															categoryNameError = false;
+												type="button"
+												variant="outline"
+												onclick={() => {
+													isNewCategoryOpen = false;
+													categoryNameError = false;
 															newCategoryName = '';
-														}}
+												}}
 														class="flex-1 border-black bg-black font-bold text-red-500 hover:bg-gray-900"
-													>
-														Cancel
-													</Button>
-													<Button
-														type="submit"
+											>
+												Cancel
+											</Button>
+											<Button
+												type="submit"
 														class="flex-1 bg-gradient-to-r from-blue-500 to-green-500 font-bold text-white hover:from-blue-600 hover:to-green-600"
-													>
-														Add
-													</Button>
-												</div>
-											</form>
-										</DialogContent>
-									</Dialog>
-								</div>
-							</div>
+											>
+												Add
+											</Button>
+										</div>
+									</form>
+								</DialogContent>
+							</Dialog>
+						</div>
+					</div>
 
-							<div class="space-y-2">
-								<Label for="budgetAmount">Budget Amount</Label>
-								<Input
-									id="budgetAmount"
-									bind:value={formBudgetAmount}
-									type="number"
-									step="0.01"
-									placeholder="0.00"
-									required
+					<div class="space-y-2">
+						<Label for="budgetAmount">Budget Amount</Label>
+						<Input
+							id="budgetAmount"
+							bind:value={formBudgetAmount}
+							type="number"
+							step="0.01"
+							placeholder="0.00"
+							required
 									class="border-gray-600 bg-gray-700"
-								/>
-							</div>
+						/>
+					</div>
 
-							<div class="space-y-2">
-								<Label for="startDate">Start Date</Label>
-								<Input
-									id="startDate"
-									bind:value={formStartDate}
-									type="date"
-									required
+					<div class="space-y-2">
+						<Label for="startDate">Start Date</Label>
+						<Input
+							id="startDate"
+							bind:value={formStartDate}
+							type="date"
+							required
 									class="border-gray-600 bg-gray-700"
-								/>
-							</div>
+						/>
+					</div>
 
-							<div class="space-y-2">
-								<Label for="endDate">End Date</Label>
-								<Input
-									id="endDate"
-									bind:value={formEndDate}
-									type="date"
-									required
+					<div class="space-y-2">
+						<Label for="endDate">End Date</Label>
+						<Input 
+							id="endDate" 
+							bind:value={formEndDate} 
+							type="date" 
+							required 
 									class="border-gray-600 bg-gray-700"
-								/>
+						/>
 							</div>
 							<Button
-								type="submit"
-								disabled={isSaving}
-								class="w-full bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600"
-							>
-								{isSaving ? 'Creating...' : 'Create Budget'}
-							</Button>
-						</form>
+						type="submit"
+						disabled={isSaving}
+						class="w-full bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600"
+					>
+						{isSaving ? 'Creating...' : 'Create Budget'}
+					</Button>
+				</form>
 					</DialogContent>
 				</Dialog>
 			</div>
-		</div>
+	</div>
 
-		<!-- Edit Budget Dialog -->
-		<Dialog bind:open={isEditDialogOpen}>
+	<!-- Edit Budget Dialog -->
+	<Dialog bind:open={isEditDialogOpen}>
 			<DialogContent class="border-gray-700 bg-gray-800 text-white sm:max-w-[425px]">
-				<DialogHeader>
-					<DialogTitle>Edit Budget</DialogTitle>
+			<DialogHeader>
+				<DialogTitle>Edit Budget</DialogTitle>
 					<DialogDescription class="text-gray-400">Update your budget settings</DialogDescription>
-				</DialogHeader>
+			</DialogHeader>
 
 				<!-- Error Message for Edit Budget Dialog -->
 				{#if editBudgetError}
@@ -739,185 +739,185 @@
 					</div>
 				{/if}
 
-				<form onsubmit={handleUpdateBudget} class="space-y-4">
-					<div class="space-y-2">
-						<Label for="editCategory">Category (Optional)</Label>
-						<div class="flex gap-2">
+			<form onsubmit={handleUpdateBudget} class="space-y-4">
+				<div class="space-y-2">
+					<Label for="editCategory">Category (Optional)</Label>
+					<div class="flex gap-2">
 							<select
 								bind:value={editFormCategory}
 								class="flex-1 rounded-md border border-gray-600 bg-gray-700 px-3 py-2 text-white"
 							>
-								<option value="">Select category (optional)</option>
-								{#each categories as category}
-									<option value={category.id}>
-										{category.name}
-									</option>
-								{/each}
-							</select>
-						</div>
+							<option value="">Select category (optional)</option>
+							{#each categories as category}
+								<option value={category.id}>
+									{category.name}
+								</option>
+							{/each}
+						</select>
 					</div>
+				</div>
 
-					<div class="space-y-2">
-						<Label for="editBudgetAmount">Budget Amount</Label>
-						<Input
-							id="editBudgetAmount"
-							bind:value={editFormBudgetAmount}
-							type="number"
-							step="0.01"
-							placeholder="0.00"
-							required
+				<div class="space-y-2">
+					<Label for="editBudgetAmount">Budget Amount</Label>
+					<Input
+						id="editBudgetAmount"
+						bind:value={editFormBudgetAmount}
+						type="number"
+						step="0.01"
+						placeholder="0.00"
+						required
 							class="border-gray-600 bg-gray-700"
-						/>
-					</div>
+					/>
+				</div>
 
-					<div class="space-y-2">
-						<Label for="editStartDate">Start Date</Label>
-						<Input
-							id="editStartDate"
-							bind:value={editFormStartDate}
-							type="date"
-							required
+				<div class="space-y-2">
+					<Label for="editStartDate">Start Date</Label>
+					<Input
+						id="editStartDate"
+						bind:value={editFormStartDate}
+						type="date"
+						required
 							class="border-gray-600 bg-gray-700"
-						/>
-					</div>
+					/>
+				</div>
 
-					<div class="space-y-2">
-						<Label for="editEndDate">End Date</Label>
-						<Input
-							id="editEndDate"
-							bind:value={editFormEndDate}
-							type="date"
-							required
+				<div class="space-y-2">
+					<Label for="editEndDate">End Date</Label>
+					<Input 
+						id="editEndDate" 
+						bind:value={editFormEndDate} 
+						type="date" 
+						required 
 							class="border-gray-600 bg-gray-700"
-						/>
-					</div>
+					/>
+				</div>
 
-					<div class="flex gap-2">
-						<Button
-							type="button"
-							variant="outline"
+				<div class="flex gap-2">
+					<Button
+						type="button"
+						variant="outline"
 							onclick={() => (isEditDialogOpen = false)}
-							class="flex-1 border-gray-600 text-gray-300 hover:bg-gray-700"
-						>
-							Cancel
-						</Button>
-						<Button
-							type="submit"
-							disabled={isSaving}
-							class="flex-1 bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600"
-						>
-							{isSaving ? 'Updating...' : 'Update Budget'}
-						</Button>
-					</div>
-				</form>
-			</DialogContent>
-		</Dialog>
+						class="flex-1 border-gray-600 text-gray-300 hover:bg-gray-700"
+					>
+						Cancel
+					</Button>
+					<Button
+						type="submit"
+						disabled={isSaving}
+						class="flex-1 bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600"
+					>
+						{isSaving ? 'Updating...' : 'Update Budget'}
+					</Button>
+				</div>
+			</form>
+		</DialogContent>
+	</Dialog>
 
-		<!-- Budget Overview -->
-		<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+	<!-- Budget Overview -->
+	<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
 			<Card class="border-gray-800 bg-gray-900">
-				<CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
-					<CardTitle class="text-sm font-medium text-gray-300">Total Budget</CardTitle>
+			<CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
+				<CardTitle class="text-sm font-medium text-gray-300">Total Budget</CardTitle>
 					<Icon icon="lucide:dollar-sign" class="h-4 w-4 text-gray-400" />
 				</CardHeader>
 				<CardContent>
-					<div class="text-2xl font-bold text-white">
-						{#if isNaN(totalBudget) || totalBudget <= 0}
-							$0
-						{:else}
-							${totalBudget.toLocaleString()}
-						{/if}
-					</div>
-					<p class="text-xs text-gray-400">{budgets.length} active budgets</p>
-				</CardContent>
-			</Card>
+				<div class="text-2xl font-bold text-white">
+					{#if isNaN(totalBudget) || totalBudget <= 0}
+						$0
+					{:else}
+						${totalBudget.toLocaleString()}
+					{/if}
+				</div>
+				<p class="text-xs text-gray-400">{budgets.length} active budgets</p>
+			</CardContent>
+		</Card>
 
 			<Card class="border-gray-800 bg-gray-900">
-				<CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
-					<CardTitle class="text-sm font-medium text-gray-300">Total Spent</CardTitle>
+			<CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
+				<CardTitle class="text-sm font-medium text-gray-300">Total Spent</CardTitle>
 					<Icon icon="lucide:trending-up" class="h-4 w-4 text-gray-400" />
 				</CardHeader>
 				<CardContent>
-					<div class="text-2xl font-bold text-red-400">
-						{#if isNaN(totalSpent) || totalSpent <= 0}
-							$0
-						{:else}
-							${totalSpent.toLocaleString()}
-						{/if}
-					</div>
-					<p class="text-xs text-gray-400">
+				<div class="text-2xl font-bold text-red-400">
+					{#if isNaN(totalSpent) || totalSpent <= 0}
+						$0
+					{:else}
+						${totalSpent.toLocaleString()}
+					{/if}
+				</div>
+				<p class="text-xs text-gray-400">
 						{totalBudget > 0 && !isNaN(overallProgress)
 							? `${overallProgress.toFixed(1)}% of total budget`
 							: '0.0% of total budget'}
-					</p>
-				</CardContent>
-			</Card>
+				</p>
+			</CardContent>
+		</Card>
 
 			<Card class="border-gray-800 bg-gray-900">
-				<CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
-					<CardTitle class="text-sm font-medium text-gray-300">Remaining</CardTitle>
+			<CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
+				<CardTitle class="text-sm font-medium text-gray-300">Remaining</CardTitle>
 					<Icon icon="lucide:pie-chart" class="h-4 w-4 text-gray-400" />
 				</CardHeader>
 				<CardContent>
-					<div class="text-2xl font-bold {totalRemaining >= 0 ? 'text-green-400' : 'text-red-400'}">
-						{#if isNaN(totalRemaining)}
-							$0
-						{:else if totalRemaining >= 0}
-							${totalRemaining.toLocaleString()}
-						{:else}
-							-${Math.abs(totalRemaining).toLocaleString()}
-						{/if}
-					</div>
-					<p class="text-xs text-gray-400">
-						{totalRemaining >= 0 ? 'Available to spend' : 'Over budget'}
-					</p>
-				</CardContent>
-			</Card>
+				<div class="text-2xl font-bold {totalRemaining >= 0 ? 'text-green-400' : 'text-red-400'}">
+					{#if isNaN(totalRemaining)}
+						$0
+					{:else if totalRemaining >= 0}
+						${totalRemaining.toLocaleString()}
+					{:else}
+						-${Math.abs(totalRemaining).toLocaleString()}
+					{/if}
+				</div>
+				<p class="text-xs text-gray-400">
+					{totalRemaining >= 0 ? 'Available to spend' : 'Over budget'}
+				</p>
+			</CardContent>
+		</Card>
 
 			<Card class="border-gray-800 bg-gray-900">
-				<CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
-					<CardTitle class="text-sm font-medium text-gray-300">Alerts</CardTitle>
+			<CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
+				<CardTitle class="text-sm font-medium text-gray-300">Alerts</CardTitle>
 					<Icon icon="lucide:alert-triangle" class="h-4 w-4 text-gray-400" />
 				</CardHeader>
 				<CardContent>
-					<div class="text-2xl font-bold text-yellow-400">
-						{budgetsNearLimit}
-					</div>
-					<p class="text-xs text-gray-400">Budgets near limit</p>
-				</CardContent>
-			</Card>
-		</div>
+				<div class="text-2xl font-bold text-yellow-400">
+					{budgetsNearLimit}
+				</div>
+				<p class="text-xs text-gray-400">Budgets near limit</p>
+			</CardContent>
+		</Card>
+	</div>
 
-		<!-- Budget Categories -->
+	<!-- Budget Categories -->
 		<Card class="border-gray-800 bg-gray-900">
-			<CardHeader>
-				<CardTitle class="text-white">Budget Categories</CardTitle>
+		<CardHeader>
+			<CardTitle class="text-white">Budget Categories</CardTitle>
 				<CardDescription class="flex items-center justify-between text-gray-400">
-					<span>
+				<span>
 						Showing {paginatedData.startIndex}-{paginatedData.endIndex} of {paginatedData.totalCount}
 						budgets
-					</span>
-					<span class="text-sm">
-						Page {currentPage} of {paginatedData.totalPages}
-					</span>
-				</CardDescription>
-			</CardHeader>
+				</span>
+				<span class="text-sm">
+					Page {currentPage} of {paginatedData.totalPages}
+				</span>
+			</CardDescription>
+		</CardHeader>
 			<CardContent>
 				<div class="space-y-6">
 					{#each paginatedData.budgets as budget}
-						{@const spentAmount = getSpentAmount(budget)}
-						{@const goalAmount = parseFloat(String(budget.goal_amount || '0'))}
-						{@const percentage = goalAmount > 0 ? (spentAmount / goalAmount) * 100 : 0}
-						{@const remaining = goalAmount - spentAmount}
-						{@const budgetStatus = getBudgetStatus(spentAmount, goalAmount)}
+					{@const spentAmount = getSpentAmount(budget)}
+					{@const goalAmount = parseFloat(String(budget.goal_amount || '0'))}
+					{@const percentage = goalAmount > 0 ? (spentAmount / goalAmount) * 100 : 0}
+					{@const remaining = goalAmount - spentAmount}
+					{@const budgetStatus = getBudgetStatus(spentAmount, goalAmount)}
 						<div class="space-y-4 rounded-lg border border-gray-800 p-4">
-							<div class="flex items-center justify-between">
-								<div>
-									<div class="flex items-center gap-2">
-										<h3 class="font-semibold text-white">{getCategoryName(budget.category_id)}</h3>
-										<Badge class="{budgetStatus.bgColor} {budgetStatus.color} border-0">
-											{budgetStatus.status}
-										</Badge>
+						<div class="flex items-center justify-between">
+							<div>
+								<div class="flex items-center gap-2">
+									<h3 class="font-semibold text-white">{getCategoryName(budget.category_id)}</h3>
+									<Badge class="{budgetStatus.bgColor} {budgetStatus.color} border-0">
+										{budgetStatus.status}
+									</Badge>
 									</div>
 									<p class="text-sm text-gray-400">
 										{new Date(budget.start_date).toLocaleDateString()} to {new Date(
@@ -926,239 +926,239 @@
 									</p>
 								</div>
 								<div class="text-right">
-									<p class="text-lg font-bold text-white">${spentAmount.toLocaleString()}</p>
+								<p class="text-lg font-bold text-white">${spentAmount.toLocaleString()}</p>
 									<p class="text-sm text-gray-400">of ${goalAmount.toLocaleString()}</p>
 									<div class="mt-2 flex gap-2">
-										<Button
-											variant="outline"
-											size="sm"
-											onclick={() => handleViewDetails(budget)}
+									<Button
+										variant="outline"
+										size="sm"
+										onclick={() => handleViewDetails(budget)}
 											class="flex-1 border-2 border-blue-500 bg-gray-900 font-semibold text-blue-400 shadow-lg hover:bg-blue-500/20 hover:text-blue-300"
-										>
-											View Details
-										</Button>
-										<Button
-											variant="outline"
-											size="sm"
-											onclick={() => handleEditBudget(budget)}
+									>
+										View Details
+									</Button>
+									<Button 
+										variant="outline" 
+										size="sm" 
+										onclick={() => handleEditBudget(budget)}
 											class="flex-1 border-2 border-green-500 bg-gray-900 font-semibold text-green-400 shadow-lg hover:bg-green-500/20 hover:text-green-300"
-										>
+									>
 											<Icon icon="lucide:edit-3" class="mr-1 h-4 w-4" />
-											Edit
-										</Button>
-										<Button
-											variant="outline"
-											size="sm"
-											onclick={() => handleDeleteBudget(budget)}
-											disabled={isDeleting}
+										Edit
+									</Button>
+									<Button 
+										variant="outline" 
+										size="sm" 
+										onclick={() => handleDeleteBudget(budget)}
+										disabled={isDeleting}
 											class="flex-1 border-2 border-red-500 bg-gray-900 font-semibold text-red-400 shadow-lg hover:bg-red-500/20 hover:text-red-300 disabled:opacity-50"
-										>
+									>
 											<Icon icon="lucide:trash-2" class="mr-1 h-4 w-4" />
-											{isDeleting ? 'Deleting...' : 'Delete'}
-										</Button>
-									</div>
+										{isDeleting ? 'Deleting...' : 'Delete'}
+									</Button>
 								</div>
 							</div>
+						</div>
 
-							<div class="space-y-2">
-								<div class="flex justify-between text-sm">
-									<span class="text-gray-300">Progress</span>
-									<span class="text-gray-300">{percentage.toFixed(1)}% used</span>
-								</div>
-								<Progress value={Math.min(percentage, 100)} class="h-2" />
-								<p class="text-xs text-gray-400">
-									{remaining > 0
-										? `$${remaining.toLocaleString()} remaining`
-										: `$${Math.abs(remaining).toLocaleString()} over budget`}
+						<div class="space-y-2">
+							<div class="flex justify-between text-sm">
+								<span class="text-gray-300">Progress</span>
+								<span class="text-gray-300">{percentage.toFixed(1)}% used</span>
+							</div>
+							<Progress value={Math.min(percentage, 100)} class="h-2" />
+							<p class="text-xs text-gray-400">
+								{remaining > 0
+									? `$${remaining.toLocaleString()} remaining`
+									: `$${Math.abs(remaining).toLocaleString()} over budget`}
 								</p>
 							</div>
-						</div>
-					{/each}
-				</div>
-
-				{#if paginatedData.totalPages > 1}
-					<div class="flex items-center justify-between border-t border-gray-800 pt-4">
-						<div class="flex items-center gap-2">
-							<Button
-								variant="outline"
-								size="sm"
-								onclick={() => (currentPage = Math.max(1, currentPage - 1))}
-								disabled={currentPage === 1}
-								class="border-gray-600 text-gray-300 hover:bg-gray-700"
-							>
-								Previous
-							</Button>
-							<Button
-								variant="outline"
-								size="sm"
-								onclick={() => (currentPage = Math.min(paginatedData.totalPages, currentPage + 1))}
-								disabled={currentPage === paginatedData.totalPages}
-								class="border-gray-600 text-gray-300 hover:bg-gray-700"
-							>
-								Next
-							</Button>
-						</div>
-						<div class="flex items-center gap-1">
-							{#each Array.from({ length: Math.min(5, paginatedData.totalPages) }, (_, i) => i + 1) as pageNum}
-								{@const isActive = pageNum === currentPage}
-								<Button
-									variant={isActive ? 'default' : 'outline'}
-									size="sm"
-									onclick={() => (currentPage = pageNum)}
-									class={isActive
-										? 'bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600'
-										: 'border-gray-600 text-gray-300 hover:bg-gray-700'}
-								>
-									{pageNum}
-								</Button>
-							{/each}
-							{#if paginatedData.totalPages > 5}
-								<span class="px-2 text-gray-400">...</span>
-								<Button
-									variant={currentPage === paginatedData.totalPages ? 'default' : 'outline'}
-									size="sm"
-									onclick={() => (currentPage = paginatedData.totalPages)}
-									class={currentPage === paginatedData.totalPages
-										? 'bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600'
-										: 'border-gray-600 text-gray-300 hover:bg-gray-700'}
-								>
-									{paginatedData.totalPages}
-								</Button>
-							{/if}
-						</div>
-						<div class="text-sm text-gray-400">
-							Showing {paginatedData.startIndex}-{paginatedData.endIndex} of {paginatedData.totalCount}
-						</div>
 					</div>
-				{/if}
-			</CardContent>
-		</Card>
+				{/each}
+			</div>
 
-		<!-- Budget Details Dialog -->
-		<Dialog bind:open={isDetailsOpen}>
+			{#if paginatedData.totalPages > 1}
+					<div class="flex items-center justify-between border-t border-gray-800 pt-4">
+					<div class="flex items-center gap-2">
+						<Button
+							variant="outline"
+							size="sm"
+								onclick={() => (currentPage = Math.max(1, currentPage - 1))}
+							disabled={currentPage === 1}
+							class="border-gray-600 text-gray-300 hover:bg-gray-700"
+						>
+							Previous
+						</Button>
+						<Button
+							variant="outline"
+							size="sm"
+								onclick={() => (currentPage = Math.min(paginatedData.totalPages, currentPage + 1))}
+							disabled={currentPage === paginatedData.totalPages}
+							class="border-gray-600 text-gray-300 hover:bg-gray-700"
+						>
+							Next
+						</Button>
+					</div>
+					<div class="flex items-center gap-1">
+						{#each Array.from({ length: Math.min(5, paginatedData.totalPages) }, (_, i) => i + 1) as pageNum}
+							{@const isActive = pageNum === currentPage}
+							<Button
+									variant={isActive ? 'default' : 'outline'}
+								size="sm"
+									onclick={() => (currentPage = pageNum)}
+								class={isActive
+										? 'bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600'
+										: 'border-gray-600 text-gray-300 hover:bg-gray-700'}
+							>
+								{pageNum}
+							</Button>
+						{/each}
+						{#if paginatedData.totalPages > 5}
+								<span class="px-2 text-gray-400">...</span>
+							<Button
+									variant={currentPage === paginatedData.totalPages ? 'default' : 'outline'}
+								size="sm"
+									onclick={() => (currentPage = paginatedData.totalPages)}
+								class={currentPage === paginatedData.totalPages
+										? 'bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600'
+										: 'border-gray-600 text-gray-300 hover:bg-gray-700'}
+							>
+								{paginatedData.totalPages}
+							</Button>
+						{/if}
+					</div>
+					<div class="text-sm text-gray-400">
+						Showing {paginatedData.startIndex}-{paginatedData.endIndex} of {paginatedData.totalCount}
+					</div>
+				</div>
+			{/if}
+		</CardContent>
+	</Card>
+
+	<!-- Budget Details Dialog -->
+	<Dialog bind:open={isDetailsOpen}>
 			<DialogContent class="border-gray-700 bg-gray-800 text-white sm:max-w-[500px]">
-				<DialogHeader>
-					<DialogTitle class="flex items-center gap-2">
+			<DialogHeader>
+				<DialogTitle class="flex items-center gap-2">
 						<Icon icon="lucide:pie-chart" class="h-5 w-5 text-blue-400" />
-						Budget Details
-					</DialogTitle>
+					Budget Details
+				</DialogTitle>
 					<DialogDescription class="text-gray-400"
 						>Complete information about this budget</DialogDescription
 					>
 				</DialogHeader>
 				{#if selectedBudgetDetails}
-					{@const spentAmount = getSpentAmount(selectedBudgetDetails)}
-					{@const detailGoalAmount = parseFloat(String(selectedBudgetDetails.goal_amount || '0'))}
+				{@const spentAmount = getSpentAmount(selectedBudgetDetails)}
+				{@const detailGoalAmount = parseFloat(String(selectedBudgetDetails.goal_amount || '0'))}
 					{@const detailPercentage =
 						detailGoalAmount > 0 ? (spentAmount / detailGoalAmount) * 100 : 0}
-					<div class="space-y-4">
-						<div class="grid grid-cols-2 gap-4">
-							<div>
-								<Label class="text-gray-300">Category</Label>
+				<div class="space-y-4">
+					<div class="grid grid-cols-2 gap-4">
+						<div>
+							<Label class="text-gray-300">Category</Label>
 								<p class="font-medium text-white">
 									{getCategoryName(selectedBudgetDetails.category_id)}
 								</p>
 							</div>
 							<div>
-								<Label class="text-gray-300">Budget Amount</Label>
+							<Label class="text-gray-300">Budget Amount</Label>
 								<p class="text-lg font-bold text-white">${detailGoalAmount.toLocaleString()}</p>
-							</div>
 						</div>
+					</div>
 
-						<div class="grid grid-cols-2 gap-4">
-							<div>
-								<Label class="text-gray-300">Amount Spent</Label>
+					<div class="grid grid-cols-2 gap-4">
+						<div>
+							<Label class="text-gray-300">Amount Spent</Label>
 								<p class="font-semibold text-red-400">${spentAmount.toLocaleString()}</p>
-							</div>
-							<div>
-								<Label class="text-gray-300">Remaining</Label>
-								<p
-									class="font-semibold {detailGoalAmount - spentAmount >= 0
-										? 'text-green-400'
-										: 'text-red-400'}"
-								>
-									${Math.abs(detailGoalAmount - spentAmount).toLocaleString()}
+						</div>
+						<div>
+							<Label class="text-gray-300">Remaining</Label>
+							<p
+								class="font-semibold {detailGoalAmount - spentAmount >= 0
+									? 'text-green-400'
+									: 'text-red-400'}"
+							>
+								${Math.abs(detailGoalAmount - spentAmount).toLocaleString()}
 									{detailGoalAmount - spentAmount < 0 ? ' over' : ''}
-								</p>
-							</div>
+							</p>
+						</div>
 						</div>
 						<div class="grid grid-cols-2 gap-4">
-							<div>
-								<Label class="text-gray-300">Start Date</Label>
+						<div>
+							<Label class="text-gray-300">Start Date</Label>
 								<p class="text-white">
 									{new Date(selectedBudgetDetails.start_date).toLocaleDateString()}
 								</p>
-							</div>
-							<div>
-								<Label class="text-gray-300">End Date</Label>
+						</div>
+						<div>
+							<Label class="text-gray-300">End Date</Label>
 								<p class="text-white">
 									{new Date(selectedBudgetDetails.end_date).toLocaleDateString()}
 								</p>
-							</div>
-						</div>
-
-						<div class="space-y-2">
-							<Label class="text-gray-300">Budget Progress</Label>
-							<div class="space-y-2">
-								<div class="flex justify-between text-sm">
-									<span class="text-gray-300">Usage</span>
-									<span class="text-gray-300">
-										{detailPercentage.toFixed(1)}%
-									</span>
-								</div>
-								<Progress value={Math.min(detailPercentage, 100)} class="h-3" />
-							</div>
-						</div>
-						<div class="flex gap-2 pt-4">
-							<Button
-								variant="outline"
-								class="flex-1 border-gray-600 text-gray-300 hover:bg-gray-700"
-								onclick={() => (isDetailsOpen = false)}
-							>
-								Close
-							</Button>
-							<Button
-								variant="outline"
-								class="flex-1 border-2 border-green-500 bg-gray-900 font-semibold text-green-400 shadow-lg hover:bg-green-500/20 hover:text-green-300"
-								onclick={() => {
-									isDetailsOpen = false;
-									if (selectedBudgetDetails) {
-										handleEditBudget(selectedBudgetDetails);
-									}
-								}}
-							>
-								<Icon icon="lucide:edit-3" class="mr-1 h-4 w-4" />
-								Edit Budget
-							</Button>
-							<Button
-								variant="outline"
-								class="flex-1 border-2 border-red-500 bg-gray-900 font-semibold text-red-400 shadow-lg hover:bg-red-500/20 hover:text-red-300"
-								onclick={() => {
-									if (selectedBudgetDetails) {
-										isDetailsOpen = false;
-										handleDeleteBudget(selectedBudgetDetails);
-									}
-								}}
-							>
-								<Icon icon="lucide:trash-2" class="mr-1 h-4 w-4" />
-								Delete
-							</Button>
 						</div>
 					</div>
-				{/if}
-			</DialogContent>
-		</Dialog>
 
-		<!-- Budget Insights -->
+					<div class="space-y-2">
+						<Label class="text-gray-300">Budget Progress</Label>
+						<div class="space-y-2">
+							<div class="flex justify-between text-sm">
+								<span class="text-gray-300">Usage</span>
+								<span class="text-gray-300">
+									{detailPercentage.toFixed(1)}%
+								</span>
+							</div>
+							<Progress value={Math.min(detailPercentage, 100)} class="h-3" />
+						</div>
+						</div>
+						<div class="flex gap-2 pt-4">
+						<Button
+							variant="outline"
+							class="flex-1 border-gray-600 text-gray-300 hover:bg-gray-700"
+								onclick={() => (isDetailsOpen = false)}
+						>
+							Close
+						</Button>
+						<Button 
+							variant="outline" 
+								class="flex-1 border-2 border-green-500 bg-gray-900 font-semibold text-green-400 shadow-lg hover:bg-green-500/20 hover:text-green-300"
+							onclick={() => {
+								isDetailsOpen = false;
+								if (selectedBudgetDetails) {
+									handleEditBudget(selectedBudgetDetails);
+								}
+							}}
+						>
+								<Icon icon="lucide:edit-3" class="mr-1 h-4 w-4" />
+							Edit Budget
+						</Button>
+						<Button 
+							variant="outline" 
+								class="flex-1 border-2 border-red-500 bg-gray-900 font-semibold text-red-400 shadow-lg hover:bg-red-500/20 hover:text-red-300"
+							onclick={() => {
+								if (selectedBudgetDetails) {
+									isDetailsOpen = false;
+									handleDeleteBudget(selectedBudgetDetails);
+								}
+							}}
+						>
+								<Icon icon="lucide:trash-2" class="mr-1 h-4 w-4" />
+							Delete
+						</Button>
+					</div>
+				</div>
+			{/if}
+		</DialogContent>
+	</Dialog>
+
+	<!-- Budget Insights -->
 		<Card class="border-gray-800 bg-gray-900">
-			<CardHeader>
-				<CardTitle class="text-white">Budget Insights</CardTitle>
+		<CardHeader>
+			<CardTitle class="text-white">Budget Insights</CardTitle>
 				<CardDescription class="text-gray-400"
 					>AI-powered recommendations for your budgets</CardDescription
 				>
-			</CardHeader>
-			<CardContent>
-				<div class="space-y-4">
+		</CardHeader>
+		<CardContent>
+			<div class="space-y-4">
 					<!-- Alert Box (Red/Yellow) -->
 					{#if budgetInsights.alert}
 						{#if budgetInsights.alert.type === 'overspending_forecast' && budgetInsights.alert.forecast}
@@ -1170,8 +1170,8 @@
 									)} budget by {budgetInsights.alert.forecast.overspendPercentage.toFixed(0)}% this
 									period. You're spending ${budgetInsights.alert.forecast.dailySpendRate.toFixed(2)}
 									per day with {budgetInsights.alert.forecast.daysRemaining} days remaining.
-								</p>
-							</div>
+					</p>
+				</div>
 						{:else if budgetInsights.alert.type === 'over_budget' && budgetInsights.alert.overAmount !== undefined}
 							<div class="rounded-lg border border-red-500/20 bg-red-500/10 p-4">
 								<h4 class="font-semibold text-red-400">Budget Exceeded</h4>
@@ -1212,15 +1212,15 @@
 								)} budget! You've used {budgetInsights.progress.spentPercentage.toFixed(0)}% of your
 								budget while {budgetInsights.progress.timeElapsedPercentage.toFixed(0)}% of the time
 								period has passed.
-							</p>
-						</div>
+					</p>
+				</div>
 					{/if}
 
 					<!-- Tip Box (Blue) -->
 					{#if budgetInsights.tip}
 						{#if budgetInsights.tip.type === 'reallocation' && budgetInsights.tip.underutilized && budgetInsights.tip.overutilized}
 							<div class="rounded-lg border border-blue-500/20 bg-blue-500/10 p-4">
-								<h4 class="font-semibold text-blue-400">Optimization Tip</h4>
+					<h4 class="font-semibold text-blue-400">Optimization Tip</h4>
 								<p class="mt-1 text-sm text-gray-300">
 									Consider reallocating unused funds from your {getCategoryName(
 										budgetInsights.tip.underutilized.category_id
@@ -1250,7 +1250,7 @@
 						</div>
 					{/if}
 				</div>
-			</CardContent>
-		</Card>
+		</CardContent>
+	</Card>
 	{/if}
 </div>
