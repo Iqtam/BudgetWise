@@ -13,7 +13,6 @@ env:
   POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
 
   # Backend configuration
-  
   FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
   ADMIN_EMAIL: admin@budgetwise.test
   GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
