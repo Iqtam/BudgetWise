@@ -133,12 +133,12 @@ jobs:
       - name: Build and start production services
         run: |
           echo "🔨 Building production services for E2E testing..."
-          docker-compose -f docker-compose.test.yml build backend frontend e2e-test
+          docker compose -f docker-compose.test.yml build backend frontend e2e-test
 
       - name: Start production services
         run: |
           echo "🚀 Starting production services..."
-          docker-compose -f docker-compose.test.yml up -d postgres backend frontend
+          docker compose -f docker-compose.test.yml up -d postgres backend frontend
 
       - name: Wait for services to be ready
         run: |
@@ -152,7 +152,7 @@ jobs:
       - name: Run E2E tests against production services
         run: |
           echo "🧪 Running E2E tests against production services..."
-          docker-compose -f docker-compose.test.yml --profile e2e up --build --abort-on-container-exit --exit-code-from e2e-test e2e-test
+          docker compose -f docker-compose.test.yml --profile e2e up --build --abort-on-container-exit --exit-code-from e2e-test e2e-test
 
       - name: Upload E2E test results
         uses: actions/upload-artifact@v4
@@ -177,15 +177,15 @@ jobs:
         if: always()
         run: |
           mkdir -p service-logs
-          docker-compose -f docker-compose.test.yml logs backend > service-logs/backend.log
-          docker-compose -f docker-compose.test.yml logs frontend > service-logs/frontend.log
-          docker-compose -f docker-compose.test.yml logs e2e-test > service-logs/e2e-test.log
+          docker compose -f docker-compose.test.yml logs backend > service-logs/backend.log
+          docker compose -f docker-compose.test.yml logs frontend > service-logs/frontend.log
+          docker compose -f docker-compose.test.yml logs e2e-test > service-logs/e2e-test.log
 
       - name: Cleanup E2E resources
         if: always()
         run: |
           echo "🧹 Cleaning up E2E resources..."
-          docker-compose -f docker-compose.test.yml down -v
+          docker compose -f docker-compose.test.yml down -v
           docker system prune -f
 
   # Test Summary
