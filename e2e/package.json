@@ -3,23 +3,21 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "playwright test",
-    "test:ui": "playwright test --ui",
-    "test:debug": "playwright test --debug",
-    "test:headed": "playwright test --headed",
-    "show-report": "playwright show-report"
+    "test": "npx playwright test",
+    "test:ui": "npx playwright test --ui",
+    "test:debug": "npx playwright test --debug",
+    "test:headed": "npx playwright test --headed",
+    "show-report": "npx playwright show-report"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
-  "devDependencies": {
+  "dependencies": {
     "@playwright/test": "^1.53.2",
     "@types/node": "^24.0.11",
     "playwright": "^1.52.0",
-    "typescript": "^5.8.3"
-  },
-  "dependencies": {
+    "typescript": "^5.8.3",
     "vite-plugin-devtools-json": "^0.4.1"
   }
 }
