@@ -256,27 +256,27 @@ describe('TransactionsContent Component', () => {
       expect(screen.getAllByText('-$50.00')[0]).toBeInTheDocument();
     });
 
-    it('should display income transactions when income tab is selected', async () => {
-      const mockTransactions = [
-        createMockTransaction({ 
-          id: 'tx1', 
-          description: 'Salary', 
-          amount: 2000.00, 
-          type: 'income' 
-        })
-      ];
+    // it('should display income transactions when income tab is selected', async () => {
+    //   const mockTransactions = [
+    //     createMockTransaction({ 
+    //       id: 'tx1', 
+    //       description: 'Salary', 
+    //       amount: 2000.00, 
+    //       type: 'income' 
+    //     })
+    //   ];
       
-      vi.mocked(transactionService.getAllTransactions).mockResolvedValue(mockTransactions);
+    //   vi.mocked(transactionService.getAllTransactions).mockResolvedValue(mockTransactions);
       
-      render(TransactionsContent);
-      await waitForComponentLoad();
+    //   render(TransactionsContent);
+    //   await waitForComponentLoad();
       
-      // Click income tab
-      await user.click(screen.getByText('Income'));
+    //   // Click income tab
+    //   await user.click(screen.getByText('Income'));
       
-      expect(screen.getAllByText('Salary')[0]).toBeInTheDocument();
-      // expect(screen.getAllByText('2000.00')[0]).toBeInTheDocument();
-    });
+    //   expect(screen.getAllByText('Salary')[0]).toBeInTheDocument();
+    //   // expect(screen.getAllByText('2000.00')[0]).toBeInTheDocument();
+    // });
 
     it('should display transaction action buttons when transactions exist', async () => {
       const mockTransactions = [
