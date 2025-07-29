@@ -1,0 +1,2 @@
+sudo npx playwright test --headed
+npx playwright show-report

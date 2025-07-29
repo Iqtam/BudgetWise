@@ -280,7 +280,7 @@
 
 				<div class="flex items-center gap-2">
 					<!-- Notifications -->
-					<Button
+					<!-- <Button
 						variant="ghost"
 						size="sm"
 						class="relative h-9 w-9 text-gray-400 hover:bg-gray-800 hover:text-white"
@@ -294,10 +294,10 @@
 								{notificationCount}
 							</Badge>
 						{/if}
-					</Button>
+					</Button> -->
 
 					<!-- Theme Toggle -->
-					<Button
+					<!-- <Button
 						variant="ghost"
 						size="sm"
 						class="h-9 w-9 text-gray-400 hover:bg-gray-800 hover:text-white"
@@ -308,7 +308,7 @@
 						{:else}
 							<Icon icon="lucide:moon" class="h-4 w-4" />
 						{/if}
-					</Button>
+					</Button> -->
 					<!-- Logout Button -->
 					<Button
 						variant="ghost"
