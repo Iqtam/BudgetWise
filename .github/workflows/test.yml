@@ -2,7 +2,7 @@ name: Test Suite
 
 on:
   push:
-    branches: [main, develop, front-back-testing,deploy-test]
+    branches: [main, develop, front-back-testing, deploy-test]
   pull_request:
     branches: [main, develop]
 
@@ -13,9 +13,10 @@ env:
   POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
 
   # Backend configuration
-  JWT_SECRET: test_jwt_secret_key_for_testing_only_do_not_use_in_production
+  
   FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
   ADMIN_EMAIL: admin@budgetwise.test
+  GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
   # Frontend configuration
   PUBLIC_BACKEND_API_URL: ${{ secrets.PUBLIC_BACKEND_API_URL }}
@@ -71,9 +72,9 @@ jobs:
           POSTGRES_DB: ${{ env.POSTGRES_DB }}
           POSTGRES_USER: ${{ env.POSTGRES_USER }}
           POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
-          JWT_SECRET: ${{ env.JWT_SECRET }}
           FIREBASE_SERVICE_ACCOUNT: ${{ env.FIREBASE_SERVICE_ACCOUNT }}
           ADMIN_EMAIL: ${{ env.ADMIN_EMAIL }}
+          GEMINI_API_KEY: ${{ env.GEMINI_API_KEY }}
         run: npm test
 
   # Frontend Unit Tests
@@ -118,9 +119,9 @@ jobs:
           POSTGRES_DB=${{ env.POSTGRES_DB }}
           POSTGRES_USER=${{ env.POSTGRES_USER }}
           POSTGRES_PASSWORD=${{ env.POSTGRES_PASSWORD }}
-          JWT_SECRET=${{ env.JWT_SECRET }}
           FIREBASE_SERVICE_ACCOUNT=${{ env.FIREBASE_SERVICE_ACCOUNT }}
           ADMIN_EMAIL=${{ env.ADMIN_EMAIL }}
+          GEMINI_API_KEY=${{ env.GEMINI_API_KEY }}
           PUBLIC_BACKEND_API_URL=${{ env.PUBLIC_BACKEND_API_URL }}
           PUBLIC_FIREBASE_API_KEY=${{ env.PUBLIC_FIREBASE_API_KEY }}
           PUBLIC_FIREBASE_AUTH_DOMAIN=${{ env.PUBLIC_FIREBASE_AUTH_DOMAIN }}
@@ -171,7 +172,7 @@ jobs:
         run: |
           echo "Backend Tests: ${{ needs.backend-tests.result }}"
           echo "Frontend Tests: ${{ needs.frontend-tests.result }}"
-          
+
           echo "E2E Tests: ${{ needs.e2e-tests.result }}"
 
           if [[ "${{ needs.backend-tests.result }}" == "success" && \
