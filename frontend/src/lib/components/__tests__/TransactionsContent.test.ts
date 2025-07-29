@@ -117,6 +117,16 @@ describe('TransactionsContent Component', () => {
     }, { timeout: 5000 });
   }
 
+  async function waitForInteractiveElement(selector: () => HTMLElement | null) {
+    await waitFor(() => {
+      const element = selector();
+      expect(element).toBeTruthy();
+      expect(element).not.toHaveAttribute('disabled');
+      expect(element).not.toHaveStyle('pointer-events: none');
+      expect(element).not.toHaveClass('disabled');
+    }, { timeout: 5000 });
+  }
+
   beforeEach(() => {
     vi.clearAllMocks();
     
@@ -307,19 +317,25 @@ describe('TransactionsContent Component', () => {
       
       render(TransactionsContent);
       await waitForComponentLoad();
-      // 4. Click the "Expenses" tab
-  const tabs = screen.getAllByRole('tab');
-  const expenseTab = tabs.find(tab => tab.textContent?.includes('Expenses'));
-  expect(expenseTab).toBeTruthy(); // sanity check
-  await user.click(expenseTab!);
+      
+      // Wait for tabs to be fully interactive
+      await waitForInteractiveElement(() => {
+        const tabs = screen.getAllByRole('tab');
+        return tabs.find(tab => tab.textContent?.includes('Expenses')) || null;
+      });
+      
+      // Click the "Expenses" tab
+      const tabs = screen.getAllByRole('tab');
+      const expenseTab = tabs.find(tab => tab.textContent?.includes('Expenses'));
+      expect(expenseTab).toBeTruthy();
+      await user.click(expenseTab!);
 
-  // 5. Wait for updated UI after clicking
-  const message = await screen.findAllByText((content, node): boolean => {
-    return !!node?.textContent?.includes('2 expense transactions found');
-  });
-  
-  expect(message[0]).toBeInTheDocument();
-  
+      // Wait for updated UI after clicking
+      const message = await screen.findAllByText((content, node): boolean => {
+        return !!node?.textContent?.includes('2 expense transactions found');
+      });
+      
+      expect(message[0]).toBeInTheDocument();
     });
 
     it('should display empty state when no transactions exist', async () => {
@@ -349,6 +365,14 @@ describe('TransactionsContent Component', () => {
       render(TransactionsContent);
       await waitForComponentLoad();
       
+      // Wait for delete button to be interactive
+      await waitForInteractiveElement(() => {
+        const buttons = screen.getAllByRole('button');
+        return buttons.find(button => 
+          button.textContent?.includes('Delete')
+        ) || null;
+      });
+      
       // Find delete button by role and text content
       const buttons = screen.getAllByRole('button');
       const deleteButton = buttons.find(button => 
@@ -370,6 +394,14 @@ describe('TransactionsContent Component', () => {
       render(TransactionsContent);
       await waitForComponentLoad();
       
+      // Wait for delete button to be interactive
+      await waitForInteractiveElement(() => {
+        const buttons = screen.getAllByRole('button');
+        return buttons.find(button => 
+          button.textContent?.includes('Delete')
+        ) || null;
+      });
+      
       // Find delete button by role and text content
       const buttons = screen.getAllByRole('button');
       const deleteButton = buttons.find(button => 
@@ -386,6 +418,12 @@ describe('TransactionsContent Component', () => {
     it('should handle view details action', async () => {
       render(TransactionsContent);
       await waitForComponentLoad();
+      
+      // Wait for view button to be interactive
+      await waitForInteractiveElement(() => {
+        const viewButton = screen.getAllByText('View Details')[0];
+        return viewButton || null;
+      });
       
       const viewButton = screen.getAllByText('View Details')[0];
       expect(viewButton).toBeInTheDocument();
