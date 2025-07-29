@@ -56,7 +56,9 @@ class AIAssistantController {
           actionItems: response.actionItems || [],
           insights: response.insights || [],
           projections: response.projections || null,
-          financialSnapshot: response.financialSnapshot || null
+          financialSnapshot: response.financialSnapshot || null,
+          graphData: response.graphData || null,
+          insightType: response.insightType || null
         }
       });
 

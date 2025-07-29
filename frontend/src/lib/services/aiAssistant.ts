@@ -15,6 +15,8 @@ interface Message {
   budgetSummary?: BudgetSummary;
   projections?: Projections;
   displayedContent?: string; // For rendering markdown or HTML content
+  graphData?: GraphData;
+  insightType?: string;
 }
 
 interface ActionItem {
@@ -50,6 +52,18 @@ interface Projections {
   emergencyFundTimeline?: number;
 }
 
+interface ChartData {
+  title: string;
+  type: 'line' | 'doughnut' | 'pie' | 'bar' | 'stacked-bar' | 'gauge' | 'donut';
+  data: any;
+}
+
+interface GraphData {
+  type: string;
+  charts: ChartData[];
+  summary?: any;
+}
+
 interface ChatResponse {
   success: boolean;
   data: {
@@ -60,6 +74,8 @@ interface ChatResponse {
     insights: Insight[];
     projections?: Projections;
     financialSnapshot?: any;
+    graphData?: GraphData;
+    insightType?: string;
   };
   message?: string;
   error?: string;
@@ -165,11 +181,18 @@ class AIAssistantService {
 
   async deleteChatHistory(): Promise<void> {
     try {
-      const headers = await this.getAuthHeaders();
+      const token = await this.getAuthToken();
+      
+      if (!token) {
+        throw new Error('Authentication required');
+      }
 
       const response = await fetch(`${API_BASE_URL}/assistant/chat/history`, {
         method: 'DELETE',
-        headers
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        }
       });
 
       if (!response.ok) {
@@ -184,10 +207,17 @@ class AIAssistantService {
 
   async getCapabilities(): Promise<Capabilities> {
     try {
-      const headers = await this.getAuthHeaders();
+      const token = await this.getAuthToken();
+      
+      if (!token) {
+        throw new Error('Authentication required');
+      }
 
       const response = await fetch(`${API_BASE_URL}/assistant/capabilities`, {
-        headers
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        }
       });
 
       if (!response.ok) {
@@ -217,10 +247,17 @@ class AIAssistantService {
 
   async getFinancialInsights(): Promise<ChatResponse> {
     try {
-      const headers = await this.getAuthHeaders();
+      const token = await this.getAuthToken();
+      
+      if (!token) {
+        throw new Error('Authentication required');
+      }
 
       const response = await fetch(`${API_BASE_URL}/assistant/insights`, {
-        headers
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        }
       });
 
       if (!response.ok) {
@@ -237,11 +274,18 @@ class AIAssistantService {
 
   async getSavingsAdvice(message?: string): Promise<ChatResponse> {
     try {
-      const headers = await this.getAuthHeaders();
+      const token = await this.getAuthToken();
+      
+      if (!token) {
+        throw new Error('Authentication required');
+      }
 
       const response = await fetch(`${API_BASE_URL}/assistant/savings/advice`, {
         method: 'POST',
-        headers,
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({ message: message || 'Savings advice request' })
       });
 
@@ -259,11 +303,18 @@ class AIAssistantService {
 
   async getDebtAdvice(message?: string): Promise<ChatResponse> {
     try {
-      const headers = await this.getAuthHeaders();
+      const token = await this.getAuthToken();
+      
+      if (!token) {
+        throw new Error('Authentication required');
+      }
 
       const response = await fetch(`${API_BASE_URL}/assistant/debt/advice`, {
         method: 'POST',
-        headers,
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({ message: message || 'Debt management advice request' })
       });
 

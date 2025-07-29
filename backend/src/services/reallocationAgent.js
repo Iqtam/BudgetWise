@@ -763,6 +763,251 @@ Now, generate the full Markdown report and advice for the user.
     };
   }
 
+  // Handle budget reallocation requests
+  async handleBudgetReallocation(userId, message, conversationContext = {}) {
+    try {
+      console.log(`Processing budget reallocation for user: ${userId}`);
+
+      // Extract timeframe from message or use default
+      const timeframe = this.extractTimeframeFromMessage(message) || "monthly";
+
+      // Extract any specific goals mentioned
+      const targetGoals = this.extractGoalsFromMessage(message);
+
+      // Run reallocation analysis
+      const reallocationResult = await this.analyzeAndRecommendReallocation(
+        userId,
+        timeframe,
+        targetGoals
+      );
+      console.log("Reallocation analysis result:", reallocationResult);
+      if (!reallocationResult.success) {
+        return {
+          conversationalResponse: `I encountered an issue analyzing your budget for reallocation: ${
+            reallocationResult.error
+          }. ${
+            reallocationResult.fallbackAdvice?.message ||
+            "Please try again later."
+          }`,
+          actionItems:
+            reallocationResult.fallbackAdvice?.basicAdvice?.map(
+              (advice, index) => ({
+                id: index + 1,
+                title: `Reallocation Tip ${index + 1}`,
+                description: advice,
+                priority: "medium",
+              })
+            ) || [],
+        };
+      }
+
+      // Generate conversational response
+      const conversationalResponse = await this.generateReallocationLLMResponse(
+        userId,
+        reallocationResult
+      );
+
+      return {
+        conversationalResponse,
+        reallocationAnalysis: reallocationResult.analysis,
+        opportunities: reallocationResult.opportunities,
+        recommendations: reallocationResult.recommendations,
+        reallocationPlan: reallocationResult.plan,
+        projections: reallocationResult.projections,
+        graphData: this.generateReallocationGraphData(reallocationResult),
+        actionItems: this.generateReallocationActionItems(reallocationResult),
+        insights: this.generateReallocationInsights(reallocationResult),
+      };
+    } catch (error) {
+      console.error("Error in budget reallocation:", error);
+      return {
+        conversationalResponse:
+          "I apologize, but I encountered an issue analyzing your budget for reallocation. Please ensure you have recent transaction data and active budgets, then try again.",
+        actionItems: [
+          {
+            id: 1,
+            title: "Check Budget Setup",
+            description:
+              "Ensure you have active budgets set up for your main expense categories",
+            priority: "high",
+          },
+          {
+            id: 2,
+            title: "Add Recent Transactions",
+            description:
+              "Make sure your recent spending is recorded in the system",
+            priority: "high",
+          },
+        ],
+      };
+    }
+  }
+
+  // Helper methods for budget reallocation
+  extractTimeframeFromMessage(message) {
+    const lowerMessage = message.toLowerCase();
+    if (lowerMessage.includes("weekly") || lowerMessage.includes("week"))
+      return "weekly";
+    if (lowerMessage.includes("monthly") || lowerMessage.includes("month"))
+      return "monthly";
+    if (lowerMessage.includes("quarterly") || lowerMessage.includes("quarter"))
+      return "quarterly";
+    return "monthly"; // default
+  }
+
+  extractGoalsFromMessage(message) {
+    const goals = [];
+    const lowerMessage = message.toLowerCase();
+
+    // Look for common financial goals
+    if (lowerMessage.includes("emergency fund")) {
+      goals.push({ type: "emergency_fund", priority: "high" });
+    }
+    if (lowerMessage.includes("debt") || lowerMessage.includes("pay off")) {
+      goals.push({ type: "debt_payoff", priority: "high" });
+    }
+    if (lowerMessage.includes("save") || lowerMessage.includes("saving")) {
+      goals.push({ type: "savings_goal", priority: "medium" });
+    }
+    if (lowerMessage.includes("invest")) {
+      goals.push({ type: "investment", priority: "medium" });
+    }
+
+    return goals;
+  }
+
+  generateReallocationActionItems(reallocationResult) {
+    const actionItems = [];
+    const { plan } = reallocationResult;
+
+    // Add immediate actions
+    if (plan.immediate?.actions?.length > 0) {
+      plan.immediate.actions.forEach((action, index) => {
+        actionItems.push({
+          id: actionItems.length + 1,
+          title: action.description,
+          description: `Priority: ${action.priority} | Impact: $${
+            action.amount?.toFixed(0) || "0"
+          }`,
+          priority: action.priority,
+          estimatedTime: "10-15 minutes",
+        });
+      });
+    }
+
+    // Add next cycle actions
+    if (plan.nextCycle?.actions?.length > 0) {
+      plan.nextCycle.actions.slice(0, 2).forEach((action, index) => {
+        actionItems.push({
+          id: actionItems.length + 1,
+          title: action.description,
+          description: `Next period optimization | Impact: $${
+            action.amount?.toFixed(0) || "0"
+          }`,
+          priority: action.priority,
+          estimatedTime: "15-20 minutes",
+        });
+      });
+    }
+
+    // Add monitoring action
+    actionItems.push({
+      id: actionItems.length + 1,
+      title: "Monitor Budget Performance",
+      description: "Track spending against new allocations for 2 weeks",
+      priority: "medium",
+      estimatedTime: "5 minutes daily",
+    });
+
+    return actionItems.slice(0, 5); // Limit to 5 action items
+  }
+
+  generateReallocationGraphData(reallocationResult) {
+    const { analysis, recommendations, projections } = reallocationResult;
+
+    return {
+      type: "reallocation",
+      charts: [
+        {
+          title: "Budget Variance Analysis",
+          type: "bar",
+          data: Object.values(analysis.categoryVariances || {}).map((cat) => ({
+            category: cat.name,
+            budgeted: cat.budgeted || 0,
+            actual: cat.actual || 0,
+            variance: cat.variance || 0,
+          })),
+        },
+        {
+          title: "Reallocation Opportunities",
+          type: "doughnut",
+          data:
+            recommendations.recommendations?.map((rec) => ({
+              label: rec.categoryName,
+              value: rec.recommendedAmount || 0,
+            })) || [],
+        },
+      ],
+      summary: {
+        totalVariance: analysis.totalVariancePercent || 0,
+        projectedSavings: projections.projectedMonthlySavings || 0,
+        efficiencyImprovement: projections.budgetEfficiencyImprovement || 0,
+        recommendationsCount: recommendations.recommendations?.length || 0,
+      },
+    };
+  }
+
+  generateReallocationInsights(reallocationResult) {
+    const insights = [];
+    const { analysis, projections } = reallocationResult;
+
+    // Variance insights
+    if (analysis.totalVariancePercent > 20) {
+      insights.push({
+        type: "warning",
+        title: "Significant Budget Variance",
+        message: `Your actual spending differs from your budget by ${analysis.totalVariancePercent.toFixed(
+          1
+        )}%. This suggests your current allocations may need adjustment.`,
+      });
+    }
+
+    // Efficiency insights
+    if (projections.budgetEfficiencyImprovement > 0.15) {
+      insights.push({
+        type: "tip",
+        title: "High Optimization Potential",
+        message: `These reallocations could improve your budget efficiency by ${(
+          projections.budgetEfficiencyImprovement * 100
+        ).toFixed(0)}%. Focus on high-priority recommendations first.`,
+      });
+    }
+
+    // Savings insights
+    if (projections.projectedMonthlySavings > 100) {
+      insights.push({
+        type: "info",
+        title: "Potential Monthly Savings",
+        message: `By optimizing your budget allocations, you could free up $${projections.projectedMonthlySavings.toFixed(
+          0
+        )} monthly for savings or debt payment.`,
+      });
+    }
+
+    // Untracked spending insight
+    if (analysis.untrackedSpending?.total > 50) {
+      insights.push({
+        type: "warning",
+        title: "Untracked Spending Detected",
+        message: `You have $${analysis.untrackedSpending.total.toFixed(
+          0
+        )} in unbudgeted spending. Consider creating budgets for these categories.`,
+      });
+    }
+
+    return insights.slice(0, 3); // Limit to 3 insights
+  }
+
   // Store reallocation results for tracking and learning
   async storeReallocationResults(userId, results) {
     try {

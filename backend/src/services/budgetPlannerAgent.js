@@ -1,13 +1,13 @@
-const { Op } = require('sequelize');
-const Transaction = require('../models/Transaction');
-const Budget = require('../models/Budget');
-const Balance = require('../models/Balance');
-const Debt = require('../models/Debt');
-const Saving = require('../models/Saving');
-const Category = require('../models/Category');
-const User = require('../models/User');
-const ChatInteraction = require('../models/ChatInteraction');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { Op } = require("sequelize");
+const Transaction = require("../models/Transaction");
+const Budget = require("../models/Budget");
+const Balance = require("../models/Balance");
+const Debt = require("../models/Debt");
+const Saving = require("../models/Saving");
+const Category = require("../models/Category");
+const User = require("../models/User");
+const ChatInteraction = require("../models/ChatInteraction");
+const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 // Initialize Gemini AI
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
@@ -29,24 +29,24 @@ class BudgetPlannerAgent {
         balance,
         debts,
         savings,
-        categories
+        categories,
       ] = await Promise.all([
         Transaction.findAll({
           where: {
             user_id: userId,
             date: {
-              [Op.gte]: sixMonthsAgo
-            }
+              [Op.gte]: sixMonthsAgo,
+            },
           },
-          order: [['date', 'DESC']]
+          order: [["date", "DESC"]],
         }),
         Budget.findAll({
-          where: { user_id: userId }
+          where: { user_id: userId },
         }),
         Balance.findOne({ where: { user_id: userId } }),
         Debt.findAll({ where: { user_id: userId } }),
         Saving.findAll({ where: { user_id: userId } }),
-        Category.findAll({ where: { user_id: userId } })
+        Category.findAll({ where: { user_id: userId } }),
       ]);
 
       return {
@@ -56,31 +56,31 @@ class BudgetPlannerAgent {
         debts,
         savings,
         categories,
-        snapshotDate: new Date()
+        snapshotDate: new Date(),
       };
     } catch (error) {
-      console.error('Error gathering financial snapshot:', error);
-      throw new Error('Failed to gather financial data');
+      console.error("Error gathering financial snapshot:", error);
+      throw new Error("Failed to gather financial data");
     }
   }
 
   // Analyze income patterns from transaction history
   analyzeIncomePatterns(transactions) {
-    const incomeTransactions = transactions.filter(t => t.type === 'income');
-    
+    const incomeTransactions = transactions.filter((t) => t.type === "income");
+
     if (incomeTransactions.length === 0) {
       return {
         averageMonthlyIncome: 0,
         incomeStability: 0,
-        trend: 'unknown',
+        trend: "unknown",
         recurringIncome: [],
-        totalIncome: 0
+        totalIncome: 0,
       };
     }
 
     // Group by month
     const monthlyIncome = {};
-    incomeTransactions.forEach(transaction => {
+    incomeTransactions.forEach((transaction) => {
       const date = new Date(transaction.date);
       const monthKey = date.toISOString().substring(0, 7); // YYYY-MM
       if (!monthlyIncome[monthKey]) {
@@ -90,22 +90,38 @@ class BudgetPlannerAgent {
     });
 
     const monthlyAmounts = Object.values(monthlyIncome);
-    const averageMonthlyIncome = monthlyAmounts.reduce((sum, amount) => sum + amount, 0) / monthlyAmounts.length;
-    
+    const averageMonthlyIncome =
+      monthlyAmounts.reduce((sum, amount) => sum + amount, 0) /
+      monthlyAmounts.length;
+
     // Calculate stability (lower variance = more stable)
-    const variance = monthlyAmounts.reduce((sum, amount) => sum + Math.pow(amount - averageMonthlyIncome, 2), 0) / monthlyAmounts.length;
-    const incomeStability = Math.max(0, 1 - (Math.sqrt(variance) / averageMonthlyIncome));
+    const variance =
+      monthlyAmounts.reduce(
+        (sum, amount) => sum + Math.pow(amount - averageMonthlyIncome, 2),
+        0
+      ) / monthlyAmounts.length;
+    const incomeStability = Math.max(
+      0,
+      1 - Math.sqrt(variance) / averageMonthlyIncome
+    );
 
     // Determine trend
-    let trend = 'stable';
+    let trend = "stable";
     if (monthlyAmounts.length >= 3) {
-      const firstThird = monthlyAmounts.slice(0, Math.floor(monthlyAmounts.length / 3));
-      const lastThird = monthlyAmounts.slice(-Math.floor(monthlyAmounts.length / 3));
-      const firstAvg = firstThird.reduce((sum, amount) => sum + amount, 0) / firstThird.length;
-      const lastAvg = lastThird.reduce((sum, amount) => sum + amount, 0) / lastThird.length;
-      
-      if (lastAvg > firstAvg * 1.1) trend = 'increasing';
-      else if (lastAvg < firstAvg * 0.9) trend = 'decreasing';
+      const firstThird = monthlyAmounts.slice(
+        0,
+        Math.floor(monthlyAmounts.length / 3)
+      );
+      const lastThird = monthlyAmounts.slice(
+        -Math.floor(monthlyAmounts.length / 3)
+      );
+      const firstAvg =
+        firstThird.reduce((sum, amount) => sum + amount, 0) / firstThird.length;
+      const lastAvg =
+        lastThird.reduce((sum, amount) => sum + amount, 0) / lastThird.length;
+
+      if (lastAvg > firstAvg * 1.1) trend = "increasing";
+      else if (lastAvg < firstAvg * 0.9) trend = "decreasing";
     }
 
     return {
@@ -113,22 +129,27 @@ class BudgetPlannerAgent {
       incomeStability,
       trend,
       recurringIncome: this.identifyRecurringIncome(incomeTransactions),
-      totalIncome: incomeTransactions.reduce((sum, t) => sum + parseFloat(t.amount), 0),
-      monthlyBreakdown: monthlyIncome
+      totalIncome: incomeTransactions.reduce(
+        (sum, t) => sum + parseFloat(t.amount),
+        0
+      ),
+      monthlyBreakdown: monthlyIncome,
     };
   }
 
   // Analyze spending patterns by category
   analyzeSpendingPatterns(transactions, categories) {
-    const expenseTransactions = transactions.filter(t => t.type === 'expense');
-    
+    const expenseTransactions = transactions.filter(
+      (t) => t.type === "expense"
+    );
+
     if (expenseTransactions.length === 0) {
       return {
         totalMonthlySpending: 0,
         categoryBreakdown: {},
         spendingTrends: {},
         volatileCategories: [],
-        essentialVsDiscretionary: { essential: 0, discretionary: 0 }
+        essentialVsDiscretionary: { essential: 0, discretionary: 0 },
       };
     }
 
@@ -136,15 +157,19 @@ class BudgetPlannerAgent {
     const categorySpending = {};
     const monthlySpending = {};
 
-    expenseTransactions.forEach(transaction => {
-      const categoryId = transaction.category_id || 'uncategorized';
+    expenseTransactions.forEach((transaction) => {
+      const categoryId = transaction.category_id || "uncategorized";
       const date = new Date(transaction.date);
       const monthKey = date.toISOString().substring(0, 7);
       const amount = Math.abs(parseFloat(transaction.amount));
 
       // Category totals
       if (!categorySpending[categoryId]) {
-        categorySpending[categoryId] = { total: 0, transactions: [], monthlyAmounts: {} };
+        categorySpending[categoryId] = {
+          total: 0,
+          transactions: [],
+          monthlyAmounts: {},
+        };
       }
       categorySpending[categoryId].total += amount;
       categorySpending[categoryId].transactions.push(transaction);
@@ -164,21 +189,27 @@ class BudgetPlannerAgent {
 
     // Calculate averages and trends
     const monthCount = Object.keys(monthlySpending).length || 1;
-    const totalMonthlySpending = Object.values(monthlySpending).reduce((sum, amount) => sum + amount, 0) / monthCount;
+    const totalMonthlySpending =
+      Object.values(monthlySpending).reduce((sum, amount) => sum + amount, 0) /
+      monthCount;
 
     // Category analysis
     const categoryBreakdown = {};
     const volatileCategories = [];
-    
+
     Object.entries(categorySpending).forEach(([categoryId, data]) => {
-      const category = categories.find(c => c.id === categoryId);
-      const categoryName = category ? category.name : 'Uncategorized';
-      
+      const category = categories.find((c) => c.id === categoryId);
+      const categoryName = category ? category.name : "Uncategorized";
+
       const monthlyAmounts = Object.values(data.monthlyAmounts);
       const averageMonthly = data.total / monthCount;
-      
+
       // Calculate volatility
-      const variance = monthlyAmounts.reduce((sum, amount) => sum + Math.pow(amount - averageMonthly, 2), 0) / Math.max(monthlyAmounts.length, 1);
+      const variance =
+        monthlyAmounts.reduce(
+          (sum, amount) => sum + Math.pow(amount - averageMonthly, 2),
+          0
+        ) / Math.max(monthlyAmounts.length, 1);
       const volatility = Math.sqrt(variance) / averageMonthly;
 
       categoryBreakdown[categoryId] = {
@@ -187,7 +218,7 @@ class BudgetPlannerAgent {
         total: data.total,
         transactionCount: data.transactions.length,
         volatility,
-        percentage: (averageMonthly / totalMonthlySpending) * 100
+        percentage: (averageMonthly / totalMonthlySpending) * 100,
       };
 
       if (volatility > 0.5) {
@@ -200,16 +231,18 @@ class BudgetPlannerAgent {
       categoryBreakdown,
       volatileCategories,
       monthlyBreakdown: monthlySpending,
-      transactionCount: expenseTransactions.length
+      transactionCount: expenseTransactions.length,
     };
   }
 
   // Identify recurring income sources
   identifyRecurringIncome(incomeTransactions) {
     const recurringPatterns = {};
-    
-    incomeTransactions.forEach(transaction => {
-      const key = `${transaction.description}-${Math.round(parseFloat(transaction.amount))}`;
+
+    incomeTransactions.forEach((transaction) => {
+      const key = `${transaction.description}-${Math.round(
+        parseFloat(transaction.amount)
+      )}`;
       if (!recurringPatterns[key]) {
         recurringPatterns[key] = [];
       }
@@ -221,8 +254,12 @@ class BudgetPlannerAgent {
       .map(([key, transactions]) => ({
         pattern: key,
         frequency: transactions.length,
-        averageAmount: transactions.reduce((sum, t) => sum + parseFloat(t.amount), 0) / transactions.length,
-        lastOccurrence: Math.max(...transactions.map(t => new Date(t.date).getTime()))
+        averageAmount:
+          transactions.reduce((sum, t) => sum + parseFloat(t.amount), 0) /
+          transactions.length,
+        lastOccurrence: Math.max(
+          ...transactions.map((t) => new Date(t.date).getTime())
+        ),
       }));
   }
 
@@ -231,104 +268,125 @@ class BudgetPlannerAgent {
     const monthlyIncome = incomeAnalysis.averageMonthlyIncome;
     const totalDebt = debtAnalysis.totalDebt;
     const highInterestDebt = debtAnalysis.highInterestDebt;
-    const aggressiveSavingsGoals = savingsGoals.filter(goal => goal.target_amount > monthlyIncome * 3);
+    const aggressiveSavingsGoals = savingsGoals.filter(
+      (goal) => goal.target_amount > monthlyIncome * 3
+    );
 
     // Decision tree for framework selection
     if (monthlyIncome < 30000) {
-      return 'ENVELOPE_SYSTEM';
+      return "ENVELOPE_SYSTEM";
     }
-    
+
     if (highInterestDebt > monthlyIncome * 0.3) {
-      return 'DEBT_AVALANCHE_BUDGET';
+      return "DEBT_AVALANCHE_BUDGET";
     }
-    
+
     if (aggressiveSavingsGoals.length > 0) {
-      return 'AGGRESSIVE_SAVINGS_BUDGET';
+      return "AGGRESSIVE_SAVINGS_BUDGET";
     }
-    
+
     if (incomeAnalysis.incomeStability > 0.8) {
-      return '50_30_20_RULE';
+      return "50_30_20_RULE";
     }
-    
-    return 'BALANCED_APPROACH';
+
+    return "BALANCED_APPROACH";
   }
 
   // Phase 3: Budget Calculation Algorithms
   calculate50_30_20Budget(monthlyIncome) {
     return {
-      needs: monthlyIncome * 0.50,
-      wants: monthlyIncome * 0.30,
-      savingsAndDebt: monthlyIncome * 0.20,
-      framework: '50_30_20_RULE'
+      needs: monthlyIncome * 0.5,
+      wants: monthlyIncome * 0.3,
+      savingsAndDebt: monthlyIncome * 0.2,
+      framework: "50_30_20_RULE",
     };
   }
 
   calculateEnvelopeBudget(monthlyIncome, fixedExpenses, spendingAnalysis) {
-    const fixedTotal = fixedExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+    const fixedTotal = fixedExpenses.reduce(
+      (sum, expense) => sum + expense.amount,
+      0
+    );
     const remaining = monthlyIncome - fixedTotal;
-    
+
     if (remaining <= 0) {
-      throw new Error('Income insufficient to cover fixed expenses');
+      throw new Error("Income insufficient to cover fixed expenses");
     }
 
     return {
       fixed: fixedTotal,
       groceries: remaining * 0.25,
       transportation: remaining * 0.15,
-      entertainment: remaining * 0.10,
-      miscellaneous: remaining * 0.20,
-      emergency: remaining * 0.30,
-      framework: 'ENVELOPE_SYSTEM'
+      entertainment: remaining * 0.1,
+      miscellaneous: remaining * 0.2,
+      emergency: remaining * 0.3,
+      framework: "ENVELOPE_SYSTEM",
     };
   }
 
   calculateDebtAvalancheBudget(monthlyIncome, debts, essentialExpenses) {
-    const essentialTotal = essentialExpenses.reduce((sum, expense) => sum + expense.amount, 0);
-    const minimumDebtPayments = debts.reduce((sum, debt) => sum + (debt.amount * 0.02), 0); // 2% minimum
-    
-    const availableForDebtPayoff = monthlyIncome - essentialTotal - minimumDebtPayments;
-    
+    const essentialTotal = essentialExpenses.reduce(
+      (sum, expense) => sum + expense.amount,
+      0
+    );
+    const minimumDebtPayments = debts.reduce(
+      (sum, debt) => sum + debt.amount * 0.02,
+      0
+    ); // 2% minimum
+
+    const availableForDebtPayoff =
+      monthlyIncome - essentialTotal - minimumDebtPayments;
+
     // Sort debts by interest rate (highest first)
-    const sortedDebts = debts.sort((a, b) => parseFloat(b.interest_rate) - parseFloat(a.interest_rate));
-    
+    const sortedDebts = debts.sort(
+      (a, b) => parseFloat(b.interest_rate) - parseFloat(a.interest_rate)
+    );
+
     return {
       essentials: essentialTotal,
       minimumDebtPayments,
       extraDebtPayment: Math.max(0, availableForDebtPayoff),
       targetDebt: sortedDebts[0]?.id,
-      framework: 'DEBT_AVALANCHE_BUDGET'
+      framework: "DEBT_AVALANCHE_BUDGET",
     };
   }
 
   // Distribute budget across categories intelligently
-  async distributeCategoryBudgets(totalAllocation, spendingAnalysis, categories, userPreferences = {}) {
+  async distributeCategoryBudgets(
+    totalAllocation,
+    spendingAnalysis,
+    categories,
+    userPreferences = {}
+  ) {
     const categoryBudgets = {};
-    
-    // Start with historical spending patterns
-    Object.entries(spendingAnalysis.categoryBreakdown).forEach(([categoryId, data]) => {
-      const category = categories.find(c => c.id === categoryId);
-      if (!category) return;
 
-      // Base allocation: historical average + 10% buffer
-      let baseAllocation = data.averageMonthly * 1.1;
-      
-      // Apply user preferences if available
-      if (userPreferences[categoryId]) {
-        baseAllocation *= userPreferences[categoryId].multiplier || 1;
+    // Start with historical spending patterns
+    Object.entries(spendingAnalysis.categoryBreakdown).forEach(
+      ([categoryId, data]) => {
+        const category = categories.find((c) => c.id === categoryId);
+        if (!category) return;
+
+        // Base allocation: historical average + 10% buffer
+        let baseAllocation = data.averageMonthly * 1.1;
+
+        // Apply user preferences if available
+        if (userPreferences[categoryId]) {
+          baseAllocation *= userPreferences[categoryId].multiplier || 1;
+        }
+
+        // Categorize as needs vs wants
+        const isEssential = this.isEssentialCategory(category.name);
+
+        categoryBudgets[categoryId] = {
+          name: category.name,
+          budgetAmount: baseAllocation,
+          historicalAverage: data.averageMonthly,
+          isEssential,
+          volatility: data.volatility,
+          percentage: data.percentage,
+        };
       }
-      
-      // Categorize as needs vs wants
-      const isEssential = this.isEssentialCategory(category.name);
-      
-      categoryBudgets[categoryId] = {
-        name: category.name,
-        budgetAmount: baseAllocation,
-        historicalAverage: data.averageMonthly,
-        isEssential,
-        volatility: data.volatility,
-        percentage: data.percentage
-      };
-    });
+    );
 
     // Adjust to fit within total allocation
     return this.adjustBudgetToFitAllocation(categoryBudgets, totalAllocation);
@@ -337,11 +395,20 @@ class BudgetPlannerAgent {
   // Determine if a category is essential
   isEssentialCategory(categoryName) {
     const essentialKeywords = [
-      'rent', 'mortgage', 'utilities', 'groceries', 'food', 'transportation',
-      'insurance', 'medical', 'healthcare', 'debt', 'loan'
+      "rent",
+      "mortgage",
+      "utilities",
+      "groceries",
+      "food",
+      "transportation",
+      "insurance",
+      "medical",
+      "healthcare",
+      "debt",
+      "loan",
     ];
-    
-    return essentialKeywords.some(keyword => 
+
+    return essentialKeywords.some((keyword) =>
       categoryName.toLowerCase().includes(keyword)
     );
   }
@@ -349,7 +416,8 @@ class BudgetPlannerAgent {
   // Adjust budget allocations to fit within total budget
   adjustBudgetToFitAllocation(categoryBudgets, totalAllocation) {
     const currentTotal = Object.values(categoryBudgets).reduce(
-      (sum, budget) => sum + budget.budgetAmount, 0
+      (sum, budget) => sum + budget.budgetAmount,
+      0
     );
 
     if (currentTotal <= totalAllocation.needs + totalAllocation.wants) {
@@ -357,9 +425,10 @@ class BudgetPlannerAgent {
     }
 
     // Scale down proportionally, prioritizing essential categories
-    const scaleFactor = (totalAllocation.needs + totalAllocation.wants) / currentTotal;
-    
-    Object.keys(categoryBudgets).forEach(categoryId => {
+    const scaleFactor =
+      (totalAllocation.needs + totalAllocation.wants) / currentTotal;
+
+    Object.keys(categoryBudgets).forEach((categoryId) => {
       const budget = categoryBudgets[categoryId];
       if (budget.isEssential) {
         // Essential categories get minimal reduction
@@ -381,22 +450,28 @@ class BudgetPlannerAgent {
         highInterestDebt: 0,
         minimumPayments: 0,
         debtToIncomeRatio: 0,
-        recommendedStrategy: 'none'
+        recommendedStrategy: "none",
       };
     }
 
-    const totalDebt = debts.reduce((sum, debt) => sum + parseFloat(debt.amount), 0);
+    const totalDebt = debts.reduce(
+      (sum, debt) => sum + parseFloat(debt.amount),
+      0
+    );
     const highInterestDebt = debts
-      .filter(debt => parseFloat(debt.interest_rate) > 10)
+      .filter((debt) => parseFloat(debt.interest_rate) > 10)
       .reduce((sum, debt) => sum + parseFloat(debt.amount), 0);
-    
+
     const minimumPayments = debts.reduce((sum, debt) => {
-      return sum + (parseFloat(debt.amount) * 0.02); // Assume 2% minimum payment
+      return sum + parseFloat(debt.amount) * 0.02; // Assume 2% minimum payment
     }, 0);
 
-    let recommendedStrategy = 'avalanche'; // Pay highest interest first
-    if (debts.length > 5 || debts.some(debt => parseFloat(debt.amount) < 1000)) {
-      recommendedStrategy = 'snowball'; // Pay smallest debts first for psychological wins
+    let recommendedStrategy = "avalanche"; // Pay highest interest first
+    if (
+      debts.length > 5 ||
+      debts.some((debt) => parseFloat(debt.amount) < 1000)
+    ) {
+      recommendedStrategy = "snowball"; // Pay smallest debts first for psychological wins
     }
 
     return {
@@ -404,7 +479,7 @@ class BudgetPlannerAgent {
       highInterestDebt,
       minimumPayments,
       recommendedStrategy,
-      debtCount: debts.length
+      debtCount: debts.length,
     };
   }
 
@@ -415,34 +490,37 @@ class BudgetPlannerAgent {
     }
 
     let totalMonthlySavingsNeeded = 0;
-    const goalAnalysis = savingsGoals.map(goal => {
+    const goalAnalysis = savingsGoals.map((goal) => {
       const targetAmount = parseFloat(goal.target_amount);
       const currentAmount = parseFloat(goal.start_amount);
       const remainingAmount = targetAmount - currentAmount;
-      
+
       const endDate = new Date(goal.end_date);
       const now = new Date();
-      const monthsRemaining = Math.max(1, (endDate - now) / (1000 * 60 * 60 * 24 * 30));
-      
+      const monthsRemaining = Math.max(
+        1,
+        (endDate - now) / (1000 * 60 * 60 * 24 * 30)
+      );
+
       const monthlyRequired = remainingAmount / monthsRemaining;
       totalMonthlySavingsNeeded += monthlyRequired;
-      
+
       return {
         goalId: goal.id,
         description: goal.description,
         monthlyRequired,
-        feasible: monthlyRequired < monthlyIncome * 0.3
+        feasible: monthlyRequired < monthlyIncome * 0.3,
       };
     });
 
     // Adjust budget if savings goals are feasible
     const feasibleSavings = goalAnalysis
-      .filter(goal => goal.feasible)
+      .filter((goal) => goal.feasible)
       .reduce((sum, goal) => sum + goal.monthlyRequired, 0);
 
     if (feasibleSavings > 0) {
       basebudget.savingsAllocation = feasibleSavings;
-      basebudget.goalBreakdown = goalAnalysis.filter(goal => goal.feasible);
+      basebudget.goalBreakdown = goalAnalysis.filter((goal) => goal.feasible);
     }
 
     return basebudget;
@@ -450,35 +528,40 @@ class BudgetPlannerAgent {
 
   // Phase 5: LLM Integration
   async generateBudgetPlanResponse(financialSnapshot, budgetPlan, userContext) {
-    const prompt = this.createBudgetPlanPrompt(financialSnapshot, budgetPlan, userContext);
-    
+    const prompt = this.createBudgetPlanPrompt(
+      financialSnapshot,
+      budgetPlan,
+      userContext
+    );
+
     try {
       const result = await this.model.generateContent(prompt);
       const response = await result.response;
       const text = response.text();
-      
+
       return {
         conversationalResponse: text,
         budgetSummary: this.createBudgetSummary(budgetPlan),
         actionItems: this.generateActionItems(budgetPlan),
         insights: this.generateInsights(financialSnapshot, budgetPlan),
-        projections: this.generateProjections(budgetPlan, financialSnapshot)
+        projections: this.generateProjections(budgetPlan, financialSnapshot),
       };
     } catch (error) {
-      console.error('Error generating LLM response:', error);
+      console.error("Error generating LLM response:", error);
       return {
         conversationalResponse: this.generateFallbackResponse(budgetPlan),
         budgetSummary: this.createBudgetSummary(budgetPlan),
         actionItems: this.generateActionItems(budgetPlan),
         insights: [],
-        projections: null
+        projections: null,
       };
     }
   }
 
   createBudgetPlanPrompt(financialSnapshot, budgetPlan, userContext) {
-    const { incomeAnalysis, spendingAnalysis, debtAnalysis } = financialSnapshot;
-    
+    const { incomeAnalysis, spendingAnalysis, debtAnalysis } =
+      financialSnapshot;
+
     return `You are a certified financial advisor helping create a personalized budget plan.
 
 ## Instructions
@@ -500,8 +583,13 @@ class BudgetPlannerAgent {
 ${this.formatBudgetForPrompt(budgetPlan)}
 
 ## Spending Insights
-- **Top spending categories:** ${this.getTopSpendingCategories(spendingAnalysis, 3)}
-- **Volatile spending areas:** ${spendingAnalysis.volatileCategories.length} categories
+- **Top spending categories:** ${this.getTopSpendingCategories(
+      spendingAnalysis,
+      3
+    )}
+- **Volatile spending areas:** ${
+      spendingAnalysis.volatileCategories.length
+    } categories
 - **Income trend:** ${incomeAnalysis.trend}
 
 ---
@@ -528,10 +616,6 @@ Start with a greeting and encouragement. Explain in 2-3 sentences, using a conve
 - Step 1
 - Step 2
 
-## Potential Challenges
-- Challenge 1
-- Challenge 2
-
 ---
 
 Focus on practical advice and be specific about amounts and categories. Format your response using Markdown for clarity.`;
@@ -539,20 +623,24 @@ Focus on practical advice and be specific about amounts and categories. Format y
 
   formatBudgetForPrompt(budgetPlan) {
     let formatted = `Framework: ${budgetPlan.framework}\n`;
-    
+
     if (budgetPlan.needs) {
       formatted += `- Needs (essentials): $${budgetPlan.needs.toFixed(2)}\n`;
       formatted += `- Wants (discretionary): $${budgetPlan.wants.toFixed(2)}\n`;
-      formatted += `- Savings & Debt: $${budgetPlan.savingsAndDebt.toFixed(2)}\n`;
+      formatted += `- Savings & Debt: $${budgetPlan.savingsAndDebt.toFixed(
+        2
+      )}\n`;
     }
-    
+
     if (budgetPlan.categoryBudgets) {
       formatted += `\nCategory Allocations:\n`;
-      Object.values(budgetPlan.categoryBudgets).forEach(category => {
-        formatted += `- ${category.name}: $${category.budgetAmount.toFixed(2)}\n`;
+      Object.values(budgetPlan.categoryBudgets).forEach((category) => {
+        formatted += `- ${category.name}: $${category.budgetAmount.toFixed(
+          2
+        )}\n`;
       });
     }
-    
+
     return formatted;
   }
 
@@ -560,13 +648,19 @@ Focus on practical advice and be specific about amounts and categories. Format y
     return Object.values(spendingAnalysis.categoryBreakdown)
       .sort((a, b) => b.averageMonthly - a.averageMonthly)
       .slice(0, count)
-      .map(category => `${category.name} ($${category.averageMonthly.toFixed(0)})`)
-      .join(', ');
+      .map(
+        (category) =>
+          `${category.name} ($${category.averageMonthly.toFixed(0)})`
+      )
+      .join(", ");
   }
 
   // Generate fallback response if LLM fails
   generateFallbackResponse(budgetPlan) {
-    return `I've created a personalized budget plan for you using the ${budgetPlan.framework.replace('_', ' ')} approach. 
+    return `I've created a personalized budget plan for you using the ${budgetPlan.framework.replace(
+      "_",
+      " "
+    )} approach. 
 
 Based on your income and spending patterns, I recommend allocating your money across essential needs, discretionary wants, and savings/debt payments. This framework will help you maintain financial stability while working toward your goals.
 
@@ -580,13 +674,17 @@ Key next steps: Review each category allocation, adjust amounts that feel unreal
     return {
       framework: budgetPlan.framework,
       totalMonthlyBudget: this.calculateTotalBudget(budgetPlan),
-      allocationBreakdown: budgetPlan.needs ? {
-        needs: budgetPlan.needs,
-        wants: budgetPlan.wants,
-        savingsAndDebt: budgetPlan.savingsAndDebt
-      } : null,
-      categoryCount: budgetPlan.categoryBudgets ? Object.keys(budgetPlan.categoryBudgets).length : 0,
-      createdAt: new Date().toISOString()
+      allocationBreakdown: budgetPlan.needs
+        ? {
+            needs: budgetPlan.needs,
+            wants: budgetPlan.wants,
+            savingsAndDebt: budgetPlan.savingsAndDebt,
+          }
+        : null,
+      categoryCount: budgetPlan.categoryBudgets
+        ? Object.keys(budgetPlan.categoryBudgets).length
+        : 0,
+      createdAt: new Date().toISOString(),
     };
   }
 
@@ -594,12 +692,14 @@ Key next steps: Review each category allocation, adjust amounts that feel unreal
     if (budgetPlan.needs) {
       return budgetPlan.needs + budgetPlan.wants + budgetPlan.savingsAndDebt;
     }
-    
+
     if (budgetPlan.categoryBudgets) {
-      return Object.values(budgetPlan.categoryBudgets)
-        .reduce((sum, category) => sum + category.budgetAmount, 0);
+      return Object.values(budgetPlan.categoryBudgets).reduce(
+        (sum, category) => sum + category.budgetAmount,
+        0
+      );
     }
-    
+
     return 0;
   }
 
@@ -609,26 +709,29 @@ Key next steps: Review each category allocation, adjust amounts that feel unreal
       {
         id: 1,
         title: "Review Category Allocations",
-        description: "Go through each budget category and adjust amounts that feel unrealistic",
+        description:
+          "Go through each budget category and adjust amounts that feel unrealistic",
         priority: "high",
-        estimatedTime: "15 minutes"
+        estimatedTime: "15 minutes",
       },
       {
         id: 2,
         title: "Set Up Budget Tracking",
-        description: "Start tracking your daily expenses against these budget limits",
+        description:
+          "Start tracking your daily expenses against these budget limits",
         priority: "high",
-        estimatedTime: "10 minutes"
-      }
+        estimatedTime: "10 minutes",
+      },
     ];
 
-    if (budgetPlan.framework === 'DEBT_AVALANCHE_BUDGET') {
+    if (budgetPlan.framework === "DEBT_AVALANCHE_BUDGET") {
       actions.push({
         id: 3,
         title: "Focus on High-Interest Debt",
-        description: "Prioritize paying off your highest interest rate debt first",
+        description:
+          "Prioritize paying off your highest interest rate debt first",
         priority: "high",
-        estimatedTime: "5 minutes"
+        estimatedTime: "5 minutes",
       });
     }
 
@@ -636,9 +739,11 @@ Key next steps: Review each category allocation, adjust amounts that feel unreal
       actions.push({
         id: 4,
         title: "Automate Savings Transfers",
-        description: `Set up automatic transfer of $${budgetPlan.savingsAllocation.toFixed(2)} to savings`,
+        description: `Set up automatic transfer of $${budgetPlan.savingsAllocation.toFixed(
+          2
+        )} to savings`,
         priority: "medium",
-        estimatedTime: "10 minutes"
+        estimatedTime: "10 minutes",
       });
     }
 
@@ -655,19 +760,25 @@ Key next steps: Review each category allocation, adjust amounts that feel unreal
       insights.push({
         type: "warning",
         title: "Variable Income Detected",
-        message: "Your income varies significantly month to month. Consider building a larger emergency fund."
+        message:
+          "Your income varies significantly month to month. Consider building a larger emergency fund.",
       });
     }
 
     // High spending category insight
-    const topCategory = Object.values(spendingAnalysis.categoryBreakdown)
-      .sort((a, b) => b.percentage - a.percentage)[0];
-    
+    const topCategory = Object.values(spendingAnalysis.categoryBreakdown).sort(
+      (a, b) => b.percentage - a.percentage
+    )[0];
+
     if (topCategory && topCategory.percentage > 40) {
       insights.push({
         type: "info",
         title: `High ${topCategory.name} Spending`,
-        message: `${topCategory.name} represents ${topCategory.percentage.toFixed(1)}% of your spending. Consider if this aligns with your priorities.`
+        message: `${
+          topCategory.name
+        } represents ${topCategory.percentage.toFixed(
+          1
+        )}% of your spending. Consider if this aligns with your priorities.`,
       });
     }
 
@@ -676,7 +787,7 @@ Key next steps: Review each category allocation, adjust amounts that feel unreal
       insights.push({
         type: "tip",
         title: "Inconsistent Spending Patterns",
-        message: `You have irregular spending in ${spendingAnalysis.volatileCategories.length} categories. Try setting aside a fixed amount each month.`
+        message: `You have irregular spending in ${spendingAnalysis.volatileCategories.length} categories. Try setting aside a fixed amount each month.`,
       });
     }
 
@@ -693,23 +804,26 @@ Key next steps: Review each category allocation, adjust amounts that feel unreal
       monthlySurplus: surplus,
       yearlyProjection: surplus * 12,
       budgetUtilization: (totalBudget / currentIncome) * 100,
-      emergencyFundTimeline: surplus > 0 ? Math.ceil((currentIncome * 3) / surplus) : null
+      emergencyFundTimeline:
+        surplus > 0 ? Math.ceil((currentIncome * 3) / surplus) : null,
     };
   }
 
   // Phase 6: Main orchestration method
-  async createBudgetPlan(userId, userMessage = '', conversationContext = {}) {
+  async createBudgetPlan(userId, userMessage = "", conversationContext = {}) {
     try {
       console.log(`Creating budget plan for user: ${userId}`);
 
       // Step 1: Gather financial data
       const financialSnapshot = await this.gatherFinancialSnapshot(userId);
-      console.log('Financial snapshot gathered');
+      console.log("Financial snapshot gathered");
 
       // Step 2: Analyze data
-      const incomeAnalysis = this.analyzeIncomePatterns(financialSnapshot.transactions);
+      const incomeAnalysis = this.analyzeIncomePatterns(
+        financialSnapshot.transactions
+      );
       const spendingAnalysis = this.analyzeSpendingPatterns(
-        financialSnapshot.transactions, 
+        financialSnapshot.transactions,
         financialSnapshot.categories
       );
       const debtAnalysis = this.analyzeDebtSituation(financialSnapshot.debts);
@@ -719,24 +833,26 @@ Key next steps: Review each category allocation, adjust amounts that feel unreal
       financialSnapshot.spendingAnalysis = spendingAnalysis;
       financialSnapshot.debtAnalysis = debtAnalysis;
 
-      console.log('Financial analysis completed');
+      console.log("Financial analysis completed");
 
       // Step 3: Select budget framework
       const framework = this.selectBudgetFramework(
-        incomeAnalysis, 
-        debtAnalysis, 
+        incomeAnalysis,
+        debtAnalysis,
         financialSnapshot.savings
       );
       console.log(`Selected framework: ${framework}`);
 
       // Step 4: Calculate budget
       let budgetPlan = {};
-      
+
       switch (framework) {
-        case '50_30_20_RULE':
-          budgetPlan = this.calculate50_30_20Budget(incomeAnalysis.averageMonthlyIncome);
+        case "50_30_20_RULE":
+          budgetPlan = this.calculate50_30_20Budget(
+            incomeAnalysis.averageMonthlyIncome
+          );
           break;
-        case 'DEBT_AVALANCHE_BUDGET':
+        case "DEBT_AVALANCHE_BUDGET":
           budgetPlan = this.calculateDebtAvalancheBudget(
             incomeAnalysis.averageMonthlyIncome,
             financialSnapshot.debts,
@@ -744,7 +860,9 @@ Key next steps: Review each category allocation, adjust amounts that feel unreal
           );
           break;
         default:
-          budgetPlan = this.calculate50_30_20Budget(incomeAnalysis.averageMonthlyIncome);
+          budgetPlan = this.calculate50_30_20Budget(
+            incomeAnalysis.averageMonthlyIncome
+          );
       }
 
       // Step 5: Distribute to categories
@@ -763,7 +881,7 @@ Key next steps: Review each category allocation, adjust amounts that feel unreal
         incomeAnalysis.averageMonthlyIncome
       );
 
-      console.log('Budget calculations completed');
+      console.log("Budget calculations completed");
 
       // Step 7: Generate LLM response
       const response = await this.generateBudgetPlanResponse(
@@ -772,31 +890,91 @@ Key next steps: Review each category allocation, adjust amounts that feel unreal
         conversationContext
       );
 
-      console.log('LLM response generated');
+      console.log("LLM response generated");
 
       // Step 8: Store in memory/database
-      await this.storeBudgetPlan(userId, budgetPlan, financialSnapshot, response);
+      await this.storeBudgetPlan(
+        userId,
+        budgetPlan,
+        financialSnapshot,
+        response
+      );
 
       return {
         success: true,
         ...response,
         budgetPlan,
+        graphData: this.generateBudgetGraphData(
+          budgetPlan,
+          financialSnapshot,
+          incomeAnalysis,
+          spendingAnalysis
+        ),
         financialSnapshot: {
           income: incomeAnalysis.averageMonthlyIncome,
           spending: spendingAnalysis.totalMonthlySpending,
           debt: debtAnalysis.totalDebt,
-          framework
-        }
+          framework,
+        },
       };
-
     } catch (error) {
-      console.error('Error creating budget plan:', error);
+      console.error("Error creating budget plan:", error);
       return {
         success: false,
         error: error.message,
-        conversationalResponse: "I apologize, but I encountered an issue creating your budget plan. Please try again or contact support if the problem persists."
+        conversationalResponse:
+          "I apologize, but I encountered an issue creating your budget plan. Please try again or contact support if the problem persists.",
       };
     }
+  }
+
+  // Generate graph data for budget plans
+  generateBudgetGraphData(
+    budgetPlan,
+    financialSnapshot,
+    incomeAnalysis,
+    spendingAnalysis
+  ) {
+    return {
+      type: "budget",
+      charts: [
+        {
+          title: "Budget Allocation",
+          type: "doughnut",
+          data: [
+            { label: "Needs", value: budgetPlan.needs || 0 },
+            { label: "Wants", value: budgetPlan.wants || 0 },
+            { label: "Savings & Debt", value: budgetPlan.savingsAndDebt || 0 },
+          ],
+        },
+        {
+          title: "Budget vs Current Spending",
+          type: "bar",
+          data: Object.values(spendingAnalysis.categoryBreakdown || {}).map(
+            (cat) => ({
+              category: cat.name,
+              budgeted: budgetPlan.categoryBudgets?.[cat.id]?.budgetAmount || 0,
+              actual: cat.averageMonthly,
+            })
+          ),
+        },
+      ],
+      summary: {
+        totalBudget: this.calculateTotalBudget(budgetPlan),
+        framework: budgetPlan.framework,
+        needsPercentage: budgetPlan.needs
+          ? (budgetPlan.needs / this.calculateTotalBudget(budgetPlan)) * 100
+          : 0,
+        wantsPercentage: budgetPlan.wants
+          ? (budgetPlan.wants / this.calculateTotalBudget(budgetPlan)) * 100
+          : 0,
+        savingsPercentage: budgetPlan.savingsAndDebt
+          ? (budgetPlan.savingsAndDebt /
+              this.calculateTotalBudget(budgetPlan)) *
+            100
+          : 0,
+      },
+    };
   }
 
   // Store budget plan in database
@@ -808,15 +986,15 @@ Key next steps: Review each category allocation, adjust amounts that feel unreal
         input_text: "Budget planning request",
         interpreted_action: `budget_plan_${budgetPlan.framework}`,
         response: response.conversationalResponse,
-        response_type: 'suggestion'
+        response_type: "suggestion",
       });
 
-      console.log('Budget plan stored in chat history');
+      console.log("Budget plan stored in chat history");
     } catch (error) {
-      console.error('Error storing budget plan:', error);
+      console.error("Error storing budget plan:", error);
       // Don't throw error as this is not critical to the main flow
     }
   }
 }
 
-module.exports = BudgetPlannerAgent; 
+module.exports = BudgetPlannerAgent;
