@@ -1210,7 +1210,7 @@
 										</div>
 									</div>
 
-									<div
+									<!-- <div
 										class="flex items-center space-x-2 rounded-lg border border-gray-600 bg-gray-700/50 p-3"
 									>
 										<Checkbox
@@ -1225,7 +1225,7 @@
 											<Icon icon="lucide:repeat" class="h-4 w-4 text-blue-400" />
 											Recurring Transaction (Optional)
 										</Label>
-									</div>
+									</div> -->
 
 									<!-- Recurring Transaction Details (Conditional) -->
 									{#if formIsRecurrent}
