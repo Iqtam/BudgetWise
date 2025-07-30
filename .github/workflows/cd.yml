@@ -5,6 +5,7 @@ on:
     branches:
       - deployment
       - main # Optional: Enable deployment from main branch
+      - front-back-testing
   workflow_dispatch:
 
 jobs:
@@ -17,7 +18,7 @@ jobs:
         uses: lewagon/wait-on-check-action@v1.3.1
         with:
           ref: ${{ github.ref }}
-          check-regexp: "(test-backend|test-frontend|docker-build|security-scan).*"
+          check-regexp: "(backend-tests|frontend-tests|docker-build).*"
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           wait-interval: 30 # Check every 30 seconds
           running-workflow-name: "Deploy to Production" # Exclude self
@@ -49,8 +50,8 @@ jobs:
         run: |
           ssh ${{ secrets.AZURE_VM_USER }}@${{ secrets.AZURE_VM_HOST }} << 'EOF'
             cd ~/BudgetWise
-            git checkout main
-            git pull origin main
+            git checkout front-back-testing
+            git pull origin front-back-testing
             
             # Build and deploy with docker-compose
             docker compose -f docker-compose.deploy.yml down || true
