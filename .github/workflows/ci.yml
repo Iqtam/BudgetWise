@@ -2,7 +2,7 @@ name: CI Pipeline
 
 on:
   push:
-    branches: [main, develop, new-frontend-test]
+    branches: [main, develop, new-frontend-test, front-back-testing]
   pull_request:
     branches: [main, develop]
 

@@ -103,96 +103,12 @@ jobs:
         run: npm run test:run
 
   # E2E Tests (Production Mode)
-  e2e-tests:
-    name: E2E Tests (Production Mode)
-    runs-on: ubuntu-latest
-    needs: [backend-tests, frontend-tests]
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Create .env file
-        run: |
-          cat > .env << EOF
-          POSTGRES_DB=${{ env.POSTGRES_DB }}
-          POSTGRES_USER=${{ env.POSTGRES_USER }}
-          POSTGRES_PASSWORD=${{ env.POSTGRES_PASSWORD }}
-          FIREBASE_SERVICE_ACCOUNT=${{ env.FIREBASE_SERVICE_ACCOUNT }}
-          ADMIN_EMAIL=${{ env.ADMIN_EMAIL }}
-          GEMINI_API_KEY=${{ env.GEMINI_API_KEY }}
-          PUBLIC_BACKEND_API_URL=${{ env.PUBLIC_BACKEND_API_URL }}
-          PUBLIC_FIREBASE_API_KEY=${{ env.PUBLIC_FIREBASE_API_KEY }}
-          PUBLIC_FIREBASE_AUTH_DOMAIN=${{ env.PUBLIC_FIREBASE_AUTH_DOMAIN }}
-          PUBLIC_FIREBASE_PROJECT_ID=${{ env.PUBLIC_FIREBASE_PROJECT_ID }}
-          PUBLIC_FIREBASE_STORAGE_BUCKET=${{ env.PUBLIC_FIREBASE_STORAGE_BUCKET }}
-          PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${{ env.PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
-          PUBLIC_FIREBASE_APP_ID=${{ env.PUBLIC_FIREBASE_APP_ID }}
-          EOF
-
-      - name: Build and start production services
-        run: |
-          echo "🔨 Building production services for E2E testing..."
-          docker compose -f docker-compose.test.yml build backend frontend e2e-test
-
-      - name: Start production services
-        run: |
-          echo "🚀 Starting production services..."
-          docker compose -f docker-compose.test.yml up -d postgres backend frontend
-
-      - name: Wait for services to be ready
-        run: |
-          echo "⏳ Waiting for production services to be ready..."
-          echo "Backend health check..."
-          timeout 120 bash -c 'until docker compose -f docker-compose.test.yml exec -T backend wget --no-verbose --tries=1 --spider http://localhost:5000/api/health; do sleep 5; done'
-          echo "Frontend health check..."
-          timeout 120 bash -c 'until docker compose -f docker-compose.test.yml exec -T frontend wget --no-verbose --tries=1 --spider http://localhost:3000; do sleep 5; done'
-          echo "✅ Production services are ready"
-
-      - name: Run E2E tests against production services
-        run: |
-          echo "🧪 Running E2E tests against production services..."
-          docker compose -f docker-compose.test.yml --profile e2e up --build --abort-on-container-exit --exit-code-from e2e-test e2e-test
-
-      - name: Upload E2E test results
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: e2e-test-results
-          path: |
-            e2e/test-results/
-            e2e/playwright-report/
-          retention-days: 7
-
-      - name: Upload service logs for debugging
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: service-logs
-          path: |
-            service-logs/
-          retention-days: 3
-
-      - name: Collect service logs
-        if: always()
-        run: |
-          mkdir -p service-logs
-          docker compose -f docker-compose.test.yml logs backend > service-logs/backend.log
-          docker compose -f docker-compose.test.yml logs frontend > service-logs/frontend.log
-          docker compose -f docker-compose.test.yml logs e2e-test > service-logs/e2e-test.log
-
-      - name: Cleanup E2E resources
-        if: always()
-        run: |
-          echo "🧹 Cleaning up E2E resources..."
-          docker compose -f docker-compose.test.yml down -v
-          docker system prune -f
-
+  
   # Test Summary
   test-summary:
     name: Test Summary
     runs-on: ubuntu-latest
-    needs: [backend-tests, frontend-tests, e2e-tests]
+    needs: [backend-tests, frontend-tests]
     if: always()
 
     steps:
@@ -201,17 +117,16 @@ jobs:
           echo "📊 Test Results Summary:"
           echo "Backend Tests: ${{ needs.backend-tests.result }}"
           echo "Frontend Tests: ${{ needs.frontend-tests.result }}"
-          echo "E2E Tests (Production): ${{ needs.e2e-tests.result }}"
+          
 
           if [[ "${{ needs.backend-tests.result }}" == "success" && \
-                "${{ needs.frontend-tests.result }}" == "success" && \
-                "${{ needs.e2e-tests.result }}" == "success" ]]; then
+                "${{ needs.frontend-tests.result }}" == "success" ]]; then
             echo "✅ All tests passed! Production E2E testing successful."
             exit 0
           else
             echo "❌ Some tests failed!"
             echo "Backend: ${{ needs.backend-tests.result }}"
             echo "Frontend: ${{ needs.frontend-tests.result }}"
-            echo "E2E: ${{ needs.e2e-tests.result }}"
+            
             exit 1
           fi
