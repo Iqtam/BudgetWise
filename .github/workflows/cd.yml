@@ -50,8 +50,8 @@ jobs:
         run: |
           ssh ${{ secrets.AZURE_VM_USER }}@${{ secrets.AZURE_VM_HOST }} << 'EOF'
             cd ~/BudgetWise
-            git checkout front-back-testing
-            git pull origin front-back-testing
+            git checkout main
+            git pull origin main
             
             # Build and deploy with docker-compose
             docker compose -f docker-compose.deploy.yml down || true
