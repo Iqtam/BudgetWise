@@ -1,36 +1,18 @@
 name: Deploy to Production
 
 on:
-  push:
-    branches:
-      - deployment
-      - main # Optional: Enable deployment from main branch
-      - front-back-testing
-  workflow_dispatch:
+  workflow_run:
+    workflows: ["Test Suite"]
+    types:
+      - completed
 
 jobs:
   # Wait for CI to complete before deploying (only when triggered from main branch)
-  wait-for-ci:
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' # Only run when pushing to main
-    steps:
-      - name: Wait for CI jobs to complete
-        uses: lewagon/wait-on-check-action@v1.3.1
-        with:
-          ref: ${{ github.ref }}
-          check-regexp: "(backend-tests|frontend-tests|docker-build).*"
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-          wait-interval: 30 # Check every 30 seconds
-          running-workflow-name: "Deploy to Production" # Exclude self
-          allowed-conclusions: success # Only proceed if all checks pass
-
-      - name: CI jobs completed
-        run: echo "✅ All CI jobs have completed successfully! Proceeding with deployment..."
-
+  
   deploy:
-    needs: wait-for-ci
-    if: always() && (needs.wait-for-ci.result == 'success' || needs.wait-for-ci.result == 'skipped')
+    name: Deploy to Azure VM
     runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
     steps:
       - name: Checkout code
